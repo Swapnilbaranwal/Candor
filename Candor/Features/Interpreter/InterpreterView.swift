@@ -1,0 +1,213 @@
+import SwiftUI
+
+/// Phrasebook with audio plus Gemini-powered free translation.
+struct InterpreterView: View {
+    @Environment(AppState.self) private var app
+    @State private var category = "Prices"
+    @State private var showing: Phrase?
+    @State private var input = ""
+    @State private var toHindi = true
+    @State private var translation: String?
+    @State private var roman: String?
+    @State private var isTranslating = false
+    @State private var error: String?
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                translateCard
+                SectionHeader(title: "Phrasebook", subtitle: "Tap to hear it, or show it full screen")
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(DelhiData.phraseCategories, id: \.self) { item in
+                            GlassChip(title: item, isSelected: category == item, tint: Theme.indigo) {
+                                withAnimation(.snappy) { category = item }
+                            }
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+                .scrollClipDisabled()
+                VStack(spacing: 10) {
+                    ForEach(DelhiData.phrases.filter { $0.category == category }) { phrase in
+                        phraseRow(phrase)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 30)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(LiquidBackground())
+        .navigationTitle("Interpreter")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $showing) { phrase in
+            ShowPhraseSheet(phrase: phrase)
+                .presentationDetents([.large])
+        }
+    }
+
+    private var translateCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(toHindi ? app.persona.languageName : "Hindi").font(.subheadline.weight(.semibold))
+                Spacer()
+                Button {
+                    withAnimation(.snappy) { toHindi.toggle(); translation = nil; roman = nil }
+                } label: {
+                    Image(systemName: "arrow.left.arrow.right")
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                Spacer()
+                Text(toHindi ? "Hindi" : app.persona.languageName).font(.subheadline.weight(.semibold))
+            }
+
+            TextField(toHindi ? "Type what you want to say…" : "Type the Hindi or Hinglish you heard…", text: $input, axis: .vertical)
+                .lineLimit(2...5)
+                .focused($focused)
+                .padding(14)
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
+
+            Button {
+                Task { await translate() }
+            } label: {
+                HStack {
+                    if isTranslating { ProgressView().tint(.white) } else { Image(systemName: "sparkles") }
+                    Text("Translate")
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 30)
+            }
+            .buttonStyle(.glassProminent)
+            .tint(Theme.indigo)
+            .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty || isTranslating || !app.hasGemini)
+
+            if !app.hasGemini {
+                Label("Free translation needs a Gemini key (Me → AI settings). The phrasebook below works offline.", systemImage: "key.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if let error {
+                Text(error).font(.caption).foregroundStyle(Theme.rose)
+            }
+            if let translation {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(translation).font(.title3.weight(.semibold)).textSelection(.enabled)
+                    if let roman { Text(roman).font(.subheadline).foregroundStyle(.secondary) }
+                    HStack {
+                        Button {
+                            Speaker.shared.speak(translation, language: toHindi ? "hi-IN" : app.persona.languageCode)
+                        } label: {
+                            Label("Speak", systemImage: "speaker.wave.2.fill")
+                        }
+                        .buttonStyle(.glass)
+                        if toHindi {
+                            Button {
+                                showing = Phrase(english: input, hindi: translation, roman: roman ?? "", category: "Custom")
+                            } label: {
+                                Label("Show", systemImage: "rectangle.expand.vertical")
+                            }
+                            .buttonStyle(.glass)
+                        }
+                    }
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glassEffect(.regular.tint(Theme.indigo.opacity(0.15)), in: .rect(cornerRadius: 20))
+            }
+        }
+        .glassCard()
+    }
+
+    private func phraseRow(_ phrase: Phrase) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(phrase.english).font(.caption).foregroundStyle(.secondary)
+                Text(phrase.roman).font(.headline)
+                Text(phrase.hindi).font(.subheadline)
+            }
+            Spacer()
+            Button {
+                Speaker.shared.speak(phrase.hindi)
+            } label: {
+                Image(systemName: "speaker.wave.2.fill")
+            }
+            .buttonStyle(.glass)
+            .buttonBorderShape(.circle)
+            Button {
+                showing = phrase
+            } label: {
+                Image(systemName: "rectangle.expand.vertical")
+            }
+            .buttonStyle(.glass)
+            .buttonBorderShape(.circle)
+        }
+        .glassCard(cornerRadius: 22, padding: 14)
+    }
+
+    private func translate() async {
+        focused = false
+        error = nil
+        isTranslating = true
+        defer { isTranslating = false }
+        do {
+            let client = GeminiClient(apiKey: app.geminiKey, model: app.geminiModel)
+            let output = try await client.translate(input, toHindi: toHindi, userLanguage: app.persona.englishLanguageName)
+            withAnimation(.smooth) {
+                translation = output.text
+                roman = output.roman
+            }
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
+
+/// Big, high-contrast card to show a driver or shopkeeper.
+struct ShowPhraseSheet: View {
+    let phrase: Phrase
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack {
+            LiquidBackground()
+            VStack(spacing: 24) {
+                Spacer()
+                Text(phrase.hindi)
+                    .font(.system(size: 54, weight: .bold))
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.4)
+                if !phrase.roman.isEmpty {
+                    Text(phrase.roman)
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                Text(phrase.english)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                GlassEffectContainer(spacing: 12) {
+                    HStack(spacing: 12) {
+                        Button {
+                            Speaker.shared.speak(phrase.hindi)
+                        } label: {
+                            Label("Speak", systemImage: "speaker.wave.2.fill").frame(maxWidth: .infinity).frame(height: 30)
+                        }
+                        .buttonStyle(.glassProminent)
+                        .tint(Theme.indigo)
+                        Button {
+                            dismiss()
+                        } label: {
+                            Label("Close", systemImage: "xmark").frame(maxWidth: .infinity).frame(height: 30)
+                        }
+                        .buttonStyle(.glass)
+                    }
+                }
+            }
+            .padding(28)
+        }
+    }
+}

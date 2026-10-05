@@ -1,0 +1,9 @@
+# Xcode
+xcuserdata/
+DerivedData/
+*.xcuserstate
+build/
+.DS_Store
+
+# Local API keys
+Candor/Config/Secrets.swift

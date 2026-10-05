@@ -1,0 +1,316 @@
+import SwiftUI
+
+// MARK: - Scam radar
+
+struct ScamRadarView: View {
+    @Binding var tab: AppTab
+    @Environment(CandorAgent.self) private var agent
+    @State private var expanded: String?
+    @State private var situation = ""
+    @State private var steps: [AgentStep] = []
+    @State private var answer: String?
+    @State private var isRunning = false
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                checkCard
+                SectionHeader(title: "Known patterns in Delhi", subtitle: "Most people are honest. These are the few tricks worth knowing.")
+                VStack(spacing: 10) {
+                    ForEach(DelhiData.scams) { scam in
+                        scamCard(scam)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 30)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(LiquidBackground())
+        .navigationTitle("Scam radar")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var checkCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Something feels off?", systemImage: "shield.lefthalf.filled")
+                .font(.headline)
+            TextField("Describe what's happening, e.g. \"the driver says my hotel is closed\"", text: $situation, axis: .vertical)
+                .lineLimit(2...4)
+                .focused($focused)
+                .padding(14)
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
+            Button {
+                Task { await check() }
+            } label: {
+                HStack {
+                    if isRunning { ProgressView().tint(.white) } else { Image(systemName: "sparkles") }
+                    Text("Check with Candor")
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 30)
+            }
+            .buttonStyle(.glassProminent)
+            .tint(Theme.rose)
+            .disabled(situation.trimmingCharacters(in: .whitespaces).isEmpty || isRunning)
+
+            if !steps.isEmpty {
+                AgentTrailView(steps: steps, isWorking: isRunning)
+            }
+            if let answer {
+                MarkdownText(text: answer)
+                    .padding(14)
+                    .glassEffect(.regular.tint(Theme.rose.opacity(0.12)), in: .rect(cornerRadius: 20))
+            }
+        }
+        .glassCard()
+    }
+
+    private func scamCard(_ scam: Scam) -> some View {
+        let isOpen = expanded == scam.id
+        return VStack(alignment: .leading, spacing: 12) {
+            Button {
+                withAnimation(.snappy) { expanded = isOpen ? nil : scam.id }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: scam.icon)
+                        .foregroundStyle(.white)
+                        .frame(width: 40, height: 40)
+                        .glassEffect(.regular.tint(Theme.rose), in: .rect(cornerRadius: 12))
+                    Text(scam.title).font(.headline).foregroundStyle(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .rotationEffect(.degrees(isOpen ? 180 : 0))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+
+            if isOpen {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(scam.howItWorks).font(.subheadline)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Red flags").font(.caption.weight(.bold)).foregroundStyle(Theme.rose)
+                        ForEach(scam.redFlags, id: \.self) { flag in
+                            Label(flag, systemImage: "flag.fill").font(.caption)
+                        }
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("What to do").font(.caption.weight(.bold)).foregroundStyle(Theme.mint)
+                        Text(scam.whatToDo).font(.subheadline)
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .glassCard(cornerRadius: 24, padding: 14)
+    }
+
+    private func check() async {
+        focused = false
+        steps = []
+        answer = nil
+        isRunning = true
+        let result = await agent.run(prompt: "Is this a scam, and what should I do? \(situation)") { step in
+            withAnimation(.snappy) { upsertStep(step, in: &steps) }
+        }
+        withAnimation(.smooth) {
+            answer = result.text
+            isRunning = false
+        }
+    }
+}
+
+// MARK: - Converter
+
+struct ConverterView: View {
+    @Environment(AppState.self) private var app
+    @State private var amountText = "500"
+    @State private var fromINR = true
+    @FocusState private var focused: Bool
+
+    private var code: String { app.persona.homeCurrency }
+    private var amount: Double { Double(amountText) ?? 0 }
+
+    private var resultText: String {
+        if fromINR {
+            return app.homeAmount(amount)
+        }
+        return inr(app.currency.toINR(amount, from: code) ?? 0)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                VStack(spacing: 18) {
+                    HStack {
+                        Text(fromINR ? "🇮🇳 INR" : "\(CurrencyOption.option(code)?.flag ?? "") \(code)")
+                            .font(.headline)
+                        Spacer()
+                        Button {
+                            withAnimation(.snappy) { fromINR.toggle() }
+                        } label: {
+                            Image(systemName: "arrow.up.arrow.down")
+                        }
+                        .buttonStyle(.glass)
+                        .buttonBorderShape(.circle)
+                        Spacer()
+                        Text(fromINR ? "\(CurrencyOption.option(code)?.flag ?? "") \(code)" : "🇮🇳 INR")
+                            .font(.headline)
+                    }
+                    TextField("Amount", text: $amountText)
+                        .keyboardType(.decimalPad)
+                        .focused($focused)
+                        .font(.system(size: 44, weight: .bold, design: .rounded).monospacedDigit())
+                        .multilineTextAlignment(.center)
+                    Image(systemName: "equal").foregroundStyle(.secondary)
+                    Text(resultText)
+                        .font(.system(size: 40, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Theme.brandGradient)
+                        .contentTransition(.numericText())
+                        .animation(.snappy, value: resultText)
+                    Text(app.currency.isLive
+                         ? "ECB reference rate · updated \(app.currency.lastUpdated?.formatted(date: .omitted, time: .shortened) ?? "")"
+                         : "Indicative rate. Connect to the internet for today's rate.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .glassCard(cornerRadius: 32, padding: 22)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Quick reference").font(.headline)
+                    ForEach([20.0, 100, 500, 1000, 2000, 5000], id: \.self) { value in
+                        HStack {
+                            Text(inr(value)).font(.subheadline.weight(.semibold).monospacedDigit())
+                            Spacer()
+                            Text(app.homeAmount(value)).font(.subheadline.monospacedDigit()).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .glassCard()
+
+                Button {
+                    Task { await app.currency.refresh() }
+                } label: {
+                    Label("Refresh rates", systemImage: "arrow.clockwise").frame(maxWidth: .infinity).frame(height: 30)
+                }
+                .buttonStyle(.glass)
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 30)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(LiquidBackground())
+        .navigationTitle("Converter")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Emergency
+
+struct EmergencyView: View {
+    @Environment(LocationService.self) private var location
+
+    private var mapsURL: URL? {
+        let c = location.location?.coordinate ?? location.origin
+        return URL(string: "https://maps.apple.com/?ll=\(c.latitude),\(c.longitude)")
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 14) {
+                callCard(title: "Emergency (police, fire, ambulance)", number: DelhiData.emergencyNumber,
+                         display: DelhiData.emergencyNumber, icon: "sos", tint: .red)
+                callCard(title: "Incredible India tourist helpline (24×7, multilingual)", number: DelhiData.tourismHelpline,
+                         display: DelhiData.tourismHelplineDisplay, icon: "phone.bubble.fill", tint: Theme.indigo)
+
+                if let mapsURL {
+                    ShareLink(item: mapsURL, message: Text("I'm here. Candor shared my location.")) {
+                        Label("Share my location", systemImage: "location.fill.viewfinder")
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 30)
+                    }
+                    .buttonStyle(.glassProminent)
+                    .tint(Theme.teal)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Quick tips", systemImage: "lightbulb.fill").font(.headline)
+                    Text("• Move to a busy, official place: station counter, hotel lobby or police booth.")
+                    Text("• Never hand over your passport or cards under pressure.")
+                    Text("• Keep a photo of your passport and visa on your phone.")
+                }
+                .font(.subheadline)
+                .glassCard()
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 30)
+        }
+        .background(LiquidBackground())
+        .navigationTitle("Emergency")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func callCard(title: String, number: String, display: String, icon: String, tint: Color) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(.white)
+                .frame(width: 54, height: 54)
+                .glassEffect(.regular.tint(tint), in: .rect(cornerRadius: 16))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.subheadline).foregroundStyle(.secondary)
+                Text(display).font(.title2.weight(.bold).monospacedDigit())
+            }
+            Spacer()
+            if let url = URL(string: "tel:\(number)") {
+                Link(destination: url) {
+                    Image(systemName: "phone.fill")
+                        .font(.title3)
+                        .foregroundStyle(.white)
+                        .frame(width: 48, height: 48)
+                        .glassEffect(.regular.tint(tint).interactive(), in: .circle)
+                }
+            }
+        }
+        .glassCard()
+    }
+}
+
+// MARK: - History
+
+struct HistoryView: View {
+    @Environment(AppState.self) private var app
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 10) {
+                if app.records.isEmpty {
+                    ContentUnavailableView("No checks yet",
+                                           systemImage: "checkmark.shield",
+                                           description: Text("Scan a price or check a ride and it will appear here."))
+                        .padding(.top, 60)
+                } else {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("Overcharge flagged").font(.caption).foregroundStyle(.secondary)
+                            Text(app.homeAmount(app.totalFlaggedINR)).font(.title.weight(.bold))
+                        }
+                        Spacer()
+                        Text(inr(app.totalFlaggedINR)).font(.headline.monospacedDigit()).foregroundStyle(.secondary)
+                    }
+                    .glassCard()
+                    ForEach(app.records) { record in
+                        RecordRow(record: record)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 30)
+        }
+        .background(LiquidBackground())
+        .navigationTitle("History")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
