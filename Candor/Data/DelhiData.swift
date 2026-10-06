@@ -228,21 +228,22 @@ enum DelhiData {
 
     // MARK: Login
 
+    /// Dial codes for phone sign-in. `digits` is the national number length (indicative).
     static let countryCodes: [CountryCode] = [
-        CountryCode(region: "US", flag: "🇺🇸", dial: "+1"),
-        CountryCode(region: "GB", flag: "🇬🇧", dial: "+44"),
-        CountryCode(region: "DE", flag: "🇩🇪", dial: "+49"),
-        CountryCode(region: "FR", flag: "🇫🇷", dial: "+33"),
-        CountryCode(region: "ES", flag: "🇪🇸", dial: "+34"),
-        CountryCode(region: "IT", flag: "🇮🇹", dial: "+39"),
-        CountryCode(region: "JP", flag: "🇯🇵", dial: "+81"),
-        CountryCode(region: "KR", flag: "🇰🇷", dial: "+82"),
-        CountryCode(region: "CN", flag: "🇨🇳", dial: "+86"),
-        CountryCode(region: "RU", flag: "🇷🇺", dial: "+7"),
-        CountryCode(region: "BR", flag: "🇧🇷", dial: "+55"),
-        CountryCode(region: "AU", flag: "🇦🇺", dial: "+61"),
-        CountryCode(region: "AE", flag: "🇦🇪", dial: "+971"),
-        CountryCode(region: "IN", flag: "🇮🇳", dial: "+91")
+        CountryCode(region: "US", flag: "🇺🇸", dial: "+1", digits: 10...10),
+        CountryCode(region: "GB", flag: "🇬🇧", dial: "+44", digits: 9...10),
+        CountryCode(region: "DE", flag: "🇩🇪", dial: "+49", digits: 6...11),
+        CountryCode(region: "FR", flag: "🇫🇷", dial: "+33", digits: 9...9),
+        CountryCode(region: "ES", flag: "🇪🇸", dial: "+34", digits: 9...9),
+        CountryCode(region: "IT", flag: "🇮🇹", dial: "+39", digits: 6...11),
+        CountryCode(region: "JP", flag: "🇯🇵", dial: "+81", digits: 9...10),
+        CountryCode(region: "KR", flag: "🇰🇷", dial: "+82", digits: 8...10),
+        CountryCode(region: "CN", flag: "🇨🇳", dial: "+86", digits: 10...11),
+        CountryCode(region: "RU", flag: "🇷🇺", dial: "+7", digits: 10...10),
+        CountryCode(region: "BR", flag: "🇧🇷", dial: "+55", digits: 10...11),
+        CountryCode(region: "AU", flag: "🇦🇺", dial: "+61", digits: 9...9),
+        CountryCode(region: "AE", flag: "🇦🇪", dial: "+971", digits: 8...9),
+        CountryCode(region: "IN", flag: "🇮🇳", dial: "+91", digits: 10...10)
     ]
 
     static var defaultCountry: CountryCode {

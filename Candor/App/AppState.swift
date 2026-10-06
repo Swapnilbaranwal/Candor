@@ -50,8 +50,13 @@ final class AppState {
 
     // MARK: Session
 
-    func signIn(phone: String) {
-        persona.phone = phone
+    /// Prototype session: nothing is verified. `phone` and `email` are kept only for the method that used them.
+    func signIn(with method: SignInMethod, phone: String = "", email: String? = nil) {
+        var updated = persona
+        updated.signInMethod = method
+        updated.phone = phone
+        updated.email = email
+        persona = updated
         defaults.set(true, forKey: Keys.signedIn)
         phase = persona.isComplete ? .main : .onboarding
     }

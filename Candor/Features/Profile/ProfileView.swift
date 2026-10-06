@@ -51,7 +51,7 @@ struct ProfileView: View {
                 .glassEffect(.regular.tint(Theme.indigo), in: .circle)
             Text(app.persona.name.isEmpty ? "Traveller" : app.persona.name)
                 .font(.title2.weight(.bold))
-            Text(app.persona.phone)
+            Text(app.persona.accountLabel)
                 .font(.subheadline.monospacedDigit())
                 .foregroundStyle(.secondary)
             HStack(spacing: 8) {

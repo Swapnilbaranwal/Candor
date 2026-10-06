@@ -3,9 +3,18 @@ import CoreLocation
 
 // MARK: - Persona
 
+/// How the traveller signed in. No option needs an Indian mobile number.
+enum SignInMethod: String, Codable {
+    case apple, google, email, phone, guest
+}
+
 struct Persona: Codable, Equatable {
     var name = ""
+    /// Set only for phone sign-in, stored with its dial code ("+44 7911123456").
     var phone = ""
+    /// Optional so personas saved before multi-option sign-in still decode.
+    var email: String?
+    var signInMethod: SignInMethod?
     var homeCurrency = Persona.defaultCurrency
     var languageCode = Persona.defaultLanguage
     var travelStyle: TravelStyle = .comfort
@@ -40,6 +49,17 @@ struct Persona: Codable, Equatable {
         let parts = name.split(separator: " ").prefix(2)
         let letters = parts.compactMap { $0.first }.map { String($0) }.joined()
         return letters.isEmpty ? "C" : letters.uppercased()
+    }
+
+    /// Account line shown under the name on the profile.
+    var accountLabel: String {
+        switch signInMethod {
+        case .apple?: return "Signed in with Apple"
+        case .google?: return "Signed in with Google"
+        case .email?: return email ?? "Signed in with email"
+        case .guest?: return "Guest"
+        case .phone?, nil: return phone.isEmpty ? "Guest" : phone
+        }
     }
 }
 
@@ -355,6 +375,20 @@ struct CountryCode: Identifiable, Hashable {
     let region: String
     let flag: String
     let dial: String
+    /// Accepted length of the national number, without the dial code or a leading trunk "0".
+    var digits: ClosedRange<Int> = 6...12
+
+    /// Digits of the national number. Drops the "0" many countries dial domestically
+    /// (07911… in the UK); Italy keeps its leading zero.
+    func national(_ input: String) -> String {
+        let number = input.filter { $0.isASCII && $0.isNumber }
+        guard region != "IT", number.hasPrefix("0") else { return number }
+        return String(number.dropFirst())
+    }
+
+    func isValid(_ input: String) -> Bool {
+        digits.contains(national(input).count)
+    }
 }
 
 struct CurrencyOption: Identifiable, Hashable {

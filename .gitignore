@@ -6,4 +6,4 @@ build/
 .DS_Store
 
 # Local API keys
-Candor/Config/Secrets.swift
+**/Secrets.swift

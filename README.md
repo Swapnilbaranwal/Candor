@@ -9,7 +9,7 @@ Candor is an AI travel companion for foreign visitors to India, starting with De
 2. Select the **Candor** target → *Signing & Capabilities* → pick your team.
 3. Run on an iPhone or the iOS 26+ Simulator.
 
-Log in with **any 10-digit number**. Continue unlocks at exactly 10 digits.
+Sign in with **Apple, Google, email, a mobile number from any country, or as a guest**. No Indian number is needed. Prototype: nothing is verified and no SMS or email is sent.
 
 ## Turn on Gemini (optional)
 
@@ -26,7 +26,7 @@ The app works offline with an on-device agent. For photo reading, live reasoning
 
 | Area | What it does |
 | --- | --- |
-| Login | Country-code picker and a 10-digit gate with a progress bar. |
+| Login | Apple, Google, email, phone (country-code picker, number length checked per country) or guest. Apple and Google are prototype stubs until the real SDK flows are wired in. |
 | Persona setup | Name, language (defaults to device), home currency, travel style, days, interests, then an animated "agent setup" sequence. |
 | Home | Fair-price shield (overcharge flagged in your currency), tools grid, Ask Candor prompts, scam of the day, recent checks and the live exchange rate. |
 | Explore | Map of verified Delhi places (sights, fixed-price shops, markets, transport) with tips, "Fair fare" and "Ask Candor". |
