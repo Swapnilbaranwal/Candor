@@ -3,6 +3,10 @@ import CoreLocation
 
 /// Curated, source-labelled reference data for the Delhi pilot.
 /// Ranges are indicative for the prototype; verify before relying on them.
+///
+/// Text here stays in English: it is matched against (keywords, sources) and sent to Gemini
+/// as tool results. Screens show it through `L(…)`, which uses the English string as the key
+/// into the chosen language's table.
 enum DelhiData {
     static let center = CLLocationCoordinate2D(latitude: 28.6139, longitude: 77.2090)
     static let connaughtPlace = CLLocationCoordinate2D(latitude: 28.6315, longitude: 77.2167)

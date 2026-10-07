@@ -28,7 +28,7 @@ The app works offline with an on-device agent. For photo reading, live reasoning
 | --- | --- |
 | Login | Apple, Google, email, phone (country-code picker, number length checked per country) or guest. Apple and Google are prototype stubs until the real SDK flows are wired in. |
 | Persona setup | Name, language (defaults to device), home currency, travel style, days, interests, then an animated "agent setup" sequence. |
-| Home | Fair-price shield (overcharges caught so far, in rupees with your home currency alongside), tools grid, Ask Candor prompts, scam of the day, recent checks and the live exchange rate. |
+| Home | Leads with the price check: "What are you being asked to pay?", Scan a price, Check a ride and a one-tap example that runs the agent. Then Ask Candor prompts, scam of the day, recent checks, the overcharge total (once there are saved checks), more tools and the live exchange rate. |
 | Explore | Map of verified Delhi places (sights, fixed-price shops, markets, transport) with tips, "Fair fare" and "Ask Candor". |
 | Scan | Camera or Photos input plus the asked price. The agent reads it, then shows a verdict card with the fair range, a gauge and a phrase to say. |
 | Agent | Chat with a visible tool trail. Tools: `lookup_price`, `route_distance`, `estimate_fare`, `check_scam`, `find_nearby`, `convert_currency`, `report_verdict`. |
@@ -36,6 +36,17 @@ The app works offline with an on-device agent. For photo reading, live reasoning
 | Interpreter | Hindi phrasebook with speech and a full-screen "show the driver" card, plus Gemini translation. |
 | Scam radar | 8 known patterns, plus "describe your situation" checked by the agent. |
 | Converter / Emergency / History | INR ↔ home currency, the 112 emergency number, the tourist helpline, location sharing and saved checks. |
+
+## Languages
+
+The whole app follows the language picked at persona setup (or under *Me → Preferences*), not the phone's language. English plus 17 others: Spanish, French, German, Italian, Portuguese, Russian, Japanese, Korean, Chinese, Arabic, Hebrew, Dutch, Turkish, Thai, Vietnamese, Indonesian and Polish. Arabic and Hebrew mirror the layout.
+
+- Every user-facing string goes through `L("English text")` (`Services/Localizer.swift`). The English string is the key into `Localization/candor-<code>.json`; a missing key falls back to English.
+- Placeholders are `%@` for one value and `%1$@`, `%2$@`… for several, so a translation can reorder them.
+- Reference data in `DelhiData` stays in English, because it is matched on and sent to Gemini as tool results. Screens translate it at display time with `L(…)`.
+- To add a string: use `L("…")` in code and add the key to each table. To add a language: add its code to `DelhiData.languages` and a `candor-<code>.json`.
+- The translations were machine-written and have not been checked by native speakers.
+- Gemini answers in the chosen language. Without a Gemini key, answers and screens are translated, but typed questions are still matched on English keywords.
 
 ## Design
 
@@ -51,7 +62,8 @@ Candor/
   Design/       Theme, glass helpers, agent and verdict components
   Models/       Persona, Verdict, RideMode, Spot, Scam, Phrase…
   Data/         DelhiData: places, reference prices, scams, phrases, currencies
-  Services/     CandorAgent and AgentEngine, GeminiClient, Location, Routing, Currency, Speech
+  Services/     CandorAgent and AgentEngine, GeminiClient, Localizer, Location, Routing, Currency, Speech
+  Localization/ candor-<code>.json: one string table per language
   Features/     Login, Onboarding, Home, Explore, Scan, Agent, Rides, Interpreter, Tools, Profile
 ```
 

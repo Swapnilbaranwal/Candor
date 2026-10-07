@@ -32,7 +32,7 @@ struct PersonaSetupView: View {
             .scrollDismissesKeyboard(.interactively)
             .safeAreaInset(edge: .bottom) {
                 Button(action: build) {
-                    Label("Build my travel persona", systemImage: "sparkles")
+                    Label(L("Build my travel persona"), systemImage: "sparkles")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
@@ -50,14 +50,16 @@ struct PersonaSetupView: View {
             }
         }
         .onAppear { draft = app.persona }
+        // Switch the screen to the chosen language straight away, before the persona is saved.
+        .onChange(of: draft.languageCode) { _, code in Localizer.shared.use(code) }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             AgentOrb(size: 52)
-            Text("Let's get to know you")
+            Text(L("Let's get to know you"))
                 .font(.largeTitle.weight(.bold))
-            Text("Candor uses this to speak your language, show your currency and tailor its advice.")
+            Text(L("Candor uses this to speak your language, show your currency and tailor its advice."))
                 .foregroundStyle(.secondary)
         }
         .padding(.top, 12)
@@ -65,8 +67,8 @@ struct PersonaSetupView: View {
 
     private var nameCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("What should we call you?", systemImage: "person.fill").font(.headline)
-            TextField("Your name", text: $draft.name)
+            Label(L("What should we call you?"), systemImage: "person.fill").font(.headline)
+            TextField(L("Your name"), text: $draft.name)
                 .textContentType(.givenName)
                 .focused($nameFocused)
                 .font(.title3)
@@ -79,25 +81,25 @@ struct PersonaSetupView: View {
 
     private var languageCurrencyCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("Language & money", systemImage: "globe").font(.headline)
+            Label(L("Language & money"), systemImage: "globe").font(.headline)
             HStack {
-                Text("App language")
+                Text(L("App language"))
                 Spacer()
-                Picker("App language", selection: $draft.languageCode) {
+                Picker(L("App language"), selection: $draft.languageCode) {
                     ForEach(languages, id: \.self) { code in
-                        Text(Locale.current.localizedString(forLanguageCode: code)?.capitalized ?? code).tag(code)
+                        Text(Persona.nativeName(of: code)).tag(code)
                     }
                 }
                 .pickerStyle(.menu)
             }
-            Text("Defaults to your device language. Candor's agent replies in it.")
+            Text(L("Defaults to your device language. The whole app and Candor's replies use it."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Divider()
             HStack {
-                Text("Home currency")
+                Text(L("Home currency"))
                 Spacer()
-                Picker("Home currency", selection: $draft.homeCurrency) {
+                Picker(L("Home currency"), selection: $draft.homeCurrency) {
                     ForEach(CurrencyOption.all) { option in
                         Text("\(option.flag) \(option.code)").tag(option.code)
                     }
@@ -110,7 +112,7 @@ struct PersonaSetupView: View {
 
     private var styleCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("How do you travel?", systemImage: "figure.walk").font(.headline)
+            Label(L("How do you travel?"), systemImage: "figure.walk").font(.headline)
             GlassEffectContainer(spacing: 10) {
                 HStack(spacing: 10) {
                     ForEach(TravelStyle.allCases) { style in
@@ -131,17 +133,17 @@ struct PersonaSetupView: View {
                     }
                 }
             }
-            Stepper("Days in Delhi: \(draft.tripDays)", value: $draft.tripDays, in: 1...14)
+            Stepper(L("Days in Delhi: %@", draft.tripDays), value: $draft.tripDays, in: 1...14)
         }
         .glassCard()
     }
 
     private var interestsCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("What do you love?", systemImage: "heart.fill").font(.headline)
+            Label(L("What do you love?"), systemImage: "heart.fill").font(.headline)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 10)], alignment: .leading, spacing: 10) {
                 ForEach(DelhiData.interests, id: \.self) { interest in
-                    GlassChip(title: interest, isSelected: draft.interests.contains(interest), tint: Theme.rose) {
+                    GlassChip(title: L(interest), isSelected: draft.interests.contains(interest), tint: Theme.rose) {
                         withAnimation(.snappy) {
                             if let index = draft.interests.firstIndex(of: interest) {
                                 draft.interests.remove(at: index)
@@ -161,7 +163,7 @@ struct PersonaSetupView: View {
             Rectangle().fill(.ultraThinMaterial).ignoresSafeArea()
             VStack(spacing: 22) {
                 AgentOrb(size: 88, isActive: true)
-                Text("Setting up your agent")
+                Text(L("Setting up your agent"))
                     .font(.title2.weight(.bold))
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(buildSteps) { step in
@@ -184,12 +186,13 @@ struct PersonaSetupView: View {
 
         Task {
             let plan: [(String, String, String)] = [
-                ("character.bubble.fill", "Speaking \(persona.languageName)", "Agent replies and tips in your language"),
-                ("dollarsign.arrow.circlepath", "Linking \(persona.homeCurrency)", "Fetching today's exchange rates"),
-                ("gauge.with.needle.fill", "Loading Delhi fare chart", "Auto ₹30 + ₹11/km · Taxi ₹40 + ₹17/km"),
-                ("tag.fill", "Loading fair-price references", "\(DelhiData.prices.count) items with sources"),
-                ("shield.lefthalf.filled", "Arming scam radar", "\(DelhiData.scams.count) known patterns"),
-                ("map.fill", "Tuning for \(persona.travelStyle.title.lowercased()) travel", persona.interests.isEmpty ? "All interests" : persona.interests.joined(separator: ", "))
+                ("character.bubble.fill", L("Speaking %@", persona.languageName), L("The app and the agent use your language")),
+                ("dollarsign.arrow.circlepath", L("Linking %@", persona.homeCurrency), L("Fetching today's exchange rates")),
+                ("gauge.with.needle.fill", L("Loading Delhi fare chart"), L("Auto ₹30 + ₹11/km · Taxi ₹40 + ₹17/km")),
+                ("tag.fill", L("Loading fair-price references"), L("%@ items with sources", DelhiData.prices.count)),
+                ("shield.lefthalf.filled", L("Arming scam radar"), L("%@ known patterns", DelhiData.scams.count)),
+                ("map.fill", L("Travel style: %@", persona.travelStyle.title),
+                 persona.interests.isEmpty ? L("All interests") : persona.interests.map { L($0) }.joined(separator: ", "))
             ]
             for (icon, title, detail) in plan {
                 var step = AgentStep(icon: icon, title: title, detail: detail)

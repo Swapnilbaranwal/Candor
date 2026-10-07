@@ -11,6 +11,7 @@ private struct QuickAction: Identifiable {
     let color: Color
     var id: HomeRoute { route }
 
+    /// Titles are English keys, shown through `L(…)`.
     static let all: [QuickAction] = [
         QuickAction(route: .ride, title: "Ride fare", icon: "car.fill", color: Theme.teal),
         QuickAction(route: .interpreter, title: "Interpreter", icon: "character.bubble.fill", color: Theme.indigo),
@@ -28,11 +29,13 @@ struct HomeView: View {
     @Environment(CandorAgent.self) private var agent
     @State private var path: [HomeRoute] = []
 
+    /// Opens the demo: one tap from Home to the agent's trail and a verdict card.
+    private let demoPrompt = "Auto to India Gate, driver wants ₹300"
+
     private let suggestions = [
-        "Auto to India Gate, driver wants ₹300",
         "Is ₹40 fair for a 1 litre water bottle?",
-        "Plan my day in Delhi",
-        "A man says my hotel is closed"
+        "A man says my hotel is closed",
+        "Plan my day in Delhi"
     ]
 
     var body: some View {
@@ -40,11 +43,11 @@ struct HomeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     header
-                    shieldCard
-                    quickActions
+                    checkCard
                     askCandor
                     scamOfTheDay
                     if !app.records.isEmpty { recentChecks }
+                    quickActions
                     rateStrip
                 }
                 .padding(.horizontal, 20)
@@ -65,21 +68,28 @@ struct HomeView: View {
         }
     }
 
+    /// Sends a ready-made prompt to the agent. The bubble shows it in the traveller's language;
+    /// the offline agent, which matches English keywords, gets the English original.
+    private func ask(_ prompt: String) {
+        tab = .agent
+        Task { await agent.send(L(prompt), canonical: prompt) }
+    }
+
     // MARK: Sections
 
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: .now)
         switch hour {
-        case 5..<12: return "Good morning"
-        case 12..<17: return "Good afternoon"
-        default: return "Good evening"
+        case 5..<12: return L("Good morning")
+        case 12..<17: return L("Good afternoon")
+        default: return L("Good evening")
         }
     }
 
     private var header: some View {
         HStack(alignment: .center, spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Namaste, \(app.persona.firstName)")
+                Text(L("Namaste, %@", app.persona.firstName))
                     .font(.largeTitle.weight(.bold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
@@ -105,56 +115,37 @@ struct HomeView: View {
         .padding(.top, 12)
     }
 
-    private var shieldCard: some View {
+    /// Candor's one job, first on the screen: judge the price you're being quoted right now.
+    private var checkCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Label("Fair-price shield", systemImage: "checkmark.shield.fill")
-                    .font(.headline)
+                Label(L("Fair-price check"), systemImage: "checkmark.shield.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
                 Spacer()
-                Text(app.hasGemini ? "Gemini live" : "Offline mode")
+                Text(app.hasGemini ? L("Gemini live") : L("Offline mode"))
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .glassEffect(.regular.tint((app.hasGemini ? Theme.mint : Theme.saffron).opacity(0.4)), in: .capsule)
             }
 
-            if app.records.isEmpty {
-                // Nothing checked yet: prompt instead of a bare "₹0" that reads like an amount field.
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("No checks yet")
-                        .font(.title3.weight(.bold))
-                    Text("Scan a price or check a ride to see what you should pay.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                // A labelled stat. Rupees lead, as everywhere else: prices in India are quoted in INR.
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Overcharges caught so far")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Text(inr(app.totalFlaggedINR))
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .contentTransition(.numericText())
-                    Text(app.totalFlaggedINR > 0
-                         ? "Extra you were asked to pay above the fair price."
-                         : "Every price you checked was fair.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack(spacing: 10) {
-                    stat("\(app.records.count)", app.records.count == 1 ? "check" : "checks")
-                    stat("\(app.overchargesCaught)", app.overchargesCaught == 1 ? "overcharge" : "overcharges")
-                    stat("≈ " + (app.totalFlaggedINR > 0 ? app.homeAmount(app.totalFlaggedINR) : CurrencyService.format(0, code: app.persona.homeCurrency)),
-                         "in \(app.persona.homeCurrency)")
-                }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L("What are you being asked to pay?"))
+                    .font(.title2.weight(.bold))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(L("Candor tells you the fair price, how far over the ask is, and what to say."))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             GlassEffectContainer(spacing: 10) {
                 HStack(spacing: 10) {
                     Button { tab = .scan } label: {
-                        Label("Scan a price", systemImage: "camera.viewfinder")
+                        Label(L("Scan a price"), systemImage: "camera.viewfinder")
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                             .frame(maxWidth: .infinity)
                             .frame(height: 30)
                     }
@@ -162,7 +153,9 @@ struct HomeView: View {
                     .tint(Theme.saffron)
 
                     Button { path.append(.ride) } label: {
-                        Label("Check a ride", systemImage: "car.fill")
+                        Label(L("Check a ride"), systemImage: "car.fill")
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                             .frame(maxWidth: .infinity)
                             .frame(height: 30)
                     }
@@ -170,22 +163,80 @@ struct HomeView: View {
                 }
                 .font(.subheadline.weight(.semibold))
             }
+
+            // The quickest way to see what Candor does. A plain tinted row, not glass:
+            // glass on a glass card has nothing to refract and disappears.
+            Button { ask(demoPrompt) } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(Theme.saffron)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L("Try an example"))
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.secondary)
+                        Text(L(demoPrompt))
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.primary)
+                            .multilineTextAlignment(.leading)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "arrow.up.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(12)
+                .background(Theme.saffron.opacity(0.12), in: .rect(cornerRadius: 18))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("homeExample")
+
+            if !app.records.isEmpty {
+                Divider()
+                shieldStats
+            }
         }
         .padding(20)
         .glassEffect(.regular.tint(Theme.saffron.opacity(0.10)), in: .rect(cornerRadius: 32))
     }
 
+    /// Running total of what Candor has caught. Shown once there is at least one saved check.
+    private var shieldStats: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // A labelled stat. Rupees lead, as everywhere else: prices in India are quoted in INR.
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L("Overcharges caught so far"))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text(inr(app.totalFlaggedINR))
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .contentTransition(.numericText())
+                Text(app.totalFlaggedINR > 0
+                     ? L("Extra you were asked to pay above the fair price.")
+                     : L("Every price you checked was fair."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(spacing: 10) {
+                stat("\(app.records.count)", L("Checks"))
+                stat("\(app.overchargesCaught)", L("Overcharges"))
+                stat("≈ " + (app.totalFlaggedINR > 0 ? app.homeAmount(app.totalFlaggedINR) : CurrencyService.format(0, code: app.persona.homeCurrency)),
+                     L("in %@", app.persona.homeCurrency))
+            }
+        }
+    }
+
     private func stat(_ value: String, _ label: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value).font(.headline.monospacedDigit())
-            Text(label).font(.caption).foregroundStyle(.secondary)
+            Text(label).font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var quickActions: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Tools")
+            SectionHeader(title: L("More tools"))
             GlassEffectContainer(spacing: 12) {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
                     ForEach(QuickAction.all) { action in
@@ -195,9 +246,12 @@ struct HomeView: View {
                                     .font(.title2)
                                     .foregroundStyle(action.color)
                                     .frame(height: 28)
-                                Text(action.title)
+                                Text(L(action.title))
                                     .font(.footnote.weight(.semibold))
                                     .foregroundStyle(.primary)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                                    .minimumScaleFactor(0.8)
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 18)
@@ -214,16 +268,15 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 AgentOrb(size: 40, isActive: agent.isWorking)
-                SectionHeader(title: "Ask Candor", subtitle: "Your agent checks fares, prices and scams for you")
+                SectionHeader(title: L("Ask Candor"), subtitle: L("Your agent checks fares, prices and scams for you"))
             }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(suggestions, id: \.self) { suggestion in
                         Button {
-                            tab = .agent
-                            Task { await agent.send(suggestion) }
+                            ask(suggestion)
                         } label: {
-                            Text(suggestion)
+                            Text(L(suggestion))
                                 .font(.subheadline.weight(.medium))
                                 .multilineTextAlignment(.leading)
                                 .foregroundStyle(.primary)
@@ -252,9 +305,9 @@ struct HomeView: View {
                     .frame(width: 52, height: 52)
                     .glassEffect(.regular.tint(Theme.rose), in: .rect(cornerRadius: 16))
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("SCAM OF THE DAY").font(.caption2.weight(.bold)).foregroundStyle(Theme.rose)
-                    Text(scam.title).font(.headline).foregroundStyle(.primary)
-                    Text(scam.whatToDo)
+                    Text(L("SCAM OF THE DAY")).font(.caption2.weight(.bold)).foregroundStyle(Theme.rose)
+                    Text(L(scam.title)).font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                    Text(L(scam.whatToDo))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -271,8 +324,8 @@ struct HomeView: View {
     private var recentChecks: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                SectionHeader(title: "Recent checks")
-                Button("See all") { path.append(.history) }
+                SectionHeader(title: L("Recent checks"))
+                Button(L("See all")) { path.append(.history) }
                     .font(.subheadline.weight(.semibold))
             }
             VStack(spacing: 10) {
@@ -291,7 +344,7 @@ struct HomeView: View {
             Text("1 \(code) = \(perUnit.formatted(.number.precision(.fractionLength(2)))) INR")
                 .font(.subheadline.weight(.semibold).monospacedDigit())
             Spacer()
-            Text(app.currency.isLive ? "Live rate" : "Indicative")
+            Text(app.currency.isLive ? L("Live rate") : L("Indicative"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -310,8 +363,8 @@ struct RecordRow: View {
                 .frame(width: 40, height: 40)
                 .glassEffect(.regular.tint(record.verdict.color.opacity(0.3)), in: .circle)
             VStack(alignment: .leading, spacing: 2) {
-                Text(record.title).font(.subheadline.weight(.semibold)).lineLimit(1)
-                Text(record.date.formatted(.relative(presentation: .named)))
+                Text(L(record.title)).font(.subheadline.weight(.semibold)).lineLimit(1)
+                Text(record.date.formatted(.relative(presentation: .named).locale(Localizer.shared.locale)))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

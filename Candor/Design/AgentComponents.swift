@@ -14,7 +14,7 @@ struct AgentTrailView: View {
                 HStack(spacing: 6) {
                     Image(systemName: isWorking ? "sparkles" : "checklist")
                         .symbolEffect(.pulse, isActive: isWorking)
-                    Text(isWorking ? "Working…" : "\(steps.count) step\(steps.count == 1 ? "" : "s")")
+                    Text(isWorking ? L("Working…") : L("Steps: %@", steps.count))
                     Image(systemName: "chevron.down")
                         .rotationEffect(.degrees(expanded ? 0 : -90))
                 }
@@ -96,6 +96,7 @@ struct VerdictCardView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
                     .glassEffect(.regular.tint(verdict.verdict.color), in: .capsule)
+                    .accessibilityIdentifier("verdict.\(verdict.verdict.rawValue)") // language-independent hook for UI tests
                 Spacer()
                 if let percent = verdict.overPercent {
                     Text("+\(percent)%")
@@ -104,20 +105,20 @@ struct VerdictCardView: View {
                 }
             }
 
-            Text(verdict.item)
+            Text(L(verdict.item))
                 .font(.title3.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Fair price").font(.caption).foregroundStyle(.secondary)
+                    Text(L("Fair price")).font(.caption).foregroundStyle(.secondary)
                     Text(verdict.rangeText).font(.title2.weight(.bold).monospacedDigit())
                     Text(app.homeAmount(verdict.fairHighINR)).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if let asked = verdict.askedINR {
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text("Asked").font(.caption).foregroundStyle(.secondary)
+                        Text(L("Asked")).font(.caption).foregroundStyle(.secondary)
                         Text(inr(asked))
                             .font(.title2.weight(.bold).monospacedDigit())
                             .foregroundStyle(verdict.verdict.color)
@@ -128,16 +129,18 @@ struct VerdictCardView: View {
 
             PriceGauge(low: verdict.fairLowINR, high: verdict.fairHighINR, asked: verdict.askedINR, color: verdict.verdict.color)
 
-            Label(verdict.source, systemImage: "doc.text.magnifyingglass")
+            Label(L(verdict.source), systemImage: "doc.text.magnifyingglass")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
             if let tip = verdict.tip {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Say it").font(.caption2.weight(.bold)).foregroundStyle(.secondary)
+                        Text(L("Say it")).font(.caption2.weight(.bold)).foregroundStyle(.secondary)
                         Text(tip.roman).font(.subheadline.weight(.semibold))
                         Text(tip.hindi).font(.caption).foregroundStyle(.secondary)
+                        // What the phrase means, in the traveller's own language.
+                        Text(L(tip.english)).font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
                     Button {
@@ -184,5 +187,7 @@ struct PriceGauge: View {
             }
         }
         .frame(height: 16)
+        // A price scale runs low to high, left to right, in every language (offsets are not mirrored).
+        .environment(\.layoutDirection, .leftToRight)
     }
 }

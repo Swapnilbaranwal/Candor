@@ -16,7 +16,7 @@ struct ScamRadarView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 checkCard
-                SectionHeader(title: "Known patterns in Delhi", subtitle: "Most people are honest. These are the few tricks worth knowing.")
+                SectionHeader(title: L("Known patterns in Delhi"), subtitle: L("Most people are honest. These are the few tricks worth knowing."))
                 VStack(spacing: 10) {
                     ForEach(DelhiData.scams) { scam in
                         scamCard(scam)
@@ -29,15 +29,15 @@ struct ScamRadarView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(LiquidBackground())
-        .navigationTitle("Scam radar")
+        .navigationTitle(L("Scam radar"))
         .navigationBarTitleDisplayMode(.inline)
     }
 
     private var checkCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Something feels off?", systemImage: "shield.lefthalf.filled")
+            Label(L("Something feels off?"), systemImage: "shield.lefthalf.filled")
                 .font(.headline)
-            TextField("Describe what's happening, e.g. \"the driver says my hotel is closed\"", text: $situation, axis: .vertical)
+            TextField(L("Describe what's happening, e.g. \"the driver says my hotel is closed\""), text: $situation, axis: .vertical)
                 .lineLimit(2...4)
                 .focused($focused)
                 .padding(14)
@@ -47,7 +47,7 @@ struct ScamRadarView: View {
             } label: {
                 HStack {
                     if isRunning { ProgressView().tint(.white) } else { Image(systemName: "sparkles") }
-                    Text("Check with Candor")
+                    Text(L("Check with Candor"))
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 30)
@@ -79,7 +79,7 @@ struct ScamRadarView: View {
                         .foregroundStyle(.white)
                         .frame(width: 40, height: 40)
                         .glassEffect(.regular.tint(Theme.rose), in: .rect(cornerRadius: 12))
-                    Text(scam.title).font(.headline).foregroundStyle(.primary)
+                    Text(L(scam.title)).font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading)
                     Spacer()
                     Image(systemName: "chevron.down")
                         .rotationEffect(.degrees(isOpen ? 180 : 0))
@@ -90,16 +90,16 @@ struct ScamRadarView: View {
 
             if isOpen {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(scam.howItWorks).font(.subheadline)
+                    Text(L(scam.howItWorks)).font(.subheadline)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Red flags").font(.caption.weight(.bold)).foregroundStyle(Theme.rose)
+                        Text(L("Red flags")).font(.caption.weight(.bold)).foregroundStyle(Theme.rose)
                         ForEach(scam.redFlags, id: \.self) { flag in
-                            Label(flag, systemImage: "flag.fill").font(.caption)
+                            Label(L(flag), systemImage: "flag.fill").font(.caption)
                         }
                     }
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("What to do").font(.caption.weight(.bold)).foregroundStyle(Theme.mint)
-                        Text(scam.whatToDo).font(.subheadline)
+                        Text(L("What to do")).font(.caption.weight(.bold)).foregroundStyle(Theme.mint)
+                        Text(L(scam.whatToDo)).font(.subheadline)
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -160,7 +160,7 @@ struct ConverterView: View {
                         Text(fromINR ? "\(CurrencyOption.option(code)?.flag ?? "") \(code)" : "🇮🇳 INR")
                             .font(.headline)
                     }
-                    TextField("Amount", text: $amountText)
+                    TextField(L("Amount"), text: $amountText)
                         .keyboardType(.decimalPad)
                         .focused($focused)
                         .font(.system(size: 44, weight: .bold, design: .rounded).monospacedDigit())
@@ -172,15 +172,15 @@ struct ConverterView: View {
                         .contentTransition(.numericText())
                         .animation(.snappy, value: resultText)
                     Text(app.currency.isLive
-                         ? "ECB reference rate · updated \(app.currency.lastUpdated?.formatted(date: .omitted, time: .shortened) ?? "")"
-                         : "Indicative rate. Connect to the internet for today's rate.")
+                         ? L("ECB reference rate · updated %@", app.currency.lastUpdated?.formatted(date: .omitted, time: .shortened) ?? "")
+                         : L("Indicative rate. Connect to the internet for today's rate."))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 .glassCard(cornerRadius: 32, padding: 22)
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Quick reference").font(.headline)
+                    Text(L("Quick reference")).font(.headline)
                     ForEach([20.0, 100, 500, 1000, 2000, 5000], id: \.self) { value in
                         HStack {
                             Text(inr(value)).font(.subheadline.weight(.semibold).monospacedDigit())
@@ -194,7 +194,7 @@ struct ConverterView: View {
                 Button {
                     Task { await app.currency.refresh() }
                 } label: {
-                    Label("Refresh rates", systemImage: "arrow.clockwise").frame(maxWidth: .infinity).frame(height: 30)
+                    Label(L("Refresh rates"), systemImage: "arrow.clockwise").frame(maxWidth: .infinity).frame(height: 30)
                 }
                 .buttonStyle(.glass)
             }
@@ -203,7 +203,7 @@ struct ConverterView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(LiquidBackground())
-        .navigationTitle("Converter")
+        .navigationTitle(L("Converter"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -221,14 +221,14 @@ struct EmergencyView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
-                callCard(title: "Emergency (police, fire, ambulance)", number: DelhiData.emergencyNumber,
+                callCard(title: L("Emergency (police, fire, ambulance)"), number: DelhiData.emergencyNumber,
                          display: DelhiData.emergencyNumber, icon: "sos", tint: .red)
-                callCard(title: "Incredible India tourist helpline (24×7, multilingual)", number: DelhiData.tourismHelpline,
+                callCard(title: L("Incredible India tourist helpline (24×7, multilingual)"), number: DelhiData.tourismHelpline,
                          display: DelhiData.tourismHelplineDisplay, icon: "phone.bubble.fill", tint: Theme.indigo)
 
                 if let mapsURL {
-                    ShareLink(item: mapsURL, message: Text("I'm here. Candor shared my location.")) {
-                        Label("Share my location", systemImage: "location.fill.viewfinder")
+                    ShareLink(item: mapsURL, message: Text(L("I'm here. Candor shared my location."))) {
+                        Label(L("Share my location"), systemImage: "location.fill.viewfinder")
                             .frame(maxWidth: .infinity)
                             .frame(height: 30)
                     }
@@ -237,10 +237,10 @@ struct EmergencyView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("Quick tips", systemImage: "lightbulb.fill").font(.headline)
-                    Text("• Move to a busy, official place: station counter, hotel lobby or police booth.")
-                    Text("• Never hand over your passport or cards under pressure.")
-                    Text("• Keep a photo of your passport and visa on your phone.")
+                    Label(L("Quick tips"), systemImage: "lightbulb.fill").font(.headline)
+                    Text(L("• Move to a busy, official place: station counter, hotel lobby or police booth."))
+                    Text(L("• Never hand over your passport or cards under pressure."))
+                    Text(L("• Keep a photo of your passport and visa on your phone."))
                 }
                 .font(.subheadline)
                 .glassCard()
@@ -249,7 +249,7 @@ struct EmergencyView: View {
             .padding(.bottom, 30)
         }
         .background(LiquidBackground())
-        .navigationTitle("Emergency")
+        .navigationTitle(L("Emergency"))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -288,14 +288,14 @@ struct HistoryView: View {
         ScrollView {
             VStack(spacing: 10) {
                 if app.records.isEmpty {
-                    ContentUnavailableView("No checks yet",
+                    ContentUnavailableView(L("No checks yet"),
                                            systemImage: "checkmark.shield",
-                                           description: Text("Scan a price or check a ride and it will appear here."))
+                                           description: Text(L("Scan a price or check a ride and it will appear here.")))
                         .padding(.top, 60)
                 } else {
                     HStack {
                         VStack(alignment: .leading) {
-                            Text("Overcharges caught so far").font(.caption).foregroundStyle(.secondary)
+                            Text(L("Overcharges caught so far")).font(.caption).foregroundStyle(.secondary)
                             Text(inr(app.totalFlaggedINR)).font(.title.weight(.bold))
                         }
                         Spacer()
@@ -311,7 +311,7 @@ struct HistoryView: View {
             .padding(.bottom, 30)
         }
         .background(LiquidBackground())
-        .navigationTitle("History")
+        .navigationTitle(L("History"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

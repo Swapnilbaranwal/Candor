@@ -8,7 +8,12 @@ enum AppPhase: Equatable {
 @Observable
 final class AppState {
     var phase: AppPhase = .login
-    var persona: Persona { didSet { persist() } }
+    var persona: Persona {
+        didSet {
+            persist()
+            Localizer.shared.use(persona.languageCode)
+        }
+    }
     var records: [PriceCheckRecord] { didSet { persist() } }
     var geminiKey: String { didSet { defaults.set(geminiKey, forKey: Keys.geminiKey) } }
     var geminiModel: String { didSet { defaults.set(geminiModel, forKey: Keys.geminiModel) } }
@@ -36,11 +41,17 @@ final class AppState {
         if d.bool(forKey: Keys.signedIn) {
             phase = persona.isComplete ? .main : .onboarding
         }
+        // Property observers don't run in init, so load the saved language's strings here.
+        Localizer.shared.use(persona.languageCode)
     }
 
     // MARK: Derived
 
-    var hasGemini: Bool { !geminiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    /// Launching with `-candor.forceOffline YES` turns Gemini off, to demo or test the on-device agent.
+    var hasGemini: Bool {
+        !defaults.bool(forKey: "candor.forceOffline")
+            && !geminiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
     var totalFlaggedINR: Double { records.reduce(0) { $0 + $1.overchargeINR } }
     var overchargesCaught: Int { records.filter { $0.overchargeINR > 0 }.count }
 

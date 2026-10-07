@@ -31,9 +31,12 @@ struct Persona: Codable, Equatable {
         return CurrencyOption.all.contains { $0.code == code } ? code : "USD"
     }
 
-    /// Language name shown in the UI, in the device language.
-    var languageName: String {
-        Locale.current.localizedString(forLanguageCode: languageCode)?.capitalized ?? languageCode
+    /// Language name shown in the UI, written in that language ("Español", "日本語").
+    var languageName: String { Persona.nativeName(of: languageCode) }
+
+    /// A language's own name for itself, so travellers can find theirs whatever the phone is set to.
+    static func nativeName(of code: String) -> String {
+        Locale(identifier: code).localizedString(forLanguageCode: code)?.capitalized ?? code
     }
 
     /// Language name in English, used for prompting Gemini.
@@ -42,7 +45,7 @@ struct Persona: Codable, Equatable {
     }
 
     var firstName: String {
-        name.split(separator: " ").first.map(String.init) ?? "Traveller"
+        name.split(separator: " ").first.map(String.init) ?? L("Traveller")
     }
 
     var initials: String {
@@ -54,11 +57,11 @@ struct Persona: Codable, Equatable {
     /// Account line shown under the name on the profile.
     var accountLabel: String {
         switch signInMethod {
-        case .apple?: return "Signed in with Apple"
-        case .google?: return "Signed in with Google"
-        case .email?: return email ?? "Signed in with email"
-        case .guest?: return "Guest"
-        case .phone?, nil: return phone.isEmpty ? "Guest" : phone
+        case .apple?: return L("Signed in with Apple")
+        case .google?: return L("Signed in with Google")
+        case .email?: return email ?? L("Signed in with email")
+        case .guest?: return L("Guest")
+        case .phone?, nil: return phone.isEmpty ? L("Guest") : phone
         }
     }
 }
@@ -66,7 +69,13 @@ struct Persona: Codable, Equatable {
 enum TravelStyle: String, Codable, CaseIterable, Identifiable {
     case budget, comfort, luxury
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String {
+        switch self {
+        case .budget: L("Budget")
+        case .comfort: L("Comfort")
+        case .luxury: L("Luxury")
+        }
+    }
     var icon: String {
         switch self {
         case .budget: "backpack.fill"
@@ -90,10 +99,10 @@ enum Verdict: String, Codable {
 
     var title: String {
         switch self {
-        case .fair: "Fair price"
-        case .high: "A bit high"
-        case .overcharge: "Overcharge"
-        case .info: "Fair range"
+        case .fair: L("Fair price")
+        case .high: L("A bit high")
+        case .overcharge: L("Overcharge")
+        case .info: L("Fair range")
         }
     }
 
@@ -228,9 +237,9 @@ enum RideMode: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .auto: "Auto"
-        case .taxi: "Taxi"
-        case .taxiAC: "AC Taxi"
+        case .auto: L("Auto")
+        case .taxi: L("Taxi")
+        case .taxiAC: L("AC Taxi")
         }
     }
 
@@ -266,7 +275,8 @@ enum RideMode: String, CaseIterable, Identifiable, Codable {
     }
 
     var ruleText: String {
-        "₹\(Int(baseFare)) for the first \(baseKm.formatted()) km, then ₹\(Int(perKm))/km. +25% from 11 pm to 5 am."
+        L("₹%1$@ for the first %2$@ km, then ₹%3$@/km. +25% from 11 pm to 5 am.",
+          Int(baseFare), baseKm.formatted(), Int(perKm))
     }
 
     func fare(km: Double, night: Bool) -> Double {
@@ -276,6 +286,7 @@ enum RideMode: String, CaseIterable, Identifiable, Codable {
 }
 
 enum FareChart {
+    /// English key: shown through `L(…)`, and matched on "fare" to pick the phrase to say.
     static let source = "Delhi Transport Dept. fare chart (2022 revision)"
 
     static func isNight(_ date: Date = .now) -> Bool {
@@ -296,10 +307,10 @@ enum SpotCategory: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .sight: "Sights"
-        case .fixedPrice: "Fixed price"
-        case .market: "Markets"
-        case .transport: "Transport"
+        case .sight: L("Sights")
+        case .fixedPrice: L("Fixed price")
+        case .market: L("Markets")
+        case .transport: L("Transport")
         }
     }
 

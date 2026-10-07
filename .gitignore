@@ -7,3 +7,6 @@ build/
 
 # Local API keys
 **/Secrets.swift
+
+# Screenshots and timings written by DeckCaptureUITests
+deck-capture/

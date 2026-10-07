@@ -16,6 +16,7 @@ struct LoginView: View {
         case email = "Email"
         case phone = "Phone"
         var id: String { rawValue }
+        var title: String { L(rawValue) }
     }
 
     private var trimmedEmail: String {
@@ -79,7 +80,7 @@ struct LoginView: View {
             VStack(spacing: 6) {
                 Text("Candor")
                     .font(.system(size: 46, weight: .bold, design: .rounded))
-                Text("Explore India. Pay what locals pay.")
+                Text(L("Explore India. Pay what locals pay."))
                     .font(.title3.weight(.medium))
                     .foregroundStyle(.secondary)
             }
@@ -94,9 +95,9 @@ struct LoginView: View {
     private var featureRow: some View {
         GlassEffectContainer(spacing: 10) {
             HStack(spacing: 10) {
-                feature("camera.viewfinder", "Scan prices")
-                feature("car.fill", "Fair fares")
-                feature("shield.lefthalf.filled", "Scam radar")
+                feature("camera.viewfinder", L("Scan prices"))
+                feature("car.fill", L("Fair fares"))
+                feature("shield.lefthalf.filled", L("Scam radar"))
             }
         }
         .padding(.top, 6)
@@ -105,6 +106,8 @@ struct LoginView: View {
     private func feature(_ icon: String, _ title: String) -> some View {
         Label(title, systemImage: icon)
             .font(.caption.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .glassEffect(.regular, in: .capsule)
@@ -115,8 +118,8 @@ struct LoginView: View {
     private var loginCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Sign in").font(.title2.weight(.bold))
-                Text("Use whatever you have. No Indian number needed.")
+                Text(L("Sign in")).font(.title2.weight(.bold))
+                Text(L("Use whatever you have. No Indian number needed."))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -131,9 +134,9 @@ struct LoginView: View {
                 orDivider
             }
 
-            Picker("Sign in with", selection: $mode) {
+            Picker(L("Sign in with"), selection: $mode) {
                 ForEach(ContactMode.allCases) { option in
-                    Text(option.rawValue).tag(option)
+                    Text(option.title).tag(option)
                 }
             }
             .pickerStyle(.segmented)
@@ -149,7 +152,7 @@ struct LoginView: View {
                     if contactIsLoading {
                         ProgressView().tint(.white)
                     } else {
-                        Text("Continue")
+                        Text(L("Continue"))
                         Image(systemName: "arrow.right")
                     }
                 }
@@ -164,7 +167,7 @@ struct LoginView: View {
             .sensoryFeedback(.success, trigger: contactIsValid) { _, valid in valid }
 
             VStack(spacing: 8) {
-                Button("Continue as guest") { signIn(.guest) }
+                Button(L("Continue as guest")) { signIn(.guest) }
                     .font(.subheadline.weight(.semibold))
                     .disabled(loading != nil)
 
@@ -180,15 +183,16 @@ struct LoginView: View {
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("Done") { fieldFocused = false }
+                Button(L("Done")) { fieldFocused = false }
+                    .accessibilityIdentifier("keyboardDone") // UI tests find it in any language
             }
         }
     }
 
     private var footnote: String {
         switch mode {
-        case .email: return "Prototype: nothing is verified. No email is sent."
-        case .phone: return "Any country's number works. Prototype: no SMS is sent."
+        case .email: return L("Prototype: nothing is verified. No email is sent.")
+        case .phone: return L("Any country's number works. Prototype: no SMS is sent.")
         }
     }
 
@@ -212,13 +216,13 @@ struct LoginView: View {
         }
         .buttonStyle(.glass)
         .disabled(loading != nil)
-        .accessibilityLabel("Continue with \(title)")
+        .accessibilityLabel(L("Continue with %@", title))
     }
 
     private var orDivider: some View {
         HStack(spacing: 10) {
             Rectangle().fill(.quaternary).frame(height: 1)
-            Text("or")
+            Text(L("or"))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             Rectangle().fill(.quaternary).frame(height: 1)
@@ -259,7 +263,7 @@ struct LoginView: View {
                 .glassEffect(.regular.interactive(), in: .capsule)
             }
 
-            TextField("Mobile number", text: $phone)
+            TextField(L("Mobile number"), text: $phone)
                 .keyboardType(.numberPad)
                 .textContentType(.telephoneNumber)
                 .focused($fieldFocused)

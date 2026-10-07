@@ -17,11 +17,11 @@ struct InterpreterView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 translateCard
-                SectionHeader(title: "Phrasebook", subtitle: "Tap to hear it, or show it full screen")
+                SectionHeader(title: L("Phrasebook"), subtitle: L("Tap to hear it, or show it full screen"))
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(DelhiData.phraseCategories, id: \.self) { item in
-                            GlassChip(title: item, isSelected: category == item, tint: Theme.indigo) {
+                            GlassChip(title: L(item), isSelected: category == item, tint: Theme.indigo) {
                                 withAnimation(.snappy) { category = item }
                             }
                         }
@@ -40,7 +40,7 @@ struct InterpreterView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(LiquidBackground())
-        .navigationTitle("Interpreter")
+        .navigationTitle(L("Interpreter"))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $showing) { phrase in
             ShowPhraseSheet(phrase: phrase)
@@ -51,7 +51,7 @@ struct InterpreterView: View {
     private var translateCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(toHindi ? app.persona.languageName : "Hindi").font(.subheadline.weight(.semibold))
+                Text(toHindi ? app.persona.languageName : L("Hindi")).font(.subheadline.weight(.semibold))
                 Spacer()
                 Button {
                     withAnimation(.snappy) { toHindi.toggle(); translation = nil; roman = nil }
@@ -61,10 +61,10 @@ struct InterpreterView: View {
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
                 Spacer()
-                Text(toHindi ? "Hindi" : app.persona.languageName).font(.subheadline.weight(.semibold))
+                Text(toHindi ? L("Hindi") : app.persona.languageName).font(.subheadline.weight(.semibold))
             }
 
-            TextField(toHindi ? "Type what you want to say…" : "Type the Hindi or Hinglish you heard…", text: $input, axis: .vertical)
+            TextField(toHindi ? L("Type what you want to say…") : L("Type the Hindi or Hinglish you heard…"), text: $input, axis: .vertical)
                 .lineLimit(2...5)
                 .focused($focused)
                 .padding(14)
@@ -75,7 +75,7 @@ struct InterpreterView: View {
             } label: {
                 HStack {
                     if isTranslating { ProgressView().tint(.white) } else { Image(systemName: "sparkles") }
-                    Text("Translate")
+                    Text(L("Translate"))
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 30)
@@ -85,7 +85,7 @@ struct InterpreterView: View {
             .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty || isTranslating || !app.hasGemini)
 
             if !app.hasGemini {
-                Label("Free translation needs a Gemini key (Me → AI settings). The phrasebook below works offline.", systemImage: "key.fill")
+                Label(L("Free translation needs a Gemini key (Me → AI settings). The phrasebook below works offline."), systemImage: "key.fill")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -100,14 +100,14 @@ struct InterpreterView: View {
                         Button {
                             Speaker.shared.speak(translation, language: toHindi ? "hi-IN" : app.persona.languageCode)
                         } label: {
-                            Label("Speak", systemImage: "speaker.wave.2.fill")
+                            Label(L("Speak"), systemImage: "speaker.wave.2.fill")
                         }
                         .buttonStyle(.glass)
                         if toHindi {
                             Button {
                                 showing = Phrase(english: input, hindi: translation, roman: roman ?? "", category: "Custom")
                             } label: {
-                                Label("Show", systemImage: "rectangle.expand.vertical")
+                                Label(L("Show"), systemImage: "rectangle.expand.vertical")
                             }
                             .buttonStyle(.glass)
                         }
@@ -124,7 +124,7 @@ struct InterpreterView: View {
     private func phraseRow(_ phrase: Phrase) -> some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(phrase.english).font(.caption).foregroundStyle(.secondary)
+                Text(L(phrase.english)).font(.caption).foregroundStyle(.secondary)
                 Text(phrase.roman).font(.headline)
                 Text(phrase.hindi).font(.subheadline)
             }
@@ -185,8 +185,9 @@ struct ShowPhraseSheet: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
-                Text(phrase.english)
+                Text(L(phrase.english))
                     .font(.body)
+                    .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                 Spacer()
                 GlassEffectContainer(spacing: 12) {
@@ -194,14 +195,14 @@ struct ShowPhraseSheet: View {
                         Button {
                             Speaker.shared.speak(phrase.hindi)
                         } label: {
-                            Label("Speak", systemImage: "speaker.wave.2.fill").frame(maxWidth: .infinity).frame(height: 30)
+                            Label(L("Speak"), systemImage: "speaker.wave.2.fill").frame(maxWidth: .infinity).frame(height: 30)
                         }
                         .buttonStyle(.glassProminent)
                         .tint(Theme.indigo)
                         Button {
                             dismiss()
                         } label: {
-                            Label("Close", systemImage: "xmark").frame(maxWidth: .infinity).frame(height: 30)
+                            Label(L("Close"), systemImage: "xmark").frame(maxWidth: .infinity).frame(height: 30)
                         }
                         .buttonStyle(.glass)
                     }

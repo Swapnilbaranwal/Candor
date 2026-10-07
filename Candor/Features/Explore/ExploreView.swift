@@ -26,7 +26,7 @@ struct ExploreView: View {
             Map(position: $position, selection: $selectedID) {
                 UserAnnotation()
                 ForEach(spots) { spot in
-                    Marker(spot.name, systemImage: spot.category.icon, coordinate: spot.coordinate)
+                    Marker(L(spot.name), systemImage: spot.category.icon, coordinate: spot.coordinate)
                         .tint(spot.category.color)
                         .tag(spot.id)
                 }
@@ -63,7 +63,7 @@ struct ExploreView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             GlassEffectContainer(spacing: 8) {
                 HStack(spacing: 8) {
-                    GlassChip(title: "All", icon: "sparkles", isSelected: category == nil) {
+                    GlassChip(title: L("All"), icon: "sparkles", isSelected: category == nil) {
                         withAnimation(.snappy) { category = nil }
                     }
                     ForEach(SpotCategory.allCases) { item in
@@ -85,7 +85,7 @@ struct ExploreView: View {
                     Label(spot.category.title, systemImage: spot.category.icon)
                         .font(.caption.weight(.bold))
                         .foregroundStyle(spot.category.color)
-                    Text(spot.name).font(.title3.weight(.bold))
+                    Text(L(spot.name)).font(.title3.weight(.bold))
                 }
                 Spacer()
                 Text("\(location.distanceKm(to: spot.coordinate).formatted(.number.precision(.fractionLength(1)))) km")
@@ -101,8 +101,8 @@ struct ExploreView: View {
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
             }
-            Text(spot.blurb).font(.subheadline)
-            Label(spot.tip, systemImage: "lightbulb.fill")
+            Text(L(spot.blurb)).font(.subheadline)
+            Label(L(spot.tip), systemImage: "lightbulb.fill")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -111,15 +111,19 @@ struct ExploreView: View {
                     Button {
                         rideDestination = spot.name
                     } label: {
-                        Label("Fair fare", systemImage: "car.fill").frame(maxWidth: .infinity)
+                        Label(L("Fair fare"), systemImage: "car.fill").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.glass)
 
                     Button {
                         tab = .agent
-                        Task { await agent.send("I'm going to \(spot.name). What should I know, what should things cost, and how do I avoid getting overcharged?") }
+                        let question = "I'm going to %@. What should I know, what should things cost, and how do I avoid getting overcharged?"
+                        Task {
+                            await agent.send(L(question, L(spot.name)),
+                                             canonical: question.replacingOccurrences(of: "%@", with: spot.name))
+                        }
                     } label: {
-                        Label("Ask Candor", systemImage: "sparkles").frame(maxWidth: .infinity)
+                        Label(L("Ask Candor"), systemImage: "sparkles").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.glassProminent)
                     .tint(Theme.indigo)

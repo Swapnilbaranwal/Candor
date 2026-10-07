@@ -45,6 +45,10 @@ struct RootView: View {
             }
         }
         .animation(.smooth(duration: 0.55), value: app.phase)
+        // The language chosen in the app sets SwiftUI's locale and, for Arabic and Hebrew, mirrors the layout.
+        // Numbers and dates formatted with `.formatted()` still follow the phone's own locale.
+        .environment(\.locale, Localizer.shared.locale)
+        .environment(\.layoutDirection, Localizer.shared.layoutDirection)
         .onChange(of: app.phase, initial: true) { _, phase in
             if phase == .main { location.start() }
         }

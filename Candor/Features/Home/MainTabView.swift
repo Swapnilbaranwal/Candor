@@ -10,19 +10,19 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $tab) {
-            Tab("Home", systemImage: "house.fill", value: AppTab.home) {
+            Tab(L("Home"), systemImage: "house.fill", value: AppTab.home) {
                 HomeView(tab: $tab)
             }
-            Tab("Explore", systemImage: "map.fill", value: AppTab.explore) {
+            Tab(L("Explore"), systemImage: "map.fill", value: AppTab.explore) {
                 ExploreView(tab: $tab)
             }
-            Tab("Scan", systemImage: "camera.viewfinder", value: AppTab.scan) {
+            Tab(L("Scan"), systemImage: "camera.viewfinder", value: AppTab.scan) {
                 ScanView()
             }
-            Tab("Agent", systemImage: "sparkles", value: AppTab.agent) {
+            Tab(L("Agent"), systemImage: "sparkles", value: AppTab.agent) {
                 AgentView()
             }
-            Tab("Me", systemImage: "person.crop.circle.fill", value: AppTab.profile) {
+            Tab(L("Me"), systemImage: "person.crop.circle.fill", value: AppTab.profile) {
                 ProfileView()
             }
         }
@@ -68,8 +68,10 @@ struct AgentAccessory: View {
     }
 
     private var statusText: String {
-        if agent.isWorking { return "Candor is working on it…" }
-        if isOnAgentTab { return app.hasGemini ? "Gemini agent · \(agent.toolCount) tools" : "Offline agent · \(agent.toolCount) tools" }
-        return "Ask Candor anything…"
+        if agent.isWorking { return L("Candor is working on it…") }
+        if isOnAgentTab {
+            return app.hasGemini ? L("Gemini agent · %@ tools", agent.toolCount) : L("Offline agent · %@ tools", agent.toolCount)
+        }
+        return L("Ask Candor anything…")
     }
 }

@@ -101,20 +101,20 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     }
 
     var originName: String {
-        isInDelhi ? "Your location" : "Connaught Place (demo)"
+        isInDelhi ? L("Your location") : L("Connaught Place (demo)")
     }
 
     var placeLabel: String {
-        guard isInDelhi, let location else { return "New Delhi · demo location" }
+        guard isInDelhi, let location else { return L("New Delhi · demo location") }
         let nearest = DelhiData.spots.min { a, b in
             location.distance(from: CLLocation(latitude: a.latitude, longitude: a.longitude)) <
             location.distance(from: CLLocation(latitude: b.latitude, longitude: b.longitude))
         }
         if let nearest {
             let meters = location.distance(from: CLLocation(latitude: nearest.latitude, longitude: nearest.longitude))
-            if meters < 3_000 { return "Near \(nearest.name)" }
+            if meters < 3_000 { return L("Near %@", L(nearest.name)) }
         }
-        return "New Delhi"
+        return L("New Delhi")
     }
 
     func distanceKm(to coordinate: CLLocationCoordinate2D) -> Double {
@@ -176,7 +176,7 @@ enum Routing {
 
     static func distance(to item: MKMapItem, from origin: CLLocationCoordinate2D) async -> RouteInfo? {
         let coordinate = item.placemark.coordinate
-        let name = item.name ?? "Destination"
+        let name = item.name ?? L("Destination")
         let request = MKDirections.Request()
         request.source = MKMapItem(placemark: MKPlacemark(coordinate: origin))
         request.destination = item

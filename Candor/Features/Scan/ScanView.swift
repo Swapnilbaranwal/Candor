@@ -45,16 +45,16 @@ struct ScanView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(LiquidBackground())
-            .navigationTitle("Price check")
+            .navigationTitle(L("Price check"))
             .toolbar {
                 if image != nil || result != nil {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("Reset", systemImage: "arrow.counterclockwise") { resetAll() }
+                        Button(L("Reset"), systemImage: "arrow.counterclockwise") { resetAll() }
                     }
                 }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") { focused = false }
+                    Button(L("Done")) { focused = false }
                 }
             }
             .onChange(of: pickerItem) { _, item in
@@ -86,9 +86,9 @@ struct ScanView: View {
                         .font(.system(size: 54, weight: .light))
                         .foregroundStyle(Theme.brandGradient)
                         .symbolEffect(.breathe, options: .repeating)
-                    Text("Photograph a price tag, menu or bill")
+                    Text(L("Photograph a price tag, menu or bill"))
                         .font(.headline)
-                    Text("Candor reads it, finds the fair price and tells you if it's fair, in your language.")
+                    Text(L("Candor reads it, finds the fair price and tells you if it's fair, in your language."))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -111,12 +111,12 @@ struct ScanView: View {
             HStack(spacing: 10) {
                 if cameraAvailable {
                     Button { showCamera = true } label: {
-                        Label("Camera", systemImage: "camera.fill").frame(maxWidth: .infinity)
+                        Label(L("Camera"), systemImage: "camera.fill").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.glass)
                 }
                 PhotosPicker(selection: $pickerItem, matching: .images) {
-                    Label("Photos", systemImage: "photo.on.rectangle").frame(maxWidth: .infinity)
+                    Label(L("Photos"), systemImage: "photo.on.rectangle").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.glass)
             }
@@ -129,19 +129,19 @@ struct ScanView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "indianrupeesign").foregroundStyle(Theme.saffron).frame(width: 24)
-                TextField("What are they asking? (optional)", text: $askedText)
+                TextField(L("What are they asking? (optional)"), text: $askedText)
                     .keyboardType(.decimalPad)
                     .focused($focused)
             }
             Divider()
             HStack(alignment: .top) {
                 Image(systemName: "text.bubble").foregroundStyle(Theme.indigo).frame(width: 24)
-                TextField("Add context, e.g. \"2 chai and a samosa\"", text: $note, axis: .vertical)
+                TextField(L("Add context, e.g. \"2 chai and a samosa\""), text: $note, axis: .vertical)
                     .lineLimit(1...3)
                     .focused($focused)
             }
             if let asked = Double(askedText), asked > 0 {
-                Text("≈ \(app.homeAmount(asked)) in \(app.persona.homeCurrency)")
+                Text("≈ \(app.homeAmount(asked))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -153,7 +153,7 @@ struct ScanView: View {
         Button(action: check) {
             HStack(spacing: 8) {
                 if isRunning { ProgressView().tint(.white) } else { Image(systemName: "sparkles") }
-                Text(isRunning ? "Checking…" : "Check fair price")
+                Text(isRunning ? L("Checking…") : L("Check fair price"))
             }
             .font(.headline)
             .frame(maxWidth: .infinity)

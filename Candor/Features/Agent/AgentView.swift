@@ -10,6 +10,7 @@ struct AgentView: View {
     @State private var attachment: UIImage?
     @FocusState private var inputFocused: Bool
 
+    /// `text` is the English prompt: shown through `L(…)`, and what the offline agent matches on.
     private struct Starter: Identifiable {
         let icon: String
         let text: String
@@ -56,13 +57,14 @@ struct AgentView: View {
                         Circle()
                             .fill(app.hasGemini ? Theme.mint : Theme.saffron)
                             .frame(width: 8, height: 8)
-                        Text(app.hasGemini ? "Gemini" : "Offline")
+                        Text(app.hasGemini ? "Gemini" : L("Offline"))
                             .font(.caption.weight(.semibold))
                     }
                     .padding(.horizontal, 6)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("New chat", systemImage: "square.and.pencil") { agent.clear() }
+                    Button(L("New chat"), systemImage: "square.and.pencil") { agent.clear() }
+                        .accessibilityIdentifier("agentNewChat")
                         .disabled(agent.messages.isEmpty || agent.isWorking)
                 }
             }
@@ -87,9 +89,9 @@ struct AgentView: View {
             AgentOrb(size: 84, isActive: false)
                 .padding(.top, 30)
             VStack(spacing: 6) {
-                Text("Hi \(app.persona.firstName), I'm Candor")
+                Text(L("Hi %@, I'm Candor", app.persona.firstName))
                     .font(.title2.weight(.bold))
-                Text("I check fares, prices and situations for you, using real fare charts and price references. You'll see every step I take.")
+                Text(L("I check fares, prices and situations for you, using real fare charts and price references. You'll see every step I take."))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -97,13 +99,13 @@ struct AgentView: View {
             VStack(spacing: 10) {
                 ForEach(starters) { starter in
                     Button {
-                        Task { await agent.send(starter.text) }
+                        Task { await agent.send(L(starter.text), canonical: starter.text) }
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: starter.icon)
                                 .foregroundStyle(Theme.saffron)
                                 .frame(width: 24)
-                            Text(starter.text)
+                            Text(L(starter.text))
                                 .multilineTextAlignment(.leading)
                                 .foregroundStyle(.primary)
                             Spacer(minLength: 0)
@@ -129,7 +131,7 @@ struct AgentView: View {
                         .scaledToFill()
                         .frame(width: 56, height: 56)
                         .clipShape(.rect(cornerRadius: 14))
-                    Text("Photo attached").font(.caption.weight(.semibold))
+                    Text(L("Photo attached")).font(.caption.weight(.semibold))
                     Spacer()
                     Button {
                         self.attachment = nil
@@ -154,13 +156,16 @@ struct AgentView: View {
                     }
                     .buttonStyle(.plain)
 
-                    TextField("Ask about a price, ride or situation…", text: $input, axis: .vertical)
+                    TextField(L("Ask about a price, ride or situation…"), text: $input, axis: .vertical)
                         .lineLimit(1...4)
                         .focused($inputFocused)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 13)
                         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
                         .onSubmit(send)
+                        .accessibilityIdentifier("agentInput")
+                        // UI tests type exact prompts; autocorrect would rewrite words like "chai" or "lassi".
+                        .autocorrectionDisabled(UserDefaults.standard.bool(forKey: "candor.uiTesting"))
 
                     Button(action: send) {
                         Image(systemName: agent.isWorking ? "ellipsis" : "arrow.up")
@@ -172,6 +177,9 @@ struct AgentView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(!canSend)
+                    // Identifier and state for UI tests: "working", or "idle <seconds> <mode>" after a run.
+                    .accessibilityIdentifier("agentSend")
+                    .accessibilityValue(agent.isWorking ? "working" : "idle \(String(format: "%.2f", agent.lastRunSeconds)) \(agent.lastRunMode)")
                 }
             }
         }
@@ -240,7 +248,7 @@ private struct MessageView: View {
                 if !message.text.isEmpty {
                     MarkdownText(text: message.text)
                 } else if message.isWorking && message.steps.isEmpty {
-                    Text("Thinking…").foregroundStyle(.secondary)
+                    Text(L("Thinking…")).foregroundStyle(.secondary)
                 }
             }
             .padding(16)

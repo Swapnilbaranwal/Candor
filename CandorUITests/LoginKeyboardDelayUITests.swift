@@ -25,7 +25,8 @@ final class LoginKeyboardDelayUITests: XCTestCase {
         NSLog("CANDOR_MEASURE first_tap_to_keyboard_seconds=%.3f", firstDelay)
 
         // Dismiss via the keyboard toolbar's Done button, then measure a warm second tap.
-        let done = app.buttons["Done"].firstMatch
+        // Found by identifier, not title: the title is translated into the app's language.
+        let done = app.buttons["keyboardDone"].firstMatch
         if done.waitForExistence(timeout: 5) { done.tap() }
         XCTAssertTrue(keyboard.waitForNonExistence(timeout: 10), "Keyboard did not dismiss")
         Thread.sleep(forTimeInterval: 1.0)
