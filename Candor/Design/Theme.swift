@@ -142,6 +142,10 @@ struct GlassChip: View {
             .foregroundStyle(isSelected ? Color.white : Color.primary)
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
+            // Glass sitting on a glass card has nothing to refract and melts into it, so the chip
+            // carries its own tinted fill and outline to keep the pill shape visible.
+            .background(isSelected ? tint : tint.opacity(0.14), in: .capsule)
+            .overlay { Capsule().strokeBorder(tint.opacity(isSelected ? 0 : 0.45), lineWidth: 1) }
             .glassEffect(isSelected ? Glass.regular.tint(tint).interactive() : Glass.regular.interactive(), in: .capsule)
         }
         .buttonStyle(.plain)

@@ -86,6 +86,8 @@ struct RideCheckView: View {
         }
     }
 
+    private static let cardPadding: CGFloat = 18
+
     private var routeCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
@@ -133,19 +135,24 @@ struct RideCheckView: View {
                 }
             }
 
+            // Quick picks scroll inside the card: the row spans the card edge to edge and clips there,
+            // instead of spilling past the card to the edge of the screen.
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(DelhiData.spots.filter { $0.category != .transport || $0.id == "airport" }) { spot in
                         GlassChip(title: spot.name, icon: spot.category.icon, isSelected: route?.name == spot.name, tint: Theme.teal) {
                             Task { await chooseSpot(spot) }
                         }
+                        .frame(maxWidth: 190) // long names truncate instead of filling the row
                     }
                 }
-                .padding(.vertical, 2)
+                .padding(.vertical, 6) // room for the chips' glass edges inside the clip
             }
-            .scrollClipDisabled()
+            .contentMargins(.horizontal, Self.cardPadding, for: .scrollContent)
+            .padding(.horizontal, -Self.cardPadding)
+            .padding(.vertical, -4)
         }
-        .glassCard()
+        .glassCard(padding: Self.cardPadding)
     }
 
     private var optionsCard: some View {

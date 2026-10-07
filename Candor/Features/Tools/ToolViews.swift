@@ -22,6 +22,7 @@ struct ScamRadarView: View {
                         scamCard(scam)
                     }
                 }
+                .animation(.snappy, value: expanded)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 30)
@@ -71,7 +72,7 @@ struct ScamRadarView: View {
         let isOpen = expanded == scam.id
         return VStack(alignment: .leading, spacing: 12) {
             Button {
-                withAnimation(.snappy) { expanded = isOpen ? nil : scam.id }
+                expanded = isOpen ? nil : scam.id
             } label: {
                 HStack(spacing: 12) {
                     Image(systemName: scam.icon)
@@ -294,11 +295,11 @@ struct HistoryView: View {
                 } else {
                     HStack {
                         VStack(alignment: .leading) {
-                            Text("Overcharge flagged").font(.caption).foregroundStyle(.secondary)
-                            Text(app.homeAmount(app.totalFlaggedINR)).font(.title.weight(.bold))
+                            Text("Overcharges caught so far").font(.caption).foregroundStyle(.secondary)
+                            Text(inr(app.totalFlaggedINR)).font(.title.weight(.bold))
                         }
                         Spacer()
-                        Text(inr(app.totalFlaggedINR)).font(.headline.monospacedDigit()).foregroundStyle(.secondary)
+                        Text("≈ " + app.homeAmount(app.totalFlaggedINR)).font(.headline.monospacedDigit()).foregroundStyle(.secondary)
                     }
                     .glassCard()
                     ForEach(app.records) { record in

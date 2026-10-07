@@ -28,7 +28,7 @@ The app works offline with an on-device agent. For photo reading, live reasoning
 | --- | --- |
 | Login | Apple, Google, email, phone (country-code picker, number length checked per country) or guest. Apple and Google are prototype stubs until the real SDK flows are wired in. |
 | Persona setup | Name, language (defaults to device), home currency, travel style, days, interests, then an animated "agent setup" sequence. |
-| Home | Fair-price shield (overcharge flagged in your currency), tools grid, Ask Candor prompts, scam of the day, recent checks and the live exchange rate. |
+| Home | Fair-price shield (overcharges caught so far, in rupees with your home currency alongside), tools grid, Ask Candor prompts, scam of the day, recent checks and the live exchange rate. |
 | Explore | Map of verified Delhi places (sights, fixed-price shops, markets, transport) with tips, "Fair fare" and "Ask Candor". |
 | Scan | Camera or Photos input plus the asked price. The agent reads it, then shows a verdict card with the fair range, a gauge and a phrase to say. |
 | Agent | Chat with a visible tool trail. Tools: `lookup_price`, `route_distance`, `estimate_fare`, `check_scam`, `find_nearby`, `convert_currency`, `report_verdict`. |

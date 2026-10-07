@@ -118,19 +118,37 @@ struct HomeView: View {
                     .glassEffect(.regular.tint((app.hasGemini ? Theme.mint : Theme.saffron).opacity(0.4)), in: .capsule)
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(app.totalFlaggedINR > 0 ? app.homeAmount(app.totalFlaggedINR) : CurrencyService.format(0, code: app.persona.homeCurrency))
-                    .font(.system(size: 42, weight: .bold, design: .rounded))
-                    .contentTransition(.numericText())
-                Text("overcharge flagged")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+            if app.records.isEmpty {
+                // Nothing checked yet: prompt instead of a bare "₹0" that reads like an amount field.
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("No checks yet")
+                        .font(.title3.weight(.bold))
+                    Text("Scan a price or check a ride to see what you should pay.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                // A labelled stat. Rupees lead, as everywhere else: prices in India are quoted in INR.
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Overcharges caught so far")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text(inr(app.totalFlaggedINR))
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .contentTransition(.numericText())
+                    Text(app.totalFlaggedINR > 0
+                         ? "Extra you were asked to pay above the fair price."
+                         : "Every price you checked was fair.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
-            HStack(spacing: 10) {
-                stat("\(app.records.count)", "checks")
-                stat("\(app.overchargesCaught)", "caught")
-                stat(inr(app.totalFlaggedINR), "in rupees")
+                HStack(spacing: 10) {
+                    stat("\(app.records.count)", app.records.count == 1 ? "check" : "checks")
+                    stat("\(app.overchargesCaught)", app.overchargesCaught == 1 ? "overcharge" : "overcharges")
+                    stat("≈ " + (app.totalFlaggedINR > 0 ? app.homeAmount(app.totalFlaggedINR) : CurrencyService.format(0, code: app.persona.homeCurrency)),
+                         "in \(app.persona.homeCurrency)")
+                }
             }
 
             GlassEffectContainer(spacing: 10) {
