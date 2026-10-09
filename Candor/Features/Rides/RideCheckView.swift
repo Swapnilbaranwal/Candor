@@ -54,7 +54,7 @@ struct RideCheckView: View {
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 30)
                         }
-                        .buttonStyle(.glass)
+                        .buttonStyle(.bordered)
                         .disabled(saved)
                     }
                 }
@@ -65,7 +65,7 @@ struct RideCheckView: View {
             .animation(.smooth, value: route?.name)
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(LiquidBackground())
+        .background(AppBackground())
         .navigationTitle(L("Ride fare"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -114,7 +114,7 @@ struct RideCheckView: View {
             }
             .padding(.horizontal, 14)
             .frame(height: 52)
-            .glassEffect(.regular.interactive(), in: .capsule)
+            .background(Theme.field, in: .capsule)
 
             if !results.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
@@ -140,7 +140,7 @@ struct RideCheckView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(DelhiData.spots.filter { $0.category != .transport || $0.id == "airport" }) { spot in
-                        GlassChip(title: L(spot.name), icon: spot.category.icon, isSelected: route?.name == spot.name, tint: Theme.teal) {
+                        Chip(title: L(spot.name), icon: spot.category.icon, isSelected: route?.name == spot.name, tint: Theme.teal) {
                             Task { await chooseSpot(spot) }
                         }
                         .frame(maxWidth: 190) // long names truncate instead of filling the row
@@ -152,7 +152,7 @@ struct RideCheckView: View {
             .padding(.horizontal, -Self.cardPadding)
             .padding(.vertical, -4)
         }
-        .glassCard(padding: Self.cardPadding)
+        .card(padding: Self.cardPadding)
     }
 
     private var optionsCard: some View {
@@ -167,7 +167,7 @@ struct RideCheckView: View {
             Toggle(isOn: $night) {
                 Label(L("Night fare (11 pm – 5 am)"), systemImage: "moon.stars.fill")
             }
-            .tint(Theme.indigo)
+            .tint(Theme.accent)
 
             HStack(spacing: 10) {
                 Image(systemName: "indianrupeesign").foregroundStyle(Theme.saffron).frame(width: 22)
@@ -180,9 +180,9 @@ struct RideCheckView: View {
             }
             .padding(.horizontal, 14)
             .frame(height: 50)
-            .glassEffect(.regular.interactive(), in: .capsule)
+            .background(Theme.field, in: .capsule)
         }
-        .glassCard()
+        .card()
     }
 
     private func mapPreview(_ route: Routing.RouteInfo) -> some View {
@@ -192,13 +192,13 @@ struct RideCheckView: View {
         }
         .id(route.name)
         .frame(height: 170)
-        .clipShape(.rect(cornerRadius: 26))
+        .clipShape(.rect(cornerRadius: 16))
         .overlay(alignment: .bottomLeading) {
             Label(L("%@ km by road", route.km.formatted(.number.precision(.fractionLength(1)))), systemImage: "road.lanes")
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .glassEffect(.regular, in: .capsule)
+                .background(Theme.field, in: .capsule)
                 .padding(10)
         }
     }
@@ -219,7 +219,7 @@ struct RideCheckView: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
-        .glassCard()
+        .card()
     }
 
     private func search() async {

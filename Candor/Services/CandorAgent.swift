@@ -119,13 +119,25 @@ final class AgentEngine {
                 return result
             } catch {
                 lastRunMode = "gemini-failed"
+                // The API's own message is long and technical: it goes to the console, and the
+                // traveller sees one short sentence.
+                print("Gemini failed: \(error.localizedDescription)")
                 var step = AgentStep(icon: "wifi.exclamationmark", title: L("Gemini unavailable"),
-                                     detail: L("%@ Switching to the offline agent.", error.localizedDescription))
+                                     detail: L("%@ Switching to the offline agent.", Self.reason(for: error)))
                 step.state = .failed
                 emit(step)
             }
         }
         return await runOffline(prompt: canonical ?? prompt, image: image)
+    }
+
+    /// Why Gemini did not answer, in one short sentence.
+    private static func reason(for error: Error) -> String {
+        switch error {
+        case GeminiError.http(429, _): L("Gemini's usage limit is reached.")
+        case is URLError: L("Couldn't reach Gemini.")
+        default: L("Gemini couldn't answer.")
+        }
     }
 
     // MARK: Step helpers
@@ -153,13 +165,29 @@ final class AgentEngine {
 
     // MARK: Gemini (function calling loop)
 
+    /// Where the traveller is and how much Candor knows there. Candor's own data (prices, fares,
+    /// scams) covers verified cities only; elsewhere the agent must say its figures are estimates.
+    private var tripContext: String {
+        guard let trip = app.trip, !trip.cities.isEmpty else {
+            return "Candor's verified data covers Delhi. Trip details: not given."
+        }
+        let route = trip.cities.map { stay in
+            let dates = stay.arrival.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "en")))
+                + "–" + stay.departure.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "en")))
+            return "\(stay.city.name) (\(dates); \(stay.city.coverage == .verified ? "verified data" : "no verified data, give estimates and say so"); stay: \(stay.staySummary))"
+        }.joined(separator: " → ")
+        let current = trip.cityStay(on: .now)?.city.name ?? trip.cities[0].city.name
+        return "Trip: \(route). Current city: \(current). Party: \(trip.partySummary). " +
+            "Candor's tools (prices, fares, scams, places) hold verified data for Delhi only."
+    }
+
     private var systemPrompt: String {
         let p = app.persona
         let interests = p.interests.isEmpty ? "general sightseeing" : p.interests.joined(separator: ", ")
         return """
-        You are Candor, a travel agent inside an iPhone app for foreign visitors in India. The current pilot city is Delhi.
+        You are Candor, a travel agent inside an iPhone app for foreign visitors in India. \(tripContext)
         Traveller: \(p.name.isEmpty ? "unnamed" : p.name). Language: \(p.englishLanguageName). Home currency: \(p.homeCurrency). \
-        Style: \(p.travelStyle.rawValue). Interests: \(interests). Trip length: \(p.tripDays) days. \
+        Style: \(p.travelStyle.rawValue). Interests: \(interests). Preferences: \(p.tasteSummary). \
         Local time: \(Date.now.formatted(date: .abbreviated, time: .shortened)). Measuring from: \(location.originName).
 
         Rules:
@@ -236,15 +264,37 @@ final class AgentEngine {
 
         var verdict: PriceVerdict?
         var thinking = begin("brain.head.profile", L("Planning"), "Gemini · \(app.geminiModel)")
+        // A price check is a short tool-calling job, so ask Gemini 3 for light reasoning: it answers sooner.
+        var thinkingLevel: String? = "low"
 
         for _ in 0..<6 {
-            let body: [String: Any] = [
+            var body: [String: Any] = [
                 "systemInstruction": ["parts": [["text": systemPrompt]]],
                 "contents": contents,
                 "tools": [["functionDeclarations": toolDeclarations]]
             ]
-            let response = try await client.generate(body)
-            guard let content = GeminiClient.firstContent(response) else { throw GeminiError.emptyResponse }
+            if let thinkingLevel {
+                body["generationConfig"] = ["thinkingConfig": ["thinkingLevel": thinkingLevel]]
+            }
+            let response: [String: Any]
+            do {
+                do {
+                    response = try await client.generate(body)
+                } catch GeminiError.http(400, _) where thinkingLevel != nil {
+                    // A model that doesn't know this setting rejects the request: drop it and ask again.
+                    thinkingLevel = nil
+                    body["generationConfig"] = nil
+                    response = try await client.generate(body)
+                }
+            } catch {
+                // Close the step that was waiting on Gemini, or it keeps spinning above the failure line.
+                finish(thinking, failed: true)
+                throw error
+            }
+            guard let content = GeminiClient.firstContent(response) else {
+                finish(thinking, failed: true)
+                throw GeminiError.emptyResponse
+            }
             contents.append(content)
 
             let responseParts = content["parts"] as? [[String: Any]] ?? []
@@ -598,7 +648,7 @@ final class AgentEngine {
         _ = output
         let sights = DelhiData.spots.filter { $0.category == .sight }
         let markets = DelhiData.spots.filter { $0.category == .market }
-        let days = max(1, min(app.persona.tripDays, 3))
+        let days = max(1, min(app.trip?.plannedDayCount ?? app.persona.tripDays, 3))
         var lines: [String] = []
         for day in 0..<days {
             let morning = sights[(day * 2) % sights.count]

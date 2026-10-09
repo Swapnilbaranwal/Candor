@@ -34,7 +34,7 @@ struct ProfileView: View {
                 .padding(.bottom, 30)
             }
             .scrollDismissesKeyboard(.interactively)
-            .background(LiquidBackground())
+            .background(AppBackground())
             .navigationTitle(L("Me"))
             .confirmationDialog(L("Clear all saved checks?"), isPresented: $confirmReset, titleVisibility: .visible) {
                 Button(L("Clear checks"), role: .destructive) { app.resetStats() }
@@ -48,7 +48,7 @@ struct ProfileView: View {
                 .font(.system(size: 34, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .frame(width: 92, height: 92)
-                .glassEffect(.regular.tint(Theme.indigo), in: .circle)
+                .background(Theme.accent, in: .circle)
             Text(app.persona.name.isEmpty ? L("Traveller") : app.persona.name)
                 .font(.title2.weight(.bold))
             Text(app.persona.accountLabel)
@@ -67,7 +67,7 @@ struct ProfileView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .glassCard(cornerRadius: 32, padding: 22)
+        .card(cornerRadius: 16, padding: 22)
     }
 
     private func tag(_ title: String, _ icon: String) -> some View {
@@ -75,7 +75,7 @@ struct ProfileView: View {
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .glassEffect(.regular, in: .capsule)
+            .background(Theme.field, in: .capsule)
     }
 
     private func preferencesCard(app persona: Binding<Persona>) -> some View {
@@ -119,21 +119,23 @@ struct ProfileView: View {
             Divider()
             Stepper(L("Days in Delhi: %@", persona.wrappedValue.tripDays), value: persona.tripDays, in: 1...14)
         }
-        .glassCard()
+        .card()
     }
 
     private func aiCard(key: Binding<String>, model: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Label(L("AI settings"), systemImage: "sparkles").font(.headline)
+                Label(L("AI settings"), systemImage: "slider.horizontal.3").font(.headline)
                 Spacer()
                 Text(app.hasGemini ? L("Gemini live") : L("Offline agent"))
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .glassEffect(.regular.tint((app.hasGemini ? Theme.mint : Theme.saffron).opacity(0.4)), in: .capsule)
+                    .background((app.hasGemini ? Theme.mint : Theme.saffron).opacity(0.14), in: .capsule)
             }
-            Text(L("Add a Gemini API key from Google AI Studio to turn on photo reading, live reasoning and free translation. Without a key, Candor runs an on-device agent with the same tools."))
+            Text(Backend.geminiProxy == nil
+                 ? L("Add a Gemini API key from Google AI Studio to turn on photo reading, live reasoning and free translation. Without a key, Candor runs an on-device agent with the same tools.")
+                 : L("Gemini runs through Candor's Google Cloud backend, so you don't need a key. If you add your own key here, Candor uses it instead."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -158,11 +160,11 @@ struct ProfileView: View {
             }
             .padding(.horizontal, 14)
             .frame(height: 48)
-            .glassEffect(.regular.interactive(), in: .capsule)
+            .background(Theme.field, in: .capsule)
 
             HStack {
                 Text(L("Model")).font(.subheadline)
-                TextField("gemini-2.5-flash", text: model)
+                TextField("gemini-3.8-flash", text: model)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .font(.subheadline.monospaced())
@@ -175,7 +177,7 @@ struct ProfileView: View {
                 } label: {
                     Label(L("Test connection"), systemImage: "bolt.horizontal.fill")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
                 .disabled(!app.hasGemini || testState == .testing)
 
                 switch testState {
@@ -186,11 +188,14 @@ struct ProfileView: View {
                 }
             }
 
-            Label(L("Prototype stores the key on this device. For the submission, call Gemini through a Cloud Run proxy instead."), systemImage: "lock.shield")
+            Label(Backend.geminiProxy == nil
+                  ? L("Prototype stores the key on this device. For the submission, call Gemini through a Cloud Run proxy instead.")
+                  : L("Candor's Gemini key stays on the server, in Google Cloud. It is not stored in the app."),
+                  systemImage: "lock.shield")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
-        .glassCard()
+        .card()
     }
 
     private var accountCard: some View {
@@ -200,7 +205,7 @@ struct ProfileView: View {
             } label: {
                 Label(L("Clear saved checks"), systemImage: "trash").frame(maxWidth: .infinity).frame(height: 30)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.bordered)
             .disabled(app.records.isEmpty)
 
             Button(role: .destructive) {
@@ -208,7 +213,7 @@ struct ProfileView: View {
             } label: {
                 Label(L("Sign out"), systemImage: "rectangle.portrait.and.arrow.right").frame(maxWidth: .infinity).frame(height: 30)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.bordered)
             .tint(Theme.rose)
         }
     }

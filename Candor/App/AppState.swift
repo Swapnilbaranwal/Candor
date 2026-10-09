@@ -15,8 +15,12 @@ final class AppState {
         }
     }
     var records: [PriceCheckRecord] { didSet { persist() } }
+    var trip: Trip? { didSet { persistTrip() } }
     var geminiKey: String { didSet { defaults.set(geminiKey, forKey: Keys.geminiKey) } }
     var geminiModel: String { didSet { defaults.set(geminiModel, forKey: Keys.geminiModel) } }
+
+    /// Tab to open when the main screen first appears (set by onboarding's "plan your days" choice).
+    var startTab: AppTab?
 
     let currency = CurrencyService()
 
@@ -25,6 +29,7 @@ final class AppState {
     private enum Keys {
         static let persona = "candor.persona"
         static let records = "candor.records"
+        static let trip = "candor.trip"
         static let signedIn = "candor.signedIn"
         static let geminiKey = "candor.geminiKey"
         static let geminiModel = "candor.geminiModel"
@@ -35,9 +40,12 @@ final class AppState {
         let decoder = JSONDecoder()
         persona = d.data(forKey: Keys.persona).flatMap { try? decoder.decode(Persona.self, from: $0) } ?? Persona()
         records = d.data(forKey: Keys.records).flatMap { try? decoder.decode([PriceCheckRecord].self, from: $0) } ?? []
+        trip = d.data(forKey: Keys.trip).flatMap { try? decoder.decode(Trip.self, from: $0) }
         let savedKey = d.string(forKey: Keys.geminiKey) ?? ""
-        geminiKey = savedKey.isEmpty ? Secrets.geminiAPIKey : savedKey
-        geminiModel = d.string(forKey: Keys.geminiModel) ?? "gemini-2.5-flash"
+        // With the Cloud Run proxy set up, the app needs no key of its own.
+        geminiKey = savedKey.isEmpty && Backend.geminiProxy == nil ? Secrets.geminiAPIKey : savedKey
+        // gemini-2.5-flash is closed to new API keys (404 "no longer available to new users").
+        geminiModel = d.string(forKey: Keys.geminiModel) ?? "gemini-3.8-flash"
         if d.bool(forKey: Keys.signedIn) {
             phase = persona.isComplete ? .main : .onboarding
         }
@@ -47,10 +55,11 @@ final class AppState {
 
     // MARK: Derived
 
-    /// Launching with `-candor.forceOffline YES` turns Gemini off, to demo or test the on-device agent.
+    /// Gemini is reachable through the Cloud Run proxy or with a key.
+    /// Launching with `-candor.forceOffline YES` turns it off, to demo or test the on-device agent.
     var hasGemini: Bool {
         !defaults.bool(forKey: "candor.forceOffline")
-            && !geminiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && (Backend.geminiProxy != nil || !geminiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
     var totalFlaggedINR: Double { records.reduce(0) { $0 + $1.overchargeINR } }
     var overchargesCaught: Int { records.filter { $0.overchargeINR > 0 }.count }
@@ -94,5 +103,13 @@ final class AppState {
         let encoder = JSONEncoder()
         if let data = try? encoder.encode(persona) { defaults.set(data, forKey: Keys.persona) }
         if let data = try? encoder.encode(records) { defaults.set(data, forKey: Keys.records) }
+    }
+
+    private func persistTrip() {
+        if let trip, let data = try? JSONEncoder().encode(trip) {
+            defaults.set(data, forKey: Keys.trip)
+        } else {
+            defaults.removeObject(forKey: Keys.trip)
+        }
     }
 }

@@ -18,9 +18,17 @@ Sign in with **Apple, Google, email, a mobile number from any country, or as a g
 
 The app works offline with an on-device agent. For photo reading, live reasoning and free translation:
 
-*Me → AI settings → paste a Gemini API key* (from Google AI Studio), then tap **Test connection**. The default model is `gemini-2.5-flash` and you can edit it.
+*Me → AI settings → paste a Gemini API key* (from Google AI Studio), then tap **Test connection**. The default model is `gemini-3.8-flash` and you can edit it.
 
-> The prototype stores the key on the device. For the hackathon submission, move the Gemini calls behind a Cloud Run proxy so the key never ships in the app.
+### Gemini through Google Cloud Run (no key in the app)
+
+`backend/gemini-proxy` is a small Cloud Run service that holds the Gemini key in Secret Manager and forwards the app's requests. Deploy it with the steps in its README, then paste the service URL into `Candor/App/Backend.swift`:
+
+```swift
+static let geminiProxyURL = "https://YOUR_SERVICE_URL"
+```
+
+With a URL there, the app needs no key. A key typed in *Me → AI settings* still takes priority and goes straight to the Gemini API. With neither, the app uses the key in `Secrets.swift`, or the on-device agent.
 
 ## What's inside
 
@@ -28,7 +36,7 @@ The app works offline with an on-device agent. For photo reading, live reasoning
 | --- | --- |
 | Login | Apple, Google, email, phone (country-code picker, number length checked per country) or guest. Apple and Google are prototype stubs until the real SDK flows are wired in. |
 | Persona setup | Name, language (defaults to device), home currency, travel style, days, interests, then an animated "agent setup" sequence. |
-| Home | Leads with the price check: "What are you being asked to pay?", Scan a price, Check a ride and a one-tap example that runs the agent. Then Ask Candor prompts, scam of the day, recent checks, the overcharge total (once there are saved checks), more tools and the live exchange rate. |
+| Home | Leads with the price check: "What are you being asked to pay?", Scan a price, Check a ride and a one-tap example that runs the agent. Then the overcharge total (once there are saved checks), scam of the day, recent checks and a row of the other tools. |
 | Explore | Map of verified Delhi places (sights, fixed-price shops, markets, transport) with tips, "Fair fare" and "Ask Candor". |
 | Scan | Camera or Photos input plus the asked price. The agent reads it, then shows a verdict card with the fair range, a gauge and a phrase to say. |
 | Agent | Chat with a visible tool trail. Tools: `lookup_price`, `route_distance`, `estimate_fare`, `check_scam`, `find_nearby`, `convert_currency`, `report_verdict`. |
@@ -58,13 +66,15 @@ The whole app follows the language picked at persona setup (or under *Me → Pre
 
 ```
 Candor/
-  App/          CandorApp, RootView, AppState
+  App/          CandorApp, RootView, AppState, Backend (Cloud Run proxy address)
   Design/       Theme, glass helpers, agent and verdict components
   Models/       Persona, Verdict, RideMode, Spot, Scam, Phrase…
   Data/         DelhiData: places, reference prices, scams, phrases, currencies
   Services/     CandorAgent and AgentEngine, GeminiClient, Localizer, Location, Routing, Currency, Speech
   Localization/ candor-<code>.json: one string table per language
   Features/     Login, Onboarding, Home, Explore, Scan, Agent, Rides, Interpreter, Tools, Profile
+backend/
+  gemini-proxy/ Cloud Run service that forwards Gemini requests and keeps the API key on the server
 ```
 
 ## Data notes

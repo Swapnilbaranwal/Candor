@@ -21,7 +21,7 @@ struct InterpreterView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(DelhiData.phraseCategories, id: \.self) { item in
-                            GlassChip(title: L(item), isSelected: category == item, tint: Theme.indigo) {
+                            Chip(title: L(item), isSelected: category == item, tint: Theme.accent) {
                                 withAnimation(.snappy) { category = item }
                             }
                         }
@@ -39,7 +39,7 @@ struct InterpreterView: View {
             .padding(.bottom, 30)
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(LiquidBackground())
+        .background(AppBackground())
         .navigationTitle(L("Interpreter"))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $showing) { phrase in
@@ -58,7 +58,7 @@ struct InterpreterView: View {
                 } label: {
                     Image(systemName: "arrow.left.arrow.right")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
                 .buttonBorderShape(.circle)
                 Spacer()
                 Text(toHindi ? L("Hindi") : app.persona.languageName).font(.subheadline.weight(.semibold))
@@ -68,20 +68,20 @@ struct InterpreterView: View {
                 .lineLimit(2...5)
                 .focused($focused)
                 .padding(14)
-                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
+                .background(Theme.surface, in: .rect(cornerRadius: 16))
 
             Button {
                 Task { await translate() }
             } label: {
                 HStack {
-                    if isTranslating { ProgressView().tint(.white) } else { Image(systemName: "sparkles") }
+                    if isTranslating { ProgressView().tint(.white) } else { Image(systemName: "character.bubble") }
                     Text(L("Translate"))
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 30)
             }
-            .buttonStyle(.glassProminent)
-            .tint(Theme.indigo)
+            .buttonStyle(.borderedProminent)
+            .tint(Theme.accent)
             .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty || isTranslating || !app.hasGemini)
 
             if !app.hasGemini {
@@ -102,23 +102,23 @@ struct InterpreterView: View {
                         } label: {
                             Label(L("Speak"), systemImage: "speaker.wave.2.fill")
                         }
-                        .buttonStyle(.glass)
+                        .buttonStyle(.bordered)
                         if toHindi {
                             Button {
                                 showing = Phrase(english: input, hindi: translation, roman: roman ?? "", category: "Custom")
                             } label: {
                                 Label(L("Show"), systemImage: "rectangle.expand.vertical")
                             }
-                            .buttonStyle(.glass)
+                            .buttonStyle(.bordered)
                         }
                     }
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .glassEffect(.regular.tint(Theme.indigo.opacity(0.15)), in: .rect(cornerRadius: 20))
+                .background(Theme.surface, in: .rect(cornerRadius: 16))
             }
         }
-        .glassCard()
+        .card()
     }
 
     private func phraseRow(_ phrase: Phrase) -> some View {
@@ -134,17 +134,17 @@ struct InterpreterView: View {
             } label: {
                 Image(systemName: "speaker.wave.2.fill")
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.bordered)
             .buttonBorderShape(.circle)
             Button {
                 showing = phrase
             } label: {
                 Image(systemName: "rectangle.expand.vertical")
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.bordered)
             .buttonBorderShape(.circle)
         }
-        .glassCard(cornerRadius: 22, padding: 14)
+        .card(cornerRadius: 16, padding: 14)
     }
 
     private func translate() async {
@@ -172,7 +172,7 @@ struct ShowPhraseSheet: View {
 
     var body: some View {
         ZStack {
-            LiquidBackground()
+            AppBackground()
             VStack(spacing: 24) {
                 Spacer()
                 Text(phrase.hindi)
@@ -190,21 +190,21 @@ struct ShowPhraseSheet: View {
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                 Spacer()
-                GlassEffectContainer(spacing: 12) {
+                Group {
                     HStack(spacing: 12) {
                         Button {
                             Speaker.shared.speak(phrase.hindi)
                         } label: {
                             Label(L("Speak"), systemImage: "speaker.wave.2.fill").frame(maxWidth: .infinity).frame(height: 30)
                         }
-                        .buttonStyle(.glassProminent)
-                        .tint(Theme.indigo)
+                        .buttonStyle(.borderedProminent)
+                        .tint(Theme.accent)
                         Button {
                             dismiss()
                         } label: {
                             Label(L("Close"), systemImage: "xmark").frame(maxWidth: .infinity).frame(height: 30)
                         }
-                        .buttonStyle(.glass)
+                        .buttonStyle(.bordered)
                     }
                 }
             }

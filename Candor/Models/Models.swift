@@ -19,8 +19,31 @@ struct Persona: Codable, Equatable {
     var languageCode = Persona.defaultLanguage
     var travelStyle: TravelStyle = .comfort
     var interests: [String] = []
+    /// How they like to travel, as plain statements ("Street food over fine dining"). English keys
+    /// from `Persona.tasteOptions`. Optional so personas saved before it still decode.
+    var tastes: [String]?
     var tripDays = 2
     var isComplete = false
+
+    /// Taste statements offered in onboarding. They go to Gemini as written and tune the planner.
+    static let tasteOptions = [
+        "Street food over fine dining",
+        "Local gems over famous sights",
+        "Happy to walk",
+        "Avoid crowds",
+        "Early starts",
+        "Slow mornings",
+        "Kid-friendly",
+        "Vegetarian"
+    ]
+
+    var hasTaste: (String) -> Bool { { (tastes ?? []).contains($0) } }
+
+    /// English, for prompting Gemini.
+    var tasteSummary: String {
+        let list = tastes ?? []
+        return list.isEmpty ? "no stated preferences" : list.joined(separator: "; ")
+    }
 
     static var defaultLanguage: String {
         Locale.current.language.languageCode?.identifier ?? "en"
@@ -63,6 +86,47 @@ struct Persona: Codable, Equatable {
         case .guest?: return L("Guest")
         case .phone?, nil: return phone.isEmpty ? L("Guest") : phone
         }
+    }
+}
+
+enum TravelParty: String, Codable, CaseIterable, Identifiable {
+    case solo, couple, family, group
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .solo: L("Solo")
+        case .couple: L("Couple")
+        case .family: L("Family")
+        case .group: L("Friends")
+        }
+    }
+    var icon: String {
+        switch self {
+        case .solo: "person.fill"
+        case .couple: "person.2.fill"
+        case .family: "figure.2.and.child.holdinghands"
+        case .group: "person.3.fill"
+        }
+    }
+    /// Solo and couple have a fixed size; the others ask how many.
+    var fixedCount: Int? {
+        switch self {
+        case .solo: 1
+        case .couple: 2
+        case .family, .group: nil
+        }
+    }
+}
+
+/// A booked hotel or home, picked from Apple Maps.
+struct Stay: Codable, Equatable {
+    var name: String
+    var address: String?
+    var latitude: Double
+    var longitude: Double
+
+    var coordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 }
 
@@ -161,7 +225,7 @@ enum CheckKind: String, Codable {
         switch self {
         case .scan: "camera.viewfinder"
         case .ride: "car.fill"
-        case .agent: "sparkles"
+        case .agent: "text.bubble"
         }
     }
 }

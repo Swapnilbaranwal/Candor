@@ -61,13 +61,13 @@ struct ExploreView: View {
 
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            GlassEffectContainer(spacing: 8) {
+            Group {
                 HStack(spacing: 8) {
-                    GlassChip(title: L("All"), icon: "sparkles", isSelected: category == nil) {
+                    Chip(title: L("All"), isSelected: category == nil) {
                         withAnimation(.snappy) { category = nil }
                     }
                     ForEach(SpotCategory.allCases) { item in
-                        GlassChip(title: item.title, icon: item.icon, isSelected: category == item, tint: item.color) {
+                        Chip(title: item.title, icon: item.icon, isSelected: category == item, tint: item.color) {
                             withAnimation(.snappy) { category = category == item ? nil : item }
                         }
                     }
@@ -92,13 +92,13 @@ struct ExploreView: View {
                     .font(.caption.weight(.semibold).monospacedDigit())
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .glassEffect(.regular, in: .capsule)
+                    .background(Theme.surface, in: .capsule)
                 Button {
                     selectedID = nil
                 } label: {
                     Image(systemName: "xmark")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
                 .buttonBorderShape(.circle)
             }
             Text(L(spot.blurb)).font(.subheadline)
@@ -106,14 +106,14 @@ struct ExploreView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            GlassEffectContainer(spacing: 10) {
+            Group {
                 HStack(spacing: 10) {
                     Button {
                         rideDestination = spot.name
                     } label: {
                         Label(L("Fair fare"), systemImage: "car.fill").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
 
                     Button {
                         tab = .agent
@@ -123,15 +123,15 @@ struct ExploreView: View {
                                              canonical: question.replacingOccurrences(of: "%@", with: spot.name))
                         }
                     } label: {
-                        Label(L("Ask Candor"), systemImage: "sparkles").frame(maxWidth: .infinity)
+                        Label(L("Ask Candor"), systemImage: "text.bubble").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.glassProminent)
-                    .tint(Theme.indigo)
+                    .buttonStyle(.borderedProminent)
+                    .tint(Theme.accent)
                 }
                 .font(.subheadline.weight(.semibold))
             }
         }
         .padding(18)
-        .glassEffect(.regular, in: .rect(cornerRadius: 30))
+        .background(Theme.surface, in: .rect(cornerRadius: 16))
     }
 }

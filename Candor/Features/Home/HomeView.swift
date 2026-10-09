@@ -1,71 +1,36 @@
 import SwiftUI
 
-enum HomeRoute: Hashable {
-    case ride, interpreter, scams, converter, emergency, history
-}
-
-private struct QuickAction: Identifiable {
-    let route: HomeRoute
-    let title: String
-    let icon: String
-    let color: Color
-    var id: HomeRoute { route }
-
-    /// Titles are English keys, shown through `L(…)`.
-    static let all: [QuickAction] = [
-        QuickAction(route: .ride, title: "Ride fare", icon: "car.fill", color: Theme.teal),
-        QuickAction(route: .interpreter, title: "Interpreter", icon: "character.bubble.fill", color: Theme.indigo),
-        QuickAction(route: .scams, title: "Scam radar", icon: "shield.lefthalf.filled", color: Theme.rose),
-        QuickAction(route: .converter, title: "Converter", icon: "dollarsign.arrow.circlepath", color: Theme.mint),
-        QuickAction(route: .emergency, title: "Emergency", icon: "sos", color: .red),
-        QuickAction(route: .history, title: "History", icon: "clock.arrow.circlepath", color: Theme.saffron)
-    ]
-}
-
 struct HomeView: View {
     @Binding var tab: AppTab
+    @Binding var checkPath: [CheckRoute]
     @Environment(AppState.self) private var app
     @Environment(LocationService.self) private var location
     @Environment(CandorAgent.self) private var agent
-    @State private var path: [HomeRoute] = []
 
     /// Opens the demo: one tap from Home to the agent's trail and a verdict card.
     private let demoPrompt = "Auto to India Gate, driver wants ₹300"
 
-    private let suggestions = [
-        "Is ₹40 fair for a 1 litre water bottle?",
-        "A man says my hotel is closed",
-        "Plan my day in Delhi"
-    ]
-
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     header
+                    tripCard
                     checkCard
-                    askCandor
                     scamOfTheDay
-                    if !app.records.isEmpty { recentChecks }
-                    quickActions
-                    rateStrip
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 30)
             }
-            .background(LiquidBackground())
+            .background(AppBackground())
             .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(for: HomeRoute.self) { route in
-                switch route {
-                case .ride: RideCheckView()
-                case .interpreter: InterpreterView()
-                case .scams: ScamRadarView(tab: $tab)
-                case .converter: ConverterView()
-                case .emergency: EmergencyView()
-                case .history: HistoryView()
-                }
-            }
         }
+    }
+
+    /// Opens a tool on the Check tab.
+    private func openCheck(_ route: CheckRoute) {
+        checkPath = [route]
+        tab = .check
     }
 
     /// Sends a ready-made prompt to the agent. The bubble shows it in the traveller's language;
@@ -108,7 +73,7 @@ struct HomeView: View {
                     .font(.headline)
                     .foregroundStyle(.white)
                     .frame(width: 50, height: 50)
-                    .glassEffect(.regular.tint(Theme.indigo).interactive(), in: .circle)
+                    .background(Theme.accent, in: .circle)
             }
             .buttonStyle(.plain)
         }
@@ -123,11 +88,14 @@ struct HomeView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text(app.hasGemini ? L("Gemini live") : L("Offline mode"))
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .glassEffect(.regular.tint((app.hasGemini ? Theme.mint : Theme.saffron).opacity(0.4)), in: .capsule)
+                // Shown only when it changes what the traveller gets: offline answers are more limited.
+                if !app.hasGemini {
+                    Text(L("Offline mode"))
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Theme.saffron.opacity(0.14), in: .capsule)
+                }
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -140,26 +108,26 @@ struct HomeView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            GlassEffectContainer(spacing: 10) {
+            Group {
                 HStack(spacing: 10) {
-                    Button { tab = .scan } label: {
+                    Button { openCheck(.scan) } label: {
                         Label(L("Scan a price"), systemImage: "camera.viewfinder")
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
                             .frame(maxWidth: .infinity)
                             .frame(height: 30)
                     }
-                    .buttonStyle(.glassProminent)
+                    .buttonStyle(.borderedProminent)
                     .tint(Theme.saffron)
 
-                    Button { path.append(.ride) } label: {
+                    Button { openCheck(.ride) } label: {
                         Label(L("Check a ride"), systemImage: "car.fill")
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
                             .frame(maxWidth: .infinity)
                             .frame(height: 30)
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
                 }
                 .font(.subheadline.weight(.semibold))
             }
@@ -168,7 +136,7 @@ struct HomeView: View {
             // glass on a glass card has nothing to refract and disappears.
             Button { ask(demoPrompt) } label: {
                 HStack(spacing: 12) {
-                    Image(systemName: "sparkles")
+                    Image(systemName: "text.bubble")
                         .foregroundStyle(Theme.saffron)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(L("Try an example"))
@@ -185,170 +153,148 @@ struct HomeView: View {
                         .foregroundStyle(.tertiary)
                 }
                 .padding(12)
-                .background(Theme.saffron.opacity(0.12), in: .rect(cornerRadius: 18))
+                .background(Theme.saffron.opacity(0.12), in: .rect(cornerRadius: 14))
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("homeExample")
-
-            if !app.records.isEmpty {
-                Divider()
-                shieldStats
-            }
         }
         .padding(20)
-        .glassEffect(.regular.tint(Theme.saffron.opacity(0.10)), in: .rect(cornerRadius: 32))
+        .background(Theme.surface, in: .rect(cornerRadius: 16))
     }
 
-    /// Running total of what Candor has caught. Shown once there is at least one saved check.
-    private var shieldStats: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // A labelled stat. Rupees lead, as everywhere else: prices in India are quoted in INR.
-            VStack(alignment: .leading, spacing: 4) {
-                Text(L("Overcharges caught so far"))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text(inr(app.totalFlaggedINR))
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .contentTransition(.numericText())
-                Text(app.totalFlaggedINR > 0
-                     ? L("Extra you were asked to pay above the fair price.")
-                     : L("Every price you checked was fair."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack(spacing: 10) {
-                stat("\(app.records.count)", L("Checks"))
-                stat("\(app.overchargesCaught)", L("Overcharges"))
-                stat("≈ " + (app.totalFlaggedINR > 0 ? app.homeAmount(app.totalFlaggedINR) : CurrencyService.format(0, code: app.persona.homeCurrency)),
-                     L("in %@", app.persona.homeCurrency))
-            }
-        }
-    }
-
-    private func stat(_ value: String, _ label: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(.headline.monospacedDigit())
-            Text(label).font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var quickActions: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: L("More tools"))
-            GlassEffectContainer(spacing: 12) {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
-                    ForEach(QuickAction.all) { action in
-                        Button { path.append(action.route) } label: {
-                            VStack(spacing: 10) {
-                                Image(systemName: action.icon)
-                                    .font(.title2)
-                                    .foregroundStyle(action.color)
-                                    .frame(height: 28)
-                                Text(L(action.title))
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(.primary)
-                                    .multilineTextAlignment(.center)
-                                    .lineLimit(2)
-                                    .minimumScaleFactor(0.8)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 18)
-                            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 22))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
-    private var askCandor: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                AgentOrb(size: 40, isActive: agent.isWorking)
-                SectionHeader(title: L("Ask Candor"), subtitle: L("Your agent checks fares, prices and scams for you"))
-            }
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(suggestions, id: \.self) { suggestion in
-                        Button {
-                            ask(suggestion)
-                        } label: {
-                            Text(L(suggestion))
-                                .font(.subheadline.weight(.medium))
-                                .multilineTextAlignment(.leading)
-                                .foregroundStyle(.primary)
-                                .frame(width: 170, height: 64, alignment: .topLeading)
-                                .padding(14)
-                                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 22))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-            .scrollClipDisabled()
-        }
-    }
-
+    /// One line a day about a trick worth knowing. Opens Scam radar on the Check tab.
     private var scamOfTheDay: some View {
         let scams = DelhiData.scams
         let day = Calendar.current.ordinality(of: .day, in: .year, for: .now) ?? 0
         let scam = scams[day % scams.count]
-        return Button { path.append(.scams) } label: {
-            HStack(alignment: .top, spacing: 14) {
+        return Button { openCheck(.scams) } label: {
+            HStack(spacing: 12) {
                 Image(systemName: scam.icon)
-                    .font(.title2)
+                    .font(.body)
                     .foregroundStyle(.white)
-                    .frame(width: 52, height: 52)
-                    .glassEffect(.regular.tint(Theme.rose), in: .rect(cornerRadius: 16))
-                VStack(alignment: .leading, spacing: 4) {
+                    .frame(width: 38, height: 38)
+                    .background(Theme.rose, in: .circle)
+                VStack(alignment: .leading, spacing: 2) {
                     Text(L("SCAM OF THE DAY")).font(.caption2.weight(.bold)).foregroundStyle(Theme.rose)
-                    Text(L(scam.title)).font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                    Text(L(scam.whatToDo))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
+                    Text(L(scam.title))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").foregroundStyle(.tertiary)
             }
-            .glassCard()
+            .card(cornerRadius: 16, padding: 12)
         }
         .buttonStyle(.plain)
     }
 
-    private var recentChecks: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                SectionHeader(title: L("Recent checks"))
-                Button(L("See all")) { path.append(.history) }
-                    .font(.subheadline.weight(.semibold))
-            }
-            VStack(spacing: 10) {
-                ForEach(app.records.prefix(3)) { record in
-                    RecordRow(record: record)
+    // MARK: Trip
+
+    /// Today's plan at a glance, or an invitation to plan the trip.
+    @ViewBuilder
+    private var tripCard: some View {
+        if let trip = app.trip, !trip.days.isEmpty {
+            let index = trip.todayIndex
+            let day = trip.days[index]
+            let start = location.dayStart(trip: trip, day: index)
+            let plan = TripPlanner.dayPlan(day, date: trip.date(ofDay: index), origin: start.coordinate,
+                                           originName: start.name, style: app.persona.travelStyle,
+                                           city: trip.cityStay(ofDay: index)?.city,
+                                           likesWalking: app.persona.hasTaste("Happy to walk"))
+            Button { tab = .trip } label: {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Label(tripCityLine(trip, index: index), systemImage: "map.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(trip.date(ofDay: index).formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(Localizer.shared.locale)))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(day.displayTitle)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.leading)
+                    if plan.entries.isEmpty {
+                        Text(L("Nothing planned yet. Add places in Trip."))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(Array(plan.entries.prefix(3).enumerated()), id: \.element.id) { number, entry in
+                                tripRow(number: number + 1, entry: entry)
+                            }
+                        }
+                        if plan.entries.count > 3 {
+                            Text(L("+ %@ more", plan.entries.count - 3))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
+                .card(padding: 20)
             }
+            .buttonStyle(.plain)
+        } else {
+            Button { tab = .trip } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: "map.fill")
+                        .font(.title2)
+                        .foregroundStyle(.white)
+                        .frame(width: 52, height: 52)
+                        .background(Theme.accent, in: .rect(cornerRadius: 14))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("Plan your days in %@", L((app.trip?.cities.first?.city ?? .delhi).name))).font(.headline).foregroundStyle(.primary)
+                        Text(L("Places, travel times and fair fares between them."))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.leading)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                }
+                .card()
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("homePlanTrip")
         }
     }
 
-    private var rateStrip: some View {
-        let code = app.persona.homeCurrency
-        let perUnit = app.currency.inrPerUnit[code] ?? 0
-        return HStack {
-            Image(systemName: "chart.line.uptrend.xyaxis").foregroundStyle(Theme.mint)
-            Text("1 \(code) = \(perUnit.formatted(.number.precision(.fractionLength(2)))) INR")
-                .font(.subheadline.weight(.semibold).monospacedDigit())
-            Spacer()
-            Text(app.currency.isLive ? L("Live rate") : L("Indicative"))
+    /// "Delhi · Day 2 of 3"
+    private func tripCityLine(_ trip: Trip, index: Int) -> String {
+        let day = L("Day %1$@ of %2$@", index + 1, trip.days.count)
+        guard let city = trip.cityStay(ofDay: index)?.city else { return day }
+        return L(city.name) + " · " + day
+    }
+
+    private func tripRow(number: Int, entry: DayPlan.Entry) -> some View {
+        let option = entry.leg.bestOption
+        return HStack(spacing: 12) {
+            Text("\(number)")
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(width: 30, height: 30)
+                .background(Theme.accent, in: .circle)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L(entry.stop.name))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Image(systemName: option.mode.icon).foregroundStyle(option.mode.color)
+                    Text("\(option.mode.title) · \(durationText(option.minutes)) · \(option.fareText)")
+                }
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            Text(timeText(entry.arrival))
+                .font(.caption.weight(.semibold).monospacedDigit())
+                .foregroundStyle(.secondary)
         }
-        .glassCard(cornerRadius: 22, padding: 14)
     }
 }
 
@@ -361,7 +307,7 @@ struct RecordRow: View {
             Image(systemName: record.kind.icon)
                 .foregroundStyle(record.verdict.color)
                 .frame(width: 40, height: 40)
-                .glassEffect(.regular.tint(record.verdict.color.opacity(0.3)), in: .circle)
+                .background(record.verdict.color.opacity(0.14), in: .circle)
             VStack(alignment: .leading, spacing: 2) {
                 Text(L(record.title)).font(.subheadline.weight(.semibold)).lineLimit(1)
                 Text(record.date.formatted(.relative(presentation: .named).locale(Localizer.shared.locale)))
@@ -377,6 +323,6 @@ struct RecordRow: View {
                     .foregroundStyle(record.verdict.color)
             }
         }
-        .glassCard(cornerRadius: 22, padding: 12)
+        .card(cornerRadius: 16, padding: 12)
     }
 }

@@ -1,12 +1,45 @@
 import SwiftUI
 
+/// Candor's design tokens. The rules behind them are in DESIGN.md.
 enum Theme {
+    // Brand and meaning colours. One accent (saffron) for actions and selection; the others
+    // only where a colour carries meaning (a fair price, an overcharge, a category, a Metro line).
     static let saffron = Color(red: 1.00, green: 0.58, blue: 0.20)
     static let rose = Color(red: 0.94, green: 0.32, blue: 0.47)
     static let indigo = Color(red: 0.36, green: 0.33, blue: 0.90)
     static let teal = Color(red: 0.12, green: 0.68, blue: 0.74)
     static let mint = Color(red: 0.16, green: 0.74, blue: 0.48)
 
+    /// Actions, selection, progress.
+    static let accent = saffron
+    /// Fills behind accent-coloured icons and selected rows.
+    static let accentSoft = saffron.opacity(0.14)
+
+    /// The page: a warm off-white, near-black in dark mode.
+    static let canvas = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.07, green: 0.07, blue: 0.08, alpha: 1)
+            : UIColor(red: 0.975, green: 0.965, blue: 0.95, alpha: 1)
+    })
+    /// Cards and grouped rows on the canvas.
+    static let surface = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.13, green: 0.13, blue: 0.145, alpha: 1)
+            : UIColor.white
+    })
+    /// Text fields and inputs, so they read as fields on a card.
+    static let field = Color.primary.opacity(0.06)
+    /// Hairlines and unselected outlines.
+    static let hairline = Color.primary.opacity(0.10)
+
+    /// Corner radii: small controls, medium rows and buttons, large cards.
+    enum Radius {
+        static let small: CGFloat = 10
+        static let medium: CGFloat = 14
+        static let large: CGFloat = 16
+    }
+
+    /// The brand mark's gradient. Used for the logo only.
     static let brandGradient = LinearGradient(
         colors: [saffron, rose, indigo],
         startPoint: .topLeading,
@@ -19,117 +52,71 @@ func inr(_ value: Double) -> String {
     "₹" + value.formatted(.number.precision(.fractionLength(0)))
 }
 
-// MARK: - Animated liquid background
+// MARK: - Surfaces
 
-/// A slowly breathing mesh gradient that gives the glass something rich to refract.
-struct LiquidBackground: View {
-    @Environment(\.colorScheme) private var scheme
-
+/// The page background: a plain, calm canvas. (Glass is kept for system chrome:
+/// the tab bar, toolbars and sheets.)
+struct AppBackground: View {
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            MeshGradient(width: 3, height: 3, points: points(t), colors: colors)
-        }
-        .ignoresSafeArea()
-    }
-
-    private func points(_ t: Double) -> [SIMD2<Float>] {
-        let a = Float(sin(t * 0.35)) * 0.12
-        let b = Float(cos(t * 0.27)) * 0.12
-        return [
-            SIMD2(0, 0), SIMD2(0.5 + a, 0), SIMD2(1, 0),
-            SIMD2(0, 0.5 + b), SIMD2(0.5 + a, 0.5 - b), SIMD2(1, 0.5 + a),
-            SIMD2(0, 1), SIMD2(0.5 - b, 1), SIMD2(1, 1)
-        ]
-    }
-
-    private var colors: [Color] {
-        if scheme == .dark {
-            return [
-                Color(red: 0.22, green: 0.08, blue: 0.22), Color(red: 0.08, green: 0.07, blue: 0.24), Color(red: 0.04, green: 0.12, blue: 0.26),
-                Color(red: 0.34, green: 0.13, blue: 0.08), Color(red: 0.05, green: 0.05, blue: 0.11), Color(red: 0.04, green: 0.19, blue: 0.23),
-                Color(red: 0.11, green: 0.05, blue: 0.19), Color(red: 0.24, green: 0.08, blue: 0.21), Color(red: 0.36, green: 0.17, blue: 0.05)
-            ]
-        }
-        return [
-            Color(red: 1.00, green: 0.85, blue: 0.68), Color(red: 1.00, green: 0.78, blue: 0.80), Color(red: 0.85, green: 0.83, blue: 1.00),
-            Color(red: 0.99, green: 0.92, blue: 0.85), Color(red: 1.00, green: 0.97, blue: 0.94), Color(red: 0.79, green: 0.93, blue: 0.96),
-            Color(red: 0.87, green: 0.95, blue: 0.90), Color(red: 0.93, green: 0.87, blue: 1.00), Color(red: 1.00, green: 0.87, blue: 0.76)
-        ]
+        Theme.canvas.ignoresSafeArea()
     }
 }
-
-// MARK: - Glass helpers
 
 extension View {
-    /// Padded content on a Liquid Glass rounded rectangle.
-    func glassCard(cornerRadius: CGFloat = 28, tint: Color? = nil, padding: CGFloat = 18) -> some View {
-        self
+    /// Padded content on a plain card. A tint washes the card faintly; use it for meaning only.
+    func card(cornerRadius: CGFloat = Theme.Radius.large, tint: Color? = nil, padding: CGFloat = 16) -> some View {
+        let shape = RoundedRectangle(cornerRadius: min(cornerRadius, Theme.Radius.large), style: .continuous)
+        return self
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(Self.candorGlass(tint: tint, interactive: false), in: .rect(cornerRadius: cornerRadius))
-    }
-
-    static func candorGlass(tint: Color?, interactive: Bool) -> Glass {
-        var glass = Glass.regular
-        if let tint { glass = glass.tint(tint.opacity(0.35)) }
-        if interactive { glass = glass.interactive() }
-        return glass
+            .background((tint ?? .clear).opacity(0.4), in: shape)
+            .background(Theme.surface, in: shape)
     }
 }
 
-/// Brand mark: a glass disc with a gradient "C" and tick.
+/// Brand mark: a white seal with a rose tick on the brand gradient. Same mark as the launch screen
+/// and splash (`LaunchLogo`), so the logo doesn't change as the app opens.
 struct CandorLogo: View {
     var size: CGFloat = 80
 
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(Theme.brandGradient)
-                .frame(width: size, height: size)
-                .blur(radius: size * 0.18)
-                .opacity(0.8)
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: size * 0.46, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: size, height: size)
-                .glassEffect(.regular.tint(Theme.rose.opacity(0.35)), in: .circle)
-        }
+        Image(systemName: "checkmark.seal.fill")
+            .font(.system(size: size * 0.46, weight: .semibold))
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(Theme.rose, .white)
+            .frame(width: size, height: size)
+            .background(Theme.brandGradient, in: .circle)
+            .accessibilityHidden(true)
     }
 }
 
-/// Animated orb that represents the agent. Spins faster while it works.
-struct AgentOrb: View {
+/// Candor's agent: the brand seal on a soft accent disc; a spinner while it works.
+struct AgentMark: View {
     var size: CGFloat = 56
     var isActive = false
 
     var body: some View {
-        TimelineView(.animation) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            let angle = Angle.degrees(t * (isActive ? 220 : 40)).degrees.truncatingRemainder(dividingBy: 360)
-            ZStack {
-                Circle()
-                    .fill(AngularGradient(colors: [Theme.saffron, Theme.rose, Theme.indigo, Theme.teal, Theme.saffron],
-                                          center: .center, angle: .degrees(angle)))
-                    .blur(radius: size * 0.12)
-                    .scaleEffect(CGFloat(isActive ? 1.0 + 0.06 * sin(t * 4) : 0.95))
-                Image(systemName: "sparkles")
-                    .font(.system(size: size * 0.38, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .symbolEffect(.pulse, isActive: isActive)
+        ZStack {
+            Circle().fill(Theme.accentSoft)
+            if isActive {
+                ProgressView().tint(Theme.accent)
+            } else {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: size * 0.42, weight: .semibold))
+                    .foregroundStyle(Theme.accent)
             }
-            .frame(width: size, height: size)
-            .glassEffect(.regular, in: .circle)
         }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
     }
 }
 
-/// A selectable glass capsule.
-struct GlassChip: View {
+/// A selectable capsule. Selected: filled with the tint. Unselected: neutral, with a hairline.
+struct Chip: View {
     let title: String
     var icon: String?
     var isSelected = false
-    var tint: Color = Theme.saffron
+    var tint: Color = Theme.accent
     var action: () -> Void
 
     var body: some View {
@@ -142,13 +129,12 @@ struct GlassChip: View {
             .foregroundStyle(isSelected ? Color.white : Color.primary)
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
-            // Glass sitting on a glass card has nothing to refract and melts into it, so the chip
-            // carries its own tinted fill and outline to keep the pill shape visible.
-            .background(isSelected ? tint : tint.opacity(0.14), in: .capsule)
-            .overlay { Capsule().strokeBorder(tint.opacity(isSelected ? 0 : 0.45), lineWidth: 1) }
-            .glassEffect(isSelected ? Glass.regular.tint(tint).interactive() : Glass.regular.interactive(), in: .capsule)
+            .background(isSelected ? AnyShapeStyle(tint) : AnyShapeStyle(Theme.surface), in: .capsule)
+            .overlay { Capsule().strokeBorder(isSelected ? Color.clear : Theme.hairline, lineWidth: 1) }
+            .contentShape(.capsule)
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

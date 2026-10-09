@@ -1,25 +1,27 @@
 import SwiftUI
 
 enum AppTab: Hashable {
-    case home, explore, scan, agent, profile
+    case home, trip, check, agent, profile
 }
 
 struct MainTabView: View {
-    @Environment(CandorAgent.self) private var agent
+    @Environment(AppState.self) private var app
     @State private var tab: AppTab = .home
+    /// The Check tab's navigation, here so Home can open a Check tool directly.
+    @State private var checkPath: [CheckRoute] = []
 
     var body: some View {
         TabView(selection: $tab) {
             Tab(L("Home"), systemImage: "house.fill", value: AppTab.home) {
-                HomeView(tab: $tab)
+                HomeView(tab: $tab, checkPath: $checkPath)
             }
-            Tab(L("Explore"), systemImage: "map.fill", value: AppTab.explore) {
-                ExploreView(tab: $tab)
+            Tab(L("Trip"), systemImage: "map.fill", value: AppTab.trip) {
+                TripView(tab: $tab)
             }
-            Tab(L("Scan"), systemImage: "camera.viewfinder", value: AppTab.scan) {
-                ScanView()
+            Tab(L("Check"), systemImage: "checkmark.shield.fill", value: AppTab.check) {
+                CheckView(tab: $tab, path: $checkPath)
             }
-            Tab(L("Agent"), systemImage: "sparkles", value: AppTab.agent) {
+            Tab(L("Agent"), systemImage: "bubble.left.and.text.bubble.right.fill", value: AppTab.agent) {
                 AgentView()
             }
             Tab(L("Me"), systemImage: "person.crop.circle.fill", value: AppTab.profile) {
@@ -28,50 +30,11 @@ struct MainTabView: View {
         }
         .tint(Theme.saffron)
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory {
-            AgentAccessory(isOnAgentTab: tab == .agent) {
-                tab = .agent
+        .onAppear {
+            if let start = app.startTab {
+                tab = start
+                app.startTab = nil
             }
         }
-    }
-}
-
-/// Persistent glass bar above the tab bar: the agent is always one tap away.
-struct AgentAccessory: View {
-    @Environment(CandorAgent.self) private var agent
-    @Environment(AppState.self) private var app
-    let isOnAgentTab: Bool
-    let open: () -> Void
-
-    var body: some View {
-        Button(action: open) {
-            HStack(spacing: 10) {
-                Image(systemName: "sparkles")
-                    .symbolEffect(.pulse, isActive: agent.isWorking)
-                    .foregroundStyle(Theme.brandGradient)
-                Text(statusText)
-                    .lineLimit(1)
-                    .foregroundStyle(.primary)
-                Spacer(minLength: 0)
-                if agent.isWorking {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Image(systemName: app.hasGemini ? "bolt.fill" : "iphone")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .font(.subheadline.weight(.medium))
-            .padding(.horizontal, 16)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var statusText: String {
-        if agent.isWorking { return L("Candor is working on it…") }
-        if isOnAgentTab {
-            return app.hasGemini ? L("Gemini agent · %@ tools", agent.toolCount) : L("Offline agent · %@ tools", agent.toolCount)
-        }
-        return L("Ask Candor anything…")
     }
 }

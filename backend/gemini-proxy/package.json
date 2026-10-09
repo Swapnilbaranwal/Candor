@@ -1,0 +1,14 @@
+{
+  "name": "candor-gemini-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Forwards Candor's Gemini requests from Cloud Run, so the API key stays on the server.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

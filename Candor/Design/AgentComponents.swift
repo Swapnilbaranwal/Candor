@@ -12,7 +12,7 @@ struct AgentTrailView: View {
                 withAnimation(.snappy) { expanded.toggle() }
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: isWorking ? "sparkles" : "checklist")
+                    Image(systemName: isWorking ? "ellipsis" : "checklist")
                         .symbolEffect(.pulse, isActive: isWorking)
                     Text(isWorking ? L("Working…") : L("Steps: %@", steps.count))
                     Image(systemName: "chevron.down")
@@ -49,7 +49,7 @@ struct StepRow: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(tint)
                 .frame(width: 30, height: 30)
-                .glassEffect(.regular.tint(tint.opacity(0.25)), in: .circle)
+                .background(tint.opacity(0.14), in: .circle)
             VStack(alignment: .leading, spacing: 2) {
                 Text(step.title).font(.subheadline.weight(.semibold))
                 Text(step.detail)
@@ -75,7 +75,7 @@ struct StepRow: View {
 
     private var tint: Color {
         switch step.state {
-        case .running: Theme.indigo
+        case .running: Theme.accent
         case .done: Theme.teal
         case .failed: Theme.saffron
         }
@@ -95,7 +95,7 @@ struct VerdictCardView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
-                    .glassEffect(.regular.tint(verdict.verdict.color), in: .capsule)
+                    .background(verdict.verdict.color, in: .capsule)
                     .accessibilityIdentifier("verdict.\(verdict.verdict.rawValue)") // language-independent hook for UI tests
                 Spacer()
                 if let percent = verdict.overPercent {
@@ -148,13 +148,13 @@ struct VerdictCardView: View {
                     } label: {
                         Image(systemName: "speaker.wave.2.fill")
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
                 }
             }
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(.regular.tint(verdict.verdict.color.opacity(0.14)), in: .rect(cornerRadius: 28))
+        .background(verdict.verdict.color.opacity(0.14), in: .rect(cornerRadius: 16))
     }
 }
 

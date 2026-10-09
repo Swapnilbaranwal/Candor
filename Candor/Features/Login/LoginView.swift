@@ -44,7 +44,7 @@ struct LoginView: View {
 
     var body: some View {
         ZStack {
-            LiquidBackground()
+            AppBackground()
 
             VStack(spacing: 0) {
                 Spacer()
@@ -72,45 +72,17 @@ struct LoginView: View {
 
     // MARK: Hero
 
+    /// Logo and name only: the sign-in card below is the whole job of this screen.
     private var hero: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 16) {
             CandorLogo(size: 96)
                 .scaleEffect(appeared ? 1 : 0.6)
                 .opacity(appeared ? 1 : 0)
-            VStack(spacing: 6) {
-                Text("Candor")
-                    .font(.system(size: 46, weight: .bold, design: .rounded))
-                Text(L("Explore India. Pay what locals pay."))
-                    .font(.title3.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
-            .opacity(appeared ? 1 : 0)
-            .offset(y: appeared ? 0 : 12)
-
-            featureRow
+            Text("Candor")
+                .font(.system(size: 46, weight: .bold, design: .rounded))
                 .opacity(appeared ? 1 : 0)
+                .offset(y: appeared ? 0 : 12)
         }
-    }
-
-    private var featureRow: some View {
-        GlassEffectContainer(spacing: 10) {
-            HStack(spacing: 10) {
-                feature("camera.viewfinder", L("Scan prices"))
-                feature("car.fill", L("Fair fares"))
-                feature("shield.lefthalf.filled", L("Scam radar"))
-            }
-        }
-        .padding(.top, 6)
-    }
-
-    private func feature(_ icon: String, _ title: String) -> some View {
-        Label(title, systemImage: icon)
-            .font(.caption.weight(.semibold))
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .glassEffect(.regular, in: .capsule)
     }
 
     // MARK: Sign-in card
@@ -160,7 +132,7 @@ struct LoginView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
             }
-            .buttonStyle(.glassProminent)
+            .buttonStyle(.borderedProminent)
             .tint(Theme.saffron)
             .disabled(!contactIsValid || loading != nil)
             .animation(.snappy, value: contactIsValid)
@@ -179,7 +151,7 @@ struct LoginView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(22)
-        .glassEffect(.regular, in: .rect(cornerRadius: 34))
+        .background(Theme.surface, in: .rect(cornerRadius: 16))
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -214,7 +186,9 @@ struct LoginView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 34)
         }
-        .buttonStyle(.glass)
+        .buttonStyle(.bordered)
+        // Provider buttons stay black and white (Apple's sign-in guidelines), not the accent.
+        .tint(.primary)
         .disabled(loading != nil)
         .accessibilityLabel(L("Continue with %@", title))
     }
@@ -230,7 +204,8 @@ struct LoginView: View {
     }
 
     private var emailField: some View {
-        TextField("you@example.com", text: $email)
+        // The example address is a verbatim prompt: as a plain title SwiftUI styles it as a blue link.
+        TextField(L("Email"), text: $email, prompt: Text(verbatim: "you@example.com"))
             .keyboardType(.emailAddress)
             .textContentType(.emailAddress)
             .textInputAutocapitalization(.never)
@@ -241,7 +216,7 @@ struct LoginView: View {
             .font(.title3.weight(.semibold))
             .padding(.horizontal, 18)
             .frame(height: 56)
-            .glassEffect(.regular.interactive(), in: .capsule)
+            .background(Theme.field, in: .capsule)
     }
 
     private var phoneField: some View {
@@ -260,7 +235,7 @@ struct LoginView: View {
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 14)
                 .frame(height: 56)
-                .glassEffect(.regular.interactive(), in: .capsule)
+                .background(Theme.field, in: .capsule)
             }
 
             TextField(L("Mobile number"), text: $phone)
@@ -270,7 +245,7 @@ struct LoginView: View {
                 .font(.title3.weight(.semibold).monospacedDigit())
                 .padding(.horizontal, 18)
                 .frame(height: 56)
-                .glassEffect(.regular.interactive(), in: .capsule)
+                .background(Theme.field, in: .capsule)
                 .onChange(of: phone) { _, newValue in
                     phone = clamped(newValue)
                 }

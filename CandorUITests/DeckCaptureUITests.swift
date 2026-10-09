@@ -26,15 +26,18 @@ final class DeckCaptureUITests: XCTestCase {
     }
 
     private func launchApp(language: String = "en", name: String = "Emma", currency: String = "EUR",
-                           signedIn: Bool = true, complete: Bool = true, offline: Bool = false) -> XCUIApplication {
+                           signedIn: Bool = true, complete: Bool = true, offline: Bool = false,
+                           model: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += [
             "-candor.signedIn", signedIn ? "YES" : "NO",
             "-candor.persona", personaArgument(language: language, name: name, currency: currency, complete: complete),
             "-candor.records", "<5b5d>",
+            "-candor.trip", "<>", // no saved trip, so the Trip tab starts at its setup screen
             "-candor.forceOffline", offline ? "YES" : "NO",
             "-candor.uiTesting", "YES"
         ]
+        if let model { app.launchArguments += ["-candor.geminiModel", model] }
         app.launch()
         if signedIn && complete { allowLocationIfAsked() }
         return app
@@ -107,15 +110,22 @@ final class DeckCaptureUITests: XCTestCase {
         }
     }
 
-    /// Taps a tab by its English title.
+    /// Taps a tab by its English title. The tab bar collapses after scrolling down, so scroll back up if needed.
     private func tab(_ app: XCUIApplication, _ title: String) {
-        let inBar = app.tabBars.buttons[title]
-        if inBar.waitForExistence(timeout: 4) {
-            inBar.tap()
-            return
+        for attempt in 0..<3 {
+            let inBar = app.tabBars.buttons[title]
+            if inBar.waitForExistence(timeout: 2) {
+                inBar.tap()
+                return
+            }
+            let anywhere = app.buttons[title].firstMatch
+            if anywhere.exists {
+                anywhere.tap()
+                return
+            }
+            if attempt < 2 { app.swipeDown() }
         }
-        let anywhere = app.buttons[title].firstMatch
-        if anywhere.waitForExistence(timeout: 3) { anywhere.tap() } else { note("tab not found: \(title)") }
+        note("tab not found: \(title)")
     }
 
     private func goBack(_ app: XCUIApplication) {
@@ -125,8 +135,11 @@ final class DeckCaptureUITests: XCTestCase {
 
     // MARK: - Agent helpers
 
+    /// "" until the Agent tab has been shown (tabs load lazily, so the button does not exist yet).
     private func agentState(_ app: XCUIApplication) -> String {
-        (app.buttons["agentSend"].value as? String) ?? ""
+        let send = app.buttons["agentSend"]
+        guard send.exists else { return "" }
+        return (send.value as? String) ?? ""
     }
 
     /// Waits for the agent to finish and returns the run time and mode reported by the app itself.
@@ -174,6 +187,51 @@ final class DeckCaptureUITests: XCTestCase {
         return String(identifier.dropFirst("verdict.".count))
     }
 
+    // MARK: - 0. The Agent tab's composer: a typed question is sent, and the photo button opens the picker
+
+    func test0_ComposerSendsATypedQuestion() throws {
+        let app = launchApp(offline: true)
+        XCTAssertTrue(app.buttons["homeExample"].waitForExistence(timeout: 20), "Home did not appear")
+        tab(app, "Agent")
+        let input = app.descendants(matching: .any).matching(identifier: "agentInput").firstMatch
+        XCTAssertTrue(input.waitForExistence(timeout: 8), "The question field did not appear")
+
+        let before = agentState(app)
+        input.tap()
+        input.typeText("Is Rs 60 fair for a samosa?")
+        app.buttons["agentSend"].tap()
+        let run = waitForAgent(app, previous: before, timeout: 30)
+        XCTAssertNotNil(run, "Tapping send did not start the agent")
+        XCTAssertEqual(verdict(app), "overcharge")
+        shot("00-composer-sent")
+
+        let photo = app.buttons["photo.badge.plus"]
+        XCTAssertTrue(photo.waitForExistence(timeout: 4), "The photo button did not appear")
+        photo.tap()
+        let cancel = app.buttons["Cancel"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 6), "The photo picker did not open")
+        cancel.tap()
+    }
+
+    /// Runs the Home example with Gemini on and photographs the step list. When Gemini cannot
+    /// answer (no connection, quota used up), the list should say so in one short line.
+    func test0b_CaptureGeminiSteps() throws {
+        let app = launchApp()
+        XCTAssertTrue(app.buttons["homeExample"].waitForExistence(timeout: 20), "Home did not appear")
+        let before = agentState(app)
+        app.buttons["homeExample"].tap()
+        if let run = waitForAgent(app, previous: before, timeout: 120) {
+            note("example with Gemini on: \(run.seconds) s, \(run.mode)")
+        }
+        let steps = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Steps:'")).firstMatch
+        if steps.waitForExistence(timeout: 4) {
+            steps.tap()
+            pause(0.8)
+        }
+        shot("00-gemini-steps")
+        save(["test": "gemini-steps"], as: "capture-gemini-steps.json")
+    }
+
     // MARK: - 1. Screens, in English
 
     func test1_CaptureScreens() throws {
@@ -184,13 +242,28 @@ final class DeckCaptureUITests: XCTestCase {
         pause(2.5)
         shot("01-sign-in")
         if tapIfPresent(app.buttons["Continue as guest"], what: "Continue as guest") {
-            let name = app.textFields["Your name"]
-            if name.waitForExistence(timeout: 8) {
+            // Step 1: add Delhi as the trip's city.
+            if tapIfPresent(app.buttons["addCity"], timeout: 8, what: "Add your first city") {
                 pause(1)
                 shot("02-persona-setup")
+                let delhi = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Delhi'")).firstMatch
+                if tapIfPresent(delhi, what: "Delhi in city list") {
+                    pause(0.8)
+                    shot("02b-city-stop")
+                    tapIfPresent(app.buttons["cityStopDone"], what: "city Done")
+                }
+            }
+            // Steps 2 and 3 are optional.
+            for _ in 0..<3 {
+                tapIfPresent(app.buttons["onboardingNext"], what: "Continue")
+                pause(0.6)
+            }
+            // Step 4: name, then build.
+            let name = app.textFields["Your name"]
+            if name.waitForExistence(timeout: 8) {
                 name.tap()
                 name.typeText("Emma")
-                if tapIfPresent(app.buttons["Build my travel persona"], what: "Build my travel persona") {
+                if tapIfPresent(app.buttons["onboardingNext"], what: "Build my travel persona") {
                     pause(1.8)
                     shot("03-agent-setup")
                 }
@@ -251,7 +324,8 @@ final class DeckCaptureUITests: XCTestCase {
             goBack(app)
         }
 
-        // Scam radar.
+        // Scam radar, on the Check tab.
+        tab(app, "Check")
         let scamTile = app.buttons["Scam radar"]
         scrollTo(scamTile, in: app)
         if tapIfPresent(scamTile, what: "Scam radar tile") {
@@ -263,6 +337,7 @@ final class DeckCaptureUITests: XCTestCase {
         }
 
         // Interpreter and the "show the driver" card.
+        tab(app, "Check")
         let interpreterTile = app.buttons["Interpreter"]
         scrollTo(interpreterTile, in: app)
         if tapIfPresent(interpreterTile, what: "Interpreter tile") {
@@ -288,24 +363,37 @@ final class DeckCaptureUITests: XCTestCase {
         }
 
         // Home again, now with a saved check.
-        app.swipeDown()
+        tab(app, "Home")
         app.swipeDown()
         pause(1)
         shot("10-home-with-checks")
 
-        // Explore, Scan, Me.
-        tab(app, "Explore")
-        pause(4)
-        shot("11-explore")
-        let marker = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Red Fort'")).firstMatch
-        if marker.exists && marker.isHittable {
-            marker.tap()
-            pause(2)
-            shot("11b-explore-place")
-        }
-        tab(app, "Scan")
+        // Trip: let Candor plan the days, then open the first hop's ways to get there.
+        tab(app, "Trip")
         pause(1.5)
-        shot("12-scan")
+        shot("11-trip-setup")
+        if tapIfPresent(app.buttons["tripPlanForMe"], what: "Plan it for me") {
+            let leg = app.buttons["tripLeg"].firstMatch
+            if leg.waitForExistence(timeout: 60) {
+                pause(2)
+                shot("11b-trip-day")
+                leg.tap()
+                pause(1.2)
+                shot("11c-trip-leg")
+                let done = app.buttons["Done"]
+                if done.waitForExistence(timeout: 4) { done.tap() }
+            } else {
+                note("trip plan did not appear")
+            }
+        }
+
+        // Check → Scan a price.
+        tab(app, "Check")
+        if tapIfPresent(app.buttons["checkScan"], what: "Scan a price") {
+            pause(1.5)
+            shot("12-scan")
+            goBack(app)
+        }
         tab(app, "Me")
         pause(1.5)
         shot("13-me")
@@ -352,11 +440,11 @@ final class DeckCaptureUITests: XCTestCase {
     /// Scripted price questions with the verdict that Candor's own reference data implies.
     /// This checks that the agent reaches the right verdict from that data; it does not audit the data itself.
     private let scenarios: [(prompt: String, expected: String)] = [
+        ("Auto to India Gate, driver wants Rs 300", "overcharge"),
         ("Is Rs 40 fair for a 1 litre water bottle?", "overcharge"),
         ("Is Rs 20 fair for a 1 litre water bottle?", "fair"),
         ("Is Rs 60 fair for a samosa?", "overcharge"),
         ("A street stall wants Rs 20 for a masala chai. Is that fair?", "fair"),
-        ("Auto to India Gate, driver wants Rs 300", "overcharge"),
         ("Auto to India Gate, driver wants Rs 50", "fair"),
         ("Taxi to IGI Airport T3, driver asks Rs 2500", "overcharge"),
         ("Lassi for Rs 70 in Old Delhi, is that fair?", "fair"),
@@ -366,8 +454,10 @@ final class DeckCaptureUITests: XCTestCase {
         ("Metro token for Rs 40, is that fair?", "fair")
     ]
 
-    private func runScenarios(offline: Bool) -> [[String: Any]] {
-        let app = launchApp(offline: offline)
+    /// `shots` names the screenshots taken of the first scenario's verdict and step trail.
+    private func runScenarios(offline: Bool, model: String? = nil, shots: String? = nil,
+                              onRow: ([[String: Any]]) -> Void = { _ in }) -> [[String: Any]] {
+        let app = launchApp(offline: offline, model: model)
         var rows: [[String: Any]] = []
         guard app.buttons["homeExample"].waitForExistence(timeout: 20) else {
             note("benchmark: Home did not appear (offline=\(offline))")
@@ -387,7 +477,34 @@ final class DeckCaptureUITests: XCTestCase {
                 row["correct"] = false
             }
             rows.append(row)
+            onRow(rows)
             NSLog("CANDOR_DECK scenario %@", String(describing: row))
+
+            if rows.count == 1, let shots {
+                pause(1.6)
+                shot("\(shots)-verdict")
+                let steps = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Steps:'")).firstMatch
+                if steps.exists {
+                    steps.tap()
+                    pause(0.8)
+                    shot("\(shots)-trail")
+                }
+            }
+
+            // Keep the reason for the first run Gemini did not answer: the trail shows the error.
+            let failures = rows.filter { ($0["mode"] as? String) == "gemini-failed" }.count
+            if failures == 1, (row["mode"] as? String) == "gemini-failed", let shots {
+                let steps = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Steps:'")).firstMatch
+                if steps.exists, rows.count > 1 { steps.tap(); pause(0.8) }
+                shot("\(shots)-failed")
+            }
+
+            // Two runs in a row without an answer from Gemini: stop asking this model.
+            let lastTwo = rows.suffix(2).compactMap { $0["mode"] as? String }
+            if !offline, lastTwo.count == 2, lastTwo.allSatisfy({ $0 == "gemini-failed" }) {
+                note("\(model ?? "default model"): stopped after \(rows.count) questions, Gemini did not answer the last two")
+                break
+            }
         }
         app.terminate()
         return rows
@@ -453,10 +570,18 @@ final class DeckCaptureUITests: XCTestCase {
         report["rideChecks"] = rides
         save(report, as: "benchmark.json")
 
-        // Agent, with Gemini and with the on-device agent.
-        report["geminiScenarios"] = runScenarios(offline: false)
-        save(report, as: "benchmark.json")
-        report["offlineScenarios"] = runScenarios(offline: true)
-        save(report, as: "benchmark.json")
+        // Agent: the on-device agent, then Gemini with the app's default model and with a lighter one.
+        // Rows are saved as they arrive, so a stopped run still leaves its results.
+        for (key, offline, model) in [("offlineScenarios", true, nil),
+                                      ("gemini35FlashLiteScenarios", false, "gemini-3.5-flash-lite"),
+                                      ("gemini35FlashScenarios", false, "gemini-3.5-flash"),
+                                      ("geminiScenarios", false, nil)] as [(String, Bool, String?)] {
+            var partial = report
+            report[key] = runScenarios(offline: offline, model: model, shots: "30-\(key)") { rows in
+                partial[key] = rows
+                self.save(partial, as: "benchmark.json")
+            }
+            save(report, as: "benchmark.json")
+        }
     }
 }

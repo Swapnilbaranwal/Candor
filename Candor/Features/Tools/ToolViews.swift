@@ -28,7 +28,7 @@ struct ScamRadarView: View {
             .padding(.bottom, 30)
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(LiquidBackground())
+        .background(AppBackground())
         .navigationTitle(L("Scam radar"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -41,18 +41,18 @@ struct ScamRadarView: View {
                 .lineLimit(2...4)
                 .focused($focused)
                 .padding(14)
-                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
+                .background(Theme.surface, in: .rect(cornerRadius: 16))
             Button {
                 Task { await check() }
             } label: {
                 HStack {
-                    if isRunning { ProgressView().tint(.white) } else { Image(systemName: "sparkles") }
+                    if isRunning { ProgressView().tint(.white) } else { Image(systemName: "magnifyingglass") }
                     Text(L("Check with Candor"))
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 30)
             }
-            .buttonStyle(.glassProminent)
+            .buttonStyle(.borderedProminent)
             .tint(Theme.rose)
             .disabled(situation.trimmingCharacters(in: .whitespaces).isEmpty || isRunning)
 
@@ -62,10 +62,10 @@ struct ScamRadarView: View {
             if let answer {
                 MarkdownText(text: answer)
                     .padding(14)
-                    .glassEffect(.regular.tint(Theme.rose.opacity(0.12)), in: .rect(cornerRadius: 20))
+                    .background(Theme.rose.opacity(0.14), in: .rect(cornerRadius: 16))
             }
         }
-        .glassCard()
+        .card()
     }
 
     private func scamCard(_ scam: Scam) -> some View {
@@ -78,7 +78,7 @@ struct ScamRadarView: View {
                     Image(systemName: scam.icon)
                         .foregroundStyle(.white)
                         .frame(width: 40, height: 40)
-                        .glassEffect(.regular.tint(Theme.rose), in: .rect(cornerRadius: 12))
+                        .background(Theme.rose, in: .rect(cornerRadius: 12))
                     Text(L(scam.title)).font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading)
                     Spacer()
                     Image(systemName: "chevron.down")
@@ -105,7 +105,7 @@ struct ScamRadarView: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .glassCard(cornerRadius: 24, padding: 14)
+        .card(cornerRadius: 16, padding: 14)
     }
 
     private func check() async {
@@ -154,7 +154,7 @@ struct ConverterView: View {
                         } label: {
                             Image(systemName: "arrow.up.arrow.down")
                         }
-                        .buttonStyle(.glass)
+                        .buttonStyle(.bordered)
                         .buttonBorderShape(.circle)
                         Spacer()
                         Text(fromINR ? "\(CurrencyOption.option(code)?.flag ?? "") \(code)" : "🇮🇳 INR")
@@ -168,7 +168,7 @@ struct ConverterView: View {
                     Image(systemName: "equal").foregroundStyle(.secondary)
                     Text(resultText)
                         .font(.system(size: 40, weight: .bold, design: .rounded).monospacedDigit())
-                        .foregroundStyle(Theme.brandGradient)
+                        .foregroundStyle(Theme.accent)
                         .contentTransition(.numericText())
                         .animation(.snappy, value: resultText)
                     Text(app.currency.isLive
@@ -177,7 +177,7 @@ struct ConverterView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                .glassCard(cornerRadius: 32, padding: 22)
+                .card(cornerRadius: 16, padding: 22)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text(L("Quick reference")).font(.headline)
@@ -189,20 +189,20 @@ struct ConverterView: View {
                         }
                     }
                 }
-                .glassCard()
+                .card()
 
                 Button {
                     Task { await app.currency.refresh() }
                 } label: {
                     Label(L("Refresh rates"), systemImage: "arrow.clockwise").frame(maxWidth: .infinity).frame(height: 30)
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 30)
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(LiquidBackground())
+        .background(AppBackground())
         .navigationTitle(L("Converter"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -224,7 +224,7 @@ struct EmergencyView: View {
                 callCard(title: L("Emergency (police, fire, ambulance)"), number: DelhiData.emergencyNumber,
                          display: DelhiData.emergencyNumber, icon: "sos", tint: .red)
                 callCard(title: L("Incredible India tourist helpline (24×7, multilingual)"), number: DelhiData.tourismHelpline,
-                         display: DelhiData.tourismHelplineDisplay, icon: "phone.bubble.fill", tint: Theme.indigo)
+                         display: DelhiData.tourismHelplineDisplay, icon: "phone.bubble.fill", tint: Theme.accent)
 
                 if let mapsURL {
                     ShareLink(item: mapsURL, message: Text(L("I'm here. Candor shared my location."))) {
@@ -232,7 +232,7 @@ struct EmergencyView: View {
                             .frame(maxWidth: .infinity)
                             .frame(height: 30)
                     }
-                    .buttonStyle(.glassProminent)
+                    .buttonStyle(.borderedProminent)
                     .tint(Theme.teal)
                 }
 
@@ -243,12 +243,12 @@ struct EmergencyView: View {
                     Text(L("• Keep a photo of your passport and visa on your phone."))
                 }
                 .font(.subheadline)
-                .glassCard()
+                .card()
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 30)
         }
-        .background(LiquidBackground())
+        .background(AppBackground())
         .navigationTitle(L("Emergency"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -259,7 +259,7 @@ struct EmergencyView: View {
                 .font(.title2)
                 .foregroundStyle(.white)
                 .frame(width: 54, height: 54)
-                .glassEffect(.regular.tint(tint), in: .rect(cornerRadius: 16))
+                .background(tint, in: .rect(cornerRadius: 14))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.subheadline).foregroundStyle(.secondary)
                 Text(display).font(.title2.weight(.bold).monospacedDigit())
@@ -271,11 +271,11 @@ struct EmergencyView: View {
                         .font(.title3)
                         .foregroundStyle(.white)
                         .frame(width: 48, height: 48)
-                        .glassEffect(.regular.tint(tint).interactive(), in: .circle)
+                        .background(tint, in: .circle)
                 }
             }
         }
-        .glassCard()
+        .card()
     }
 }
 
@@ -301,7 +301,7 @@ struct HistoryView: View {
                         Spacer()
                         Text("≈ " + app.homeAmount(app.totalFlaggedINR)).font(.headline.monospacedDigit()).foregroundStyle(.secondary)
                     }
-                    .glassCard()
+                    .card()
                     ForEach(app.records) { record in
                         RecordRow(record: record)
                     }
@@ -310,7 +310,7 @@ struct HistoryView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 30)
         }
-        .background(LiquidBackground())
+        .background(AppBackground())
         .navigationTitle(L("History"))
         .navigationBarTitleDisplayMode(.inline)
     }
