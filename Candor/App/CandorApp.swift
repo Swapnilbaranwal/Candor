@@ -7,6 +7,7 @@ struct CandorApp: App {
     @State private var agent: CandorAgent
 
     init() {
+        GoogleMapsSetup.start()
         let app = AppState()
         let location = LocationService()
         _app = State(initialValue: app)

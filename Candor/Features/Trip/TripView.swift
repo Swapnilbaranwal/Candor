@@ -166,7 +166,26 @@ struct TripView: View {
     private func dayMap(_ plan: DayPlan) -> some View {
         let origin = location.dayStart(trip: app.trip, day: currentIndex).coordinate
         let coordinates = [origin] + plan.entries.map(\.stop.coordinate)
-        return Map(position: $mapPosition) {
+        return Group {
+            if GoogleMapsSetup.isReady {
+                GoogleTripMap(pins: [GoogleTripMap.Pin(latitude: origin.latitude, longitude: origin.longitude,
+                                                       title: plan.startName, number: nil)]
+                    + plan.entries.enumerated().map { number, entry in
+                        GoogleTripMap.Pin(latitude: entry.stop.latitude, longitude: entry.stop.longitude,
+                                          title: L(entry.stop.name), number: number + 1)
+                    })
+            } else {
+                appleMap(plan, origin: origin, coordinates: coordinates)
+            }
+        }
+        .frame(height: 210)
+        .clipShape(.rect(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.hairline, lineWidth: 1))
+    }
+
+    /// Apple Maps, when the Google Maps SDK has no key.
+    private func appleMap(_ plan: DayPlan, origin: CLLocationCoordinate2D, coordinates: [CLLocationCoordinate2D]) -> some View {
+        Map(position: $mapPosition) {
             Annotation(plan.startName, coordinate: origin) {
                 Image(systemName: "location.fill")
                     .font(.caption.weight(.bold))
@@ -190,9 +209,6 @@ struct TripView: View {
             }
         }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
-        .frame(height: 210)
-        .clipShape(.rect(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.white.opacity(0.25), lineWidth: 1))
     }
 
     // MARK: Timeline
