@@ -64,13 +64,13 @@ struct HomeView: View {
                     Text("·")
                     Text(greeting)
                 }
-                .font(.subheadline.weight(.medium))
+                .font(.candor(.subheadline, .medium))
                 .foregroundStyle(.secondary)
             }
             Spacer()
             Button { tab = .profile } label: {
                 Text(app.persona.initials)
-                    .font(.headline)
+                    .font(.candor(.headline, .semibold))
                     .foregroundStyle(.white)
                     .frame(width: 50, height: 50)
                     .background(Theme.accent, in: .circle)
@@ -85,13 +85,13 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Label(L("Fair-price check"), systemImage: "checkmark.shield.fill")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.candor(.subheadline, .semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
                 // Shown only when it changes what the traveller gets: offline answers are more limited.
                 if !app.hasGemini {
                     Text(L("Offline mode"))
-                        .font(.caption.weight(.semibold))
+                        .font(.candor(.caption1, .semibold))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
                         .background(Theme.saffron.opacity(0.14), in: .capsule)
@@ -103,7 +103,7 @@ struct HomeView: View {
                     .font(.heading(.title2))
                     .fixedSize(horizontal: false, vertical: true)
                 Text(L("Candor tells you the fair price, how far over the ask is, and what to say."))
-                    .font(.subheadline)
+                    .font(.candor(.subheadline))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -129,7 +129,7 @@ struct HomeView: View {
                     }
                     .buttonStyle(.bordered)
                 }
-                .font(.subheadline.weight(.semibold))
+                .font(.candor(.subheadline, .semibold))
             }
 
             // The quickest way to see what Candor does. A plain tinted row, not glass:
@@ -140,16 +140,16 @@ struct HomeView: View {
                         .foregroundStyle(Theme.saffron)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(L("Try an example"))
-                            .font(.caption.weight(.bold))
+                            .font(.candor(.caption1, .bold))
                             .foregroundStyle(.secondary)
                         Text(L(demoPrompt))
-                            .font(.subheadline.weight(.medium))
+                            .font(.candor(.subheadline, .medium))
                             .foregroundStyle(.primary)
                             .multilineTextAlignment(.leading)
                     }
                     Spacer(minLength: 0)
                     Image(systemName: "arrow.up.right")
-                        .font(.caption)
+                        .font(.candor(.caption1))
                         .foregroundStyle(.tertiary)
                 }
                 .padding(12)
@@ -170,14 +170,14 @@ struct HomeView: View {
         return Button { openCheck(.scams) } label: {
             HStack(spacing: 12) {
                 Image(systemName: scam.icon)
-                    .font(.body)
+                    .font(.candor(.body))
                     .foregroundStyle(.white)
                     .frame(width: 38, height: 38)
                     .background(Theme.rose, in: .circle)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(L("SCAM OF THE DAY")).font(.caption2.weight(.bold)).foregroundStyle(Theme.rose)
+                    Text(L("SCAM OF THE DAY")).font(.candor(.caption2, .bold)).foregroundStyle(Theme.rose)
                     Text(L(scam.title))
-                        .font(.subheadline.weight(.semibold))
+                        .font(.candor(.subheadline, .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                 }
@@ -206,11 +206,11 @@ struct HomeView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
                         Label(tripCityLine(trip, index: index), systemImage: "map.fill")
-                            .font(.subheadline.weight(.semibold))
+                            .font(.candor(.subheadline, .semibold))
                             .foregroundStyle(.secondary)
                         Spacer()
                         Text(trip.date(ofDay: index).formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(Localizer.shared.locale)))
-                            .font(.caption.weight(.semibold))
+                            .font(.candor(.caption1, .semibold))
                             .foregroundStyle(.secondary)
                     }
                     Text(day.displayTitle)
@@ -219,7 +219,7 @@ struct HomeView: View {
                         .multilineTextAlignment(.leading)
                     if plan.entries.isEmpty {
                         Text(L("Nothing planned yet. Add places in Trip."))
-                            .font(.subheadline)
+                            .font(.candor(.subheadline))
                             .foregroundStyle(.secondary)
                     } else {
                         VStack(alignment: .leading, spacing: 10) {
@@ -229,7 +229,7 @@ struct HomeView: View {
                         }
                         if plan.entries.count > 3 {
                             Text(L("+ %@ more", plan.entries.count - 3))
-                                .font(.caption.weight(.semibold))
+                                .font(.candor(.caption1, .semibold))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -241,14 +241,14 @@ struct HomeView: View {
             Button { tab = .trip } label: {
                 HStack(spacing: 14) {
                     Image(systemName: "map.fill")
-                        .font(.title2)
+                        .font(.candor(.title2))
                         .foregroundStyle(.white)
                         .frame(width: 52, height: 52)
                         .background(Theme.accent, in: .rect(cornerRadius: 14))
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(L("Plan your days in %@", L((app.trip?.cities.first?.city ?? .delhi).name))).font(.headline).foregroundStyle(.primary)
+                        Text(L("Plan your days in %@", L((app.trip?.cities.first?.city ?? .delhi).name))).font(.candor(.headline, .semibold)).foregroundStyle(.primary)
                         Text(L("Places, travel times and fair fares between them."))
-                            .font(.subheadline)
+                            .font(.candor(.subheadline))
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.leading)
                     }
@@ -273,26 +273,26 @@ struct HomeView: View {
         let option = entry.leg.bestOption
         return HStack(spacing: 12) {
             Text("\(number)")
-                .font(.subheadline.weight(.bold))
+                .font(.candor(.subheadline, .bold))
                 .foregroundStyle(.white)
                 .frame(width: 30, height: 30)
                 .background(Theme.accent, in: .circle)
             VStack(alignment: .leading, spacing: 2) {
                 Text(L(entry.stop.name))
-                    .font(.subheadline.weight(.semibold))
+                    .font(.candor(.subheadline, .semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 HStack(spacing: 4) {
                     Image(systemName: option.mode.icon).foregroundStyle(option.mode.color)
                     Text("\(option.mode.title) · \(durationText(option.minutes)) · \(option.fareText)")
                 }
-                .font(.caption)
+                .font(.candor(.caption1))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             }
             Spacer(minLength: 0)
             Text(timeText(entry.arrival))
-                .font(.caption.weight(.semibold).monospacedDigit())
+                .font(.candor(.caption1, .semibold).monospacedDigit())
                 .foregroundStyle(.secondary)
         }
     }
@@ -309,17 +309,17 @@ struct RecordRow: View {
                 .frame(width: 40, height: 40)
                 .background(record.verdict.color.opacity(0.14), in: .circle)
             VStack(alignment: .leading, spacing: 2) {
-                Text(L(record.title)).font(.subheadline.weight(.semibold)).lineLimit(1)
+                Text(L(record.title)).font(.candor(.subheadline, .semibold)).lineLimit(1)
                 Text(record.date.formatted(.relative(presentation: .named).locale(Localizer.shared.locale)))
-                    .font(.caption)
+                    .font(.candor(.caption1))
                     .foregroundStyle(.secondary)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
                 Text(record.askedINR.map(inr) ?? inr(record.fairHighINR))
-                    .font(.subheadline.weight(.bold).monospacedDigit())
+                    .font(.candor(.subheadline, .bold).monospacedDigit())
                 Text(record.verdict.title)
-                    .font(.caption.weight(.semibold))
+                    .font(.candor(.caption1, .semibold))
                     .foregroundStyle(record.verdict.color)
             }
         }

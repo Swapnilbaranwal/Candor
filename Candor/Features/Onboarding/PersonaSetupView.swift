@@ -69,7 +69,7 @@ struct PersonaSetupView: View {
                                 .font(.heading(.title2))
                                 .fixedSize(horizontal: false, vertical: true)
                             Text(step.subtitle)
-                                .font(.subheadline)
+                                .font(.candor(.subheadline))
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -153,7 +153,7 @@ struct PersonaSetupView: View {
             }
             Button(action: next) {
                 Text(step == .you ? L("Build my travel persona") : L("Continue"))
-                    .font(.headline)
+                    .font(.candor(.headline, .semibold))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -185,7 +185,7 @@ struct PersonaSetupView: View {
             }
             Button { addingStop = true } label: {
                 Label(stops.isEmpty ? L("Add your first city") : L("Add another city"), systemImage: "plus")
-                    .font(.headline)
+                    .font(.candor(.headline, .semibold))
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
             }
@@ -193,7 +193,7 @@ struct PersonaSetupView: View {
             .accessibilityIdentifier("addCity")
             if !stops.isEmpty {
                 Text(tripSummary)
-                    .font(.subheadline)
+                    .font(.candor(.subheadline))
                     .foregroundStyle(.secondary)
             }
         }
@@ -208,28 +208,28 @@ struct PersonaSetupView: View {
     private func stopRow(_ stop: CityStay, number: Int) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Text("\(number)")
-                .font(.subheadline.weight(.bold).monospacedDigit())
+                .font(.candor(.subheadline, .bold).monospacedDigit())
                 .foregroundStyle(Theme.saffron)
                 .frame(width: 22, alignment: .leading)
             VStack(alignment: .leading, spacing: 4) {
-                Text(stop.city.displayName).font(.headline)
+                Text(stop.city.displayName).font(.candor(.headline, .semibold))
                 Text(dateRange(stop) + " · " + L("%@ days", stop.dayCount))
-                    .font(.subheadline)
+                    .font(.candor(.subheadline))
                     .foregroundStyle(.secondary)
                 if let stay = stop.stay {
                     Label(stay.name, systemImage: "bed.double")
-                        .font(.subheadline)
+                        .font(.candor(.subheadline))
                         .foregroundStyle(.secondary)
                 } else if stop.wantsStaySuggestions {
                     Label(L("Wants stay suggestions"), systemImage: "bed.double")
-                        .font(.subheadline)
+                        .font(.candor(.subheadline))
                         .foregroundStyle(.secondary)
                 }
                 CoverageLabel(coverage: stop.city.coverage)
             }
             Spacer(minLength: 0)
             Image(systemName: "chevron.right")
-                .font(.footnote)
+                .font(.candor(.footnote))
                 .foregroundStyle(.tertiary)
         }
         .card(cornerRadius: 14, padding: 16)
@@ -271,7 +271,7 @@ struct PersonaSetupView: View {
     private var tasteStep: some View {
         VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 10) {
-                Text(L("Travel style")).font(.headline)
+                Text(L("Travel style")).font(.candor(.headline, .semibold))
                 Picker(L("Travel style"), selection: $draft.travelStyle) {
                     ForEach(TravelStyle.allCases) { style in
                         Text(style.title).tag(style)
@@ -301,7 +301,7 @@ struct PersonaSetupView: View {
     private func chipGroup(title: String, options: [String], isOn: @escaping (String) -> Bool,
                            toggle: @escaping (String) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title).font(.headline)
+            Text(title).font(.candor(.headline, .semibold))
             FlowLayout(spacing: 8) {
                 ForEach(options, id: \.self) { option in
                     Chip(title: L(option), isSelected: isOn(option), tint: Theme.saffron) {
@@ -317,7 +317,7 @@ struct PersonaSetupView: View {
     private var youStep: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(L("What should we call you?")).font(.headline)
+                Text(L("What should we call you?")).font(.candor(.headline, .semibold))
                 TextField(L("Your name"), text: $draft.name)
                     .textContentType(.givenName)
                     .focused($nameFocused)
@@ -353,7 +353,7 @@ struct PersonaSetupView: View {
             }
             .card(cornerRadius: 14, padding: 16)
             Text(L("Set from your phone. Change them any time in Me."))
-                .font(.caption)
+                .font(.candor(.caption1))
                 .foregroundStyle(.secondary)
         }
     }
@@ -393,7 +393,7 @@ struct PersonaSetupView: View {
                     .font(.heading(.title2))
                     .fixedSize(horizontal: false, vertical: true)
                 Text(planSummary)
-                    .font(.subheadline)
+                    .font(.candor(.subheadline))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -401,7 +401,7 @@ struct PersonaSetupView: View {
             if isPlanning {
                 HStack(spacing: 14) {
                     AgentMark(size: 44, isActive: true)
-                    Text(L("Planning your days…")).font(.headline)
+                    Text(L("Planning your days…")).font(.candor(.headline, .semibold))
                     Spacer(minLength: 0)
                 }
                 .card()
@@ -414,7 +414,7 @@ struct PersonaSetupView: View {
                            subtitle: L("Start with empty days and add the places you want."),
                            icon: "square.and.pencil", tint: Theme.teal, action: ownPlan)
                 Button(L("Later")) { finish(openTrip: false) }
-                    .font(.subheadline.weight(.semibold))
+                    .font(.candor(.subheadline, .semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.top, 4)
             }
@@ -435,14 +435,14 @@ struct PersonaSetupView: View {
         Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: icon)
-                    .font(.title3)
+                    .font(.candor(.title3))
                     .foregroundStyle(.white)
                     .frame(width: 48, height: 48)
                     .background(tint, in: .rect(cornerRadius: 14))
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.headline).foregroundStyle(.primary)
+                    Text(title).font(.candor(.headline, .semibold)).foregroundStyle(.primary)
                     Text(subtitle)
-                        .font(.caption)
+                        .font(.candor(.caption1))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)

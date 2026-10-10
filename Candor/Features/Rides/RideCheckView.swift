@@ -91,16 +91,16 @@ struct RideCheckView: View {
     private var routeCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                Image(systemName: "location.circle.fill").font(.title2).foregroundStyle(Theme.teal)
+                Image(systemName: "location.circle.fill").font(.candor(.title2)).foregroundStyle(Theme.teal)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(L("From")).font(.caption).foregroundStyle(.secondary)
-                    Text(location.originName).font(.subheadline.weight(.semibold))
+                    Text(L("From")).font(.candor(.caption1)).foregroundStyle(.secondary)
+                    Text(location.originName).font(.candor(.subheadline, .semibold))
                 }
             }
             HStack(spacing: 12) {
-                Image(systemName: "mappin.circle.fill").font(.title2).foregroundStyle(Theme.rose)
+                Image(systemName: "mappin.circle.fill").font(.candor(.title2)).foregroundStyle(Theme.rose)
                 TextField(L("Where to?"), text: $query)
-                    .font(.headline)
+                    .font(.candor(.headline, .semibold))
                     .submitLabel(.search)
                     .focused($focused)
                     .onSubmit { Task { await search() } }
@@ -108,7 +108,7 @@ struct RideCheckView: View {
                     ProgressView()
                 } else if let route {
                     Text("\(route.km.formatted(.number.precision(.fractionLength(1)))) km")
-                        .font(.subheadline.weight(.bold).monospacedDigit())
+                        .font(.candor(.subheadline, .bold).monospacedDigit())
                         .foregroundStyle(Theme.teal)
                 }
             }
@@ -123,8 +123,8 @@ struct RideCheckView: View {
                             Task { await choose(item) }
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(item.name ?? L("Place")).font(.subheadline.weight(.semibold))
-                                Text(item.placemark.title ?? "").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                Text(item.name ?? L("Place")).font(.candor(.subheadline, .semibold))
+                                Text(item.placemark.title ?? "").font(.candor(.caption1)).foregroundStyle(.secondary).lineLimit(1)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 10)
@@ -175,7 +175,7 @@ struct RideCheckView: View {
                     .keyboardType(.numberPad)
                     .focused($focused)
                 if let asked {
-                    Text(app.homeAmount(asked)).font(.caption).foregroundStyle(.secondary)
+                    Text(app.homeAmount(asked)).font(.candor(.caption1)).foregroundStyle(.secondary)
                 }
             }
             .padding(.horizontal, 14)
@@ -195,7 +195,7 @@ struct RideCheckView: View {
         .clipShape(.rect(cornerRadius: 16))
         .overlay(alignment: .bottomLeading) {
             Label(L("%@ km by road", route.km.formatted(.number.precision(.fractionLength(1)))), systemImage: "road.lanes")
-                .font(.caption.weight(.semibold))
+                .font(.candor(.caption1, .semibold))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .background(Theme.field, in: .capsule)
@@ -205,18 +205,18 @@ struct RideCheckView: View {
 
     private var fareChartCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(L("Official fare chart"), systemImage: "list.bullet.rectangle.portrait.fill").font(.headline)
+            Label(L("Official fare chart"), systemImage: "list.bullet.rectangle.portrait.fill").font(.candor(.headline, .semibold))
             ForEach(RideMode.allCases) { mode in
                 HStack(alignment: .top) {
                     Image(systemName: mode.icon).frame(width: 24).foregroundStyle(Theme.teal)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(mode.title).font(.subheadline.weight(.semibold))
-                        Text(mode.ruleText).font(.caption).foregroundStyle(.secondary)
+                        Text(mode.title).font(.candor(.subheadline, .semibold))
+                        Text(mode.ruleText).font(.candor(.caption1)).foregroundStyle(.secondary)
                     }
                 }
             }
             Text(L("%@. Fair range allows +20% for traffic and rounding. Verify current rates before relying on them.", L(FareChart.source)))
-                .font(.caption2)
+                .font(.candor(.caption2))
                 .foregroundStyle(.secondary)
         }
         .card()

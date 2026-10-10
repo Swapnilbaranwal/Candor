@@ -26,7 +26,7 @@ struct ProfileView: View {
                     aiCard(key: $app.geminiKey, model: $app.geminiModel)
                     accountCard
                     Text(L("Candor prototype · Delhi pilot · v1.0"))
-                        .font(.caption)
+                        .font(.candor(.caption1))
                         .foregroundStyle(.secondary)
                         .padding(.top, 6)
                 }
@@ -45,14 +45,14 @@ struct ProfileView: View {
     private var personaHeader: some View {
         VStack(spacing: 12) {
             Text(app.persona.initials)
-                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .font(.candor(size: 34, .bold))
                 .foregroundStyle(.white)
                 .frame(width: 92, height: 92)
                 .background(Theme.accent, in: .circle)
             Text(app.persona.name.isEmpty ? L("Traveller") : app.persona.name)
                 .font(.heading(.title2))
             Text(app.persona.accountLabel)
-                .font(.subheadline.monospacedDigit())
+                .font(.candor(.subheadline).monospacedDigit())
                 .foregroundStyle(.secondary)
             HStack(spacing: 8) {
                 tag(app.persona.travelStyle.title, app.persona.travelStyle.icon)
@@ -61,7 +61,7 @@ struct ProfileView: View {
             }
             if !app.persona.interests.isEmpty {
                 Text(app.persona.interests.map { L($0) }.joined(separator: " · "))
-                    .font(.caption)
+                    .font(.candor(.caption1))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -72,7 +72,7 @@ struct ProfileView: View {
 
     private func tag(_ title: String, _ icon: String) -> some View {
         Label(title, systemImage: icon)
-            .font(.caption.weight(.semibold))
+            .font(.candor(.caption1, .semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(Theme.field, in: .capsule)
@@ -80,7 +80,7 @@ struct ProfileView: View {
 
     private func preferencesCard(app persona: Binding<Persona>) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label(L("Preferences"), systemImage: "slider.horizontal.3").font(.headline)
+            Label(L("Preferences"), systemImage: "slider.horizontal.3").font(.candor(.headline, .semibold))
             HStack {
                 Text(L("Name"))
                 TextField(L("Your name"), text: persona.name)
@@ -125,10 +125,10 @@ struct ProfileView: View {
     private func aiCard(key: Binding<String>, model: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Label(L("AI settings"), systemImage: "slider.horizontal.3").font(.headline)
+                Label(L("AI settings"), systemImage: "slider.horizontal.3").font(.candor(.headline, .semibold))
                 Spacer()
                 Text(app.hasGemini ? L("Gemini live") : L("Offline agent"))
-                    .font(.caption.weight(.semibold))
+                    .font(.candor(.caption1, .semibold))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .background((app.hasGemini ? Theme.mint : Theme.saffron).opacity(0.14), in: .capsule)
@@ -136,7 +136,7 @@ struct ProfileView: View {
             Text(Backend.geminiProxy == nil
                  ? L("Add a Gemini API key from Google AI Studio to turn on photo reading, live reasoning and free translation. Without a key, Candor runs an on-device agent with the same tools.")
                  : L("Gemini runs through Candor's Google Cloud backend, so you don't need a key. If you add your own key here, Candor uses it instead."))
-                .font(.caption)
+                .font(.candor(.caption1))
                 .foregroundStyle(.secondary)
 
             HStack {
@@ -149,7 +149,7 @@ struct ProfileView: View {
                 }
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-                .font(.subheadline.monospaced())
+                .font(.candor(.subheadline).monospacedDigit())
                 Button {
                     showKey.toggle()
                 } label: {
@@ -163,11 +163,11 @@ struct ProfileView: View {
             .background(Theme.field, in: .capsule)
 
             HStack {
-                Text(L("Model")).font(.subheadline)
+                Text(L("Model")).font(.candor(.subheadline))
                 TextField("gemini-3.8-flash", text: model)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                    .font(.subheadline.monospaced())
+                    .font(.candor(.subheadline).monospacedDigit())
                     .multilineTextAlignment(.trailing)
             }
 
@@ -183,8 +183,8 @@ struct ProfileView: View {
                 switch testState {
                 case .idle: EmptyView()
                 case .testing: ProgressView()
-                case .ok: Label(L("Connected"), systemImage: "checkmark.circle.fill").foregroundStyle(Theme.mint).font(.caption.weight(.semibold))
-                case .failed(let message): Text(message).font(.caption).foregroundStyle(Theme.rose).lineLimit(2)
+                case .ok: Label(L("Connected"), systemImage: "checkmark.circle.fill").foregroundStyle(Theme.mint).font(.candor(.caption1, .semibold))
+                case .failed(let message): Text(message).font(.candor(.caption1)).foregroundStyle(Theme.rose).lineLimit(2)
                 }
             }
 
@@ -192,7 +192,7 @@ struct ProfileView: View {
                   ? L("Prototype stores the key on this device. For the submission, call Gemini through a Cloud Run proxy instead.")
                   : L("Candor's Gemini key stays on the server, in Google Cloud. It is not stored in the app."),
                   systemImage: "lock.shield")
-                .font(.caption2)
+                .font(.candor(.caption2))
                 .foregroundStyle(.secondary)
         }
         .card()

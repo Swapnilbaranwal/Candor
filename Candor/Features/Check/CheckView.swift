@@ -77,14 +77,14 @@ struct CheckView: View {
         Button { path.append(route) } label: {
             HStack(spacing: 16) {
                 Image(systemName: icon)
-                    .font(.title2)
+                    .font(.candor(.title2))
                     .foregroundStyle(.white)
                     .frame(width: 56, height: 56)
                     .background(color, in: .rect(cornerRadius: 14))
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title).font(.heading(.title3)).foregroundStyle(.primary)
                     Text(subtitle)
-                        .font(.subheadline)
+                        .font(.candor(.subheadline))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
@@ -106,17 +106,17 @@ struct CheckView: View {
         Button { path.append(tool.route) } label: {
             VStack(alignment: .leading, spacing: 10) {
                 Image(systemName: tool.icon)
-                    .font(.title2)
+                    .font(.candor(.title2))
                     .foregroundStyle(tool.color)
                     .frame(height: 28)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L(tool.title))
-                        .font(.headline)
+                        .font(.candor(.headline, .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                     Text(L(tool.subtitle))
-                        .font(.caption)
+                        .font(.candor(.caption1))
                         .foregroundStyle(.secondary)
                         .lineLimit(2, reservesSpace: true)
                         .multilineTextAlignment(.leading)
@@ -138,7 +138,7 @@ struct CheckView: View {
             HStack {
                 SectionHeader(title: L("Recent checks"))
                 Button(L("See all")) { path.append(.history) }
-                    .font(.subheadline.weight(.semibold))
+                    .font(.candor(.subheadline, .semibold))
             }
             VStack(spacing: 10) {
                 ForEach(app.records.prefix(3)) { record in

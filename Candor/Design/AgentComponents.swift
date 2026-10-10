@@ -18,7 +18,7 @@ struct AgentTrailView: View {
                     Image(systemName: "chevron.down")
                         .rotationEffect(.degrees(expanded ? 0 : -90))
                 }
-                .font(.caption.weight(.semibold))
+                .font(.candor(.caption1, .semibold))
                 .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
@@ -46,14 +46,14 @@ struct StepRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: step.icon)
-                .font(.footnote.weight(.semibold))
+                .font(.candor(.footnote, .semibold))
                 .foregroundStyle(tint)
                 .frame(width: 30, height: 30)
                 .background(tint.opacity(0.14), in: .circle)
             VStack(alignment: .leading, spacing: 2) {
-                Text(step.title).font(.subheadline.weight(.semibold))
+                Text(step.title).font(.candor(.subheadline, .semibold))
                 Text(step.detail)
-                    .font(.caption)
+                    .font(.candor(.caption1))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -68,7 +68,7 @@ struct StepRow: View {
                     Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Theme.saffron)
                 }
             }
-            .font(.footnote)
+            .font(.candor(.footnote))
             .frame(width: 20, height: 30)
         }
     }
@@ -91,7 +91,7 @@ struct VerdictCardView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label(verdict.verdict.title, systemImage: verdict.verdict.icon)
-                    .font(.subheadline.weight(.bold))
+                    .font(.candor(.subheadline, .bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
@@ -100,29 +100,29 @@ struct VerdictCardView: View {
                 Spacer()
                 if let percent = verdict.overPercent {
                     Text("+\(percent)%")
-                        .font(.headline.monospacedDigit())
+                        .font(.candor(.headline, .semibold).monospacedDigit())
                         .foregroundStyle(verdict.verdict.color)
                 }
             }
 
             Text(L(verdict.item))
-                .font(.title3.weight(.semibold))
+                .font(.candor(.title3, .semibold))
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(L("Fair price")).font(.caption).foregroundStyle(.secondary)
-                    Text(verdict.rangeText).font(.title2.weight(.bold).monospacedDigit())
-                    Text(app.homeAmount(verdict.fairHighINR)).font(.caption).foregroundStyle(.secondary)
+                    Text(L("Fair price")).font(.candor(.caption1)).foregroundStyle(.secondary)
+                    Text(verdict.rangeText).font(.candor(.title2, .bold).monospacedDigit())
+                    Text(app.homeAmount(verdict.fairHighINR)).font(.candor(.caption1)).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if let asked = verdict.askedINR {
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text(L("Asked")).font(.caption).foregroundStyle(.secondary)
+                        Text(L("Asked")).font(.candor(.caption1)).foregroundStyle(.secondary)
                         Text(inr(asked))
-                            .font(.title2.weight(.bold).monospacedDigit())
+                            .font(.candor(.title2, .bold).monospacedDigit())
                             .foregroundStyle(verdict.verdict.color)
-                        Text(app.homeAmount(asked)).font(.caption).foregroundStyle(.secondary)
+                        Text(app.homeAmount(asked)).font(.candor(.caption1)).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -130,17 +130,17 @@ struct VerdictCardView: View {
             PriceGauge(low: verdict.fairLowINR, high: verdict.fairHighINR, asked: verdict.askedINR, color: verdict.verdict.color)
 
             Label(L(verdict.source), systemImage: "doc.text.magnifyingglass")
-                .font(.caption)
+                .font(.candor(.caption1))
                 .foregroundStyle(.secondary)
 
             if let tip = verdict.tip {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(L("Say it")).font(.caption2.weight(.bold)).foregroundStyle(.secondary)
-                        Text(tip.roman).font(.subheadline.weight(.semibold))
+                        Text(L("Say it")).font(.candor(.caption2, .bold)).foregroundStyle(.secondary)
+                        Text(tip.roman).font(.candor(.subheadline, .semibold))
                         Text(tip.hindi).font(.hindi(.caption1)).foregroundStyle(.secondary)
                         // What the phrase means, in the traveller's own language.
-                        Text(L(tip.english)).font(.caption).foregroundStyle(.secondary)
+                        Text(L(tip.english)).font(.candor(.caption1)).foregroundStyle(.secondary)
                     }
                     Spacer()
                     Button {

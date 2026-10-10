@@ -10,7 +10,10 @@ struct CandorApp: App {
         GoogleMapsSetup.start()
         // Navigation-bar titles ("Trip", sheet titles) in the heading face too.
         UINavigationBar.appearance().largeTitleTextAttributes = [.font: CandorType.heading(.largeTitle)]
-        UINavigationBar.appearance().titleTextAttributes = [.font: CandorType.heading(.headline, weight: 650)]
+        UINavigationBar.appearance().titleTextAttributes = [.font: CandorType.heading(.headline, weight: .semibold)]
+        UIBarButtonItem.appearance().setTitleTextAttributes([.font: CandorType.font(.body)], for: .normal)
+        UITabBarItem.appearance().setTitleTextAttributes([.font: CandorType.font(.caption2, weight: .medium)], for: .normal)
+        UISegmentedControl.appearance().setTitleTextAttributes([.font: CandorType.font(.subheadline, weight: .medium)], for: .normal)
         let app = AppState()
         let location = LocationService()
         _app = State(initialValue: app)
@@ -58,6 +61,8 @@ struct RootView: View {
         .animation(.smooth(duration: 0.55), value: app.phase)
         // The language chosen in the app sets SwiftUI's locale and, for Arabic and Hebrew, mirrors the layout.
         // Numbers and dates formatted with `.formatted()` still follow the phone's own locale.
+        // One typeface everywhere: text without its own font uses Candor's body style.
+        .font(.candor(.body))
         .environment(\.locale, Localizer.shared.locale)
         .environment(\.layoutDirection, Localizer.shared.layoutDirection)
         .onChange(of: app.phase, initial: true) { _, phase in
@@ -88,9 +93,9 @@ struct SplashView: View {
                 .overlay(alignment: .top) {
                     VStack(spacing: 8) {
                         Text("Candor")
-                            .font(.system(size: 44, weight: .bold, design: .rounded))
+                            .font(.candor(size: 44, .bold))
                         Text(L("Explore India. Pay what locals pay."))
-                            .font(.subheadline)
+                            .font(.candor(.subheadline))
                             .foregroundStyle(.secondary)
                     }
                     .fixedSize()

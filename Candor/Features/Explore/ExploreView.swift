@@ -83,13 +83,13 @@ struct ExploreView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Label(spot.category.title, systemImage: spot.category.icon)
-                        .font(.caption.weight(.bold))
+                        .font(.candor(.caption1, .bold))
                         .foregroundStyle(spot.category.color)
                     Text(L(spot.name)).font(.heading(.title3))
                 }
                 Spacer()
                 Text("\(location.distanceKm(to: spot.coordinate).formatted(.number.precision(.fractionLength(1)))) km")
-                    .font(.caption.weight(.semibold).monospacedDigit())
+                    .font(.candor(.caption1, .semibold).monospacedDigit())
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .background(Theme.surface, in: .capsule)
@@ -101,9 +101,9 @@ struct ExploreView: View {
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.circle)
             }
-            Text(L(spot.blurb)).font(.subheadline)
+            Text(L(spot.blurb)).font(.candor(.subheadline))
             Label(L(spot.tip), systemImage: "lightbulb.fill")
-                .font(.subheadline)
+                .font(.candor(.subheadline))
                 .foregroundStyle(.secondary)
 
             Group {
@@ -128,7 +128,7 @@ struct ExploreView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(Theme.accent)
                 }
-                .font(.subheadline.weight(.semibold))
+                .font(.candor(.subheadline, .semibold))
             }
         }
         .padding(18)

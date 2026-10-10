@@ -79,7 +79,7 @@ struct LoginView: View {
                 .scaleEffect(appeared ? 1 : 0.6)
                 .opacity(appeared ? 1 : 0)
             Text("Candor")
-                .font(.system(size: 46, weight: .bold, design: .rounded))
+                .font(.candor(size: 46, .bold))
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared ? 0 : 12)
         }
@@ -92,7 +92,7 @@ struct LoginView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(L("Sign in")).font(.heading(.title2))
                 Text(L("Use whatever you have. No Indian number needed."))
-                    .font(.subheadline)
+                    .font(.candor(.subheadline))
                     .foregroundStyle(.secondary)
             }
 
@@ -128,7 +128,7 @@ struct LoginView: View {
                         Image(systemName: "arrow.right")
                     }
                 }
-                .font(.headline)
+                .font(.candor(.headline, .semibold))
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
             }
@@ -140,11 +140,11 @@ struct LoginView: View {
 
             VStack(spacing: 8) {
                 Button(L("Continue as guest")) { signIn(.guest) }
-                    .font(.subheadline.weight(.semibold))
+                    .font(.candor(.subheadline, .semibold))
                     .disabled(loading != nil)
 
                 Text(footnote)
-                    .font(.footnote)
+                    .font(.candor(.footnote))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -182,7 +182,7 @@ struct LoginView: View {
                     Text(title)
                 }
             }
-            .font(.headline)
+            .font(.candor(.headline, .semibold))
             .frame(maxWidth: .infinity)
             .frame(height: 34)
         }
@@ -197,7 +197,7 @@ struct LoginView: View {
         HStack(spacing: 10) {
             Rectangle().fill(.quaternary).frame(height: 1)
             Text(L("or"))
-                .font(.caption.weight(.semibold))
+                .font(.candor(.caption1, .semibold))
                 .foregroundStyle(.secondary)
             Rectangle().fill(.quaternary).frame(height: 1)
         }
@@ -213,7 +213,7 @@ struct LoginView: View {
             .submitLabel(.continue)
             .onSubmit { submitContact() }
             .focused($fieldFocused)
-            .font(.title3.weight(.semibold))
+            .font(.candor(.title3, .semibold))
             .padding(.horizontal, 18)
             .frame(height: 56)
             .background(Theme.field, in: .capsule)
@@ -229,9 +229,9 @@ struct LoginView: View {
                 HStack(spacing: 6) {
                     Text(country.flag)
                     Text(country.dial).monospacedDigit()
-                    Image(systemName: "chevron.down").font(.caption2.weight(.bold))
+                    Image(systemName: "chevron.down").font(.candor(.caption2, .bold))
                 }
-                .font(.headline)
+                .font(.candor(.headline, .semibold))
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 14)
                 .frame(height: 56)
@@ -242,7 +242,7 @@ struct LoginView: View {
                 .keyboardType(.numberPad)
                 .textContentType(.telephoneNumber)
                 .focused($fieldFocused)
-                .font(.title3.weight(.semibold).monospacedDigit())
+                .font(.candor(.title3, .semibold).monospacedDigit())
                 .padding(.horizontal, 18)
                 .frame(height: 56)
                 .background(Theme.field, in: .capsule)

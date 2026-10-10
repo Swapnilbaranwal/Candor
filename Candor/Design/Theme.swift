@@ -125,7 +125,7 @@ struct Chip: View {
                 if let icon { Image(systemName: icon) }
                 Text(title).lineLimit(1)
             }
-            .font(.subheadline.weight(.semibold))
+            .font(.candor(.subheadline, .semibold))
             .foregroundStyle(isSelected ? Color.white : Color.primary)
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
@@ -146,7 +146,7 @@ struct SectionHeader: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title).font(.heading(.title3))
             if let subtitle {
-                Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                Text(subtitle).font(.candor(.subheadline)).foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -184,24 +184,33 @@ struct MarkdownText: View {
 
 // MARK: - Type
 
-/// Headings use Bricolage Grotesque, a warm grotesque with optical sizes; body text stays SF Pro
-/// (see DESIGN.md). Hindi uses Mukta. All three ship in Candor/Fonts (SIL Open Font License).
+/// Candor uses one typeface everywhere: Bricolage Grotesque, a variable font with weight and
+/// optical-size axes (see DESIGN.md). It ships in Candor/Fonts (SIL Open Font License).
+/// Scripts it doesn't cover (Arabic, Hebrew, CJK, Thai) fall back to the system font; Hindi uses
+/// Mukta, Devanagari designed to sit next to it.
 enum CandorType {
     /// PostScript name of the bundled Bricolage variable font (its default instance).
-    private static let headingFontName = "BricolageGrotesque-96ptExtraBold"
+    private static let fontName = "BricolageGrotesque-96ptExtraBold"
 
-    /// A heading at `style`'s size, following the reader's text size. Falls back to bold SF Pro.
-    static func heading(_ style: UIFont.TextStyle, weight: CGFloat = 700) -> UIFont {
-        let size = UIFont.preferredFont(forTextStyle: style).pointSize
-        // Variable font: set the weight and the optical size (tighter at large sizes) explicitly.
-        let axes: [Int: CGFloat] = [axis("wght"): weight, axis("opsz"): min(max(size, 12), 96)]
+    /// Bricolage at a text style's size (scaled with the reader's text size) or a fixed size.
+    static func font(_ style: UIFont.TextStyle, weight: UIFont.Weight = .regular, size: CGFloat? = nil) -> UIFont {
+        let pointSize = size ?? UIFont.preferredFont(forTextStyle: style).pointSize
+        // Variable font: set the weight and the optical size explicitly. Optical size follows the
+        // point size, so small labels get open, sturdy letters and big titles tight ones.
+        let axes: [Int: CGFloat] = [axis("wght"): wghtValue(weight), axis("opsz"): min(max(pointSize, 12), 96)]
         let descriptor = UIFontDescriptor(fontAttributes: [
-            .name: headingFontName,
+            .name: fontName,
             UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): axes
         ])
-        let font = UIFont(descriptor: descriptor, size: size)
-        let base = font.fontName.hasPrefix("BricolageGrotesque") ? font : .systemFont(ofSize: size, weight: .bold)
-        return UIFontMetrics(forTextStyle: style).scaledFont(for: base, maximumPointSize: size * 2)
+        let custom = UIFont(descriptor: descriptor, size: pointSize)
+        let base = custom.fontName.hasPrefix("BricolageGrotesque") ? custom : .systemFont(ofSize: pointSize, weight: weight)
+        if size != nil { return base }
+        return UIFontMetrics(forTextStyle: style).scaledFont(for: base, maximumPointSize: pointSize * 2)
+    }
+
+    /// Headings: bold.
+    static func heading(_ style: UIFont.TextStyle, weight: UIFont.Weight = .bold) -> UIFont {
+        font(style, weight: weight)
     }
 
     /// Devanagari text (Hindi phrases), in Mukta, scaled with the reader's text size.
@@ -212,13 +221,34 @@ enum CandorType {
         return UIFontMetrics(forTextStyle: style).scaledFont(for: base)
     }
 
+    private static func wghtValue(_ weight: UIFont.Weight) -> CGFloat {
+        switch weight {
+        case .ultraLight, .thin, .light: 300
+        case .medium: 500
+        case .semibold: 600
+        case .bold: 700
+        case .heavy, .black: 800
+        default: 400
+        }
+    }
+
     private static func axis(_ tag: String) -> Int {
         tag.unicodeScalars.reduce(0) { ($0 << 8) | Int($1.value) }
     }
 }
 
 extension Font {
-    /// Screen titles and card headings.
+    /// Candor's typeface at a text style, e.g. `.candor(.subheadline, .semibold)`.
+    static func candor(_ style: UIFont.TextStyle, _ weight: UIFont.Weight = .regular) -> Font {
+        Font(CandorType.font(style, weight: weight))
+    }
+
+    /// Candor's typeface at a fixed size (logo wordmark, big numbers).
+    static func candor(size: CGFloat, _ weight: UIFont.Weight = .regular) -> Font {
+        Font(CandorType.font(.body, weight: weight, size: size))
+    }
+
+    /// Screen titles and card headings: bold.
     static func heading(_ style: UIFont.TextStyle) -> Font {
         Font(CandorType.heading(style))
     }

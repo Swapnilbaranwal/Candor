@@ -95,9 +95,9 @@ struct ScanView: View {
                         .font(.system(size: 54, weight: .light))
                         .foregroundStyle(Theme.accent)
                     Text(L("Photograph a price tag, menu or bill"))
-                        .font(.headline)
+                        .font(.candor(.headline, .semibold))
                     Text(L("Candor reads it, finds the fair price and tells you if it's fair, in your language."))
-                        .font(.subheadline)
+                        .font(.candor(.subheadline))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -128,7 +128,7 @@ struct ScanView: View {
                 }
                 .buttonStyle(.bordered)
             }
-            .font(.subheadline.weight(.semibold))
+            .font(.candor(.subheadline, .semibold))
             .controlSize(.large)
         }
     }
@@ -150,7 +150,7 @@ struct ScanView: View {
             }
             if let asked = Double(askedText), asked > 0 {
                 Text("≈ \(app.homeAmount(asked))")
-                    .font(.caption)
+                    .font(.candor(.caption1))
                     .foregroundStyle(.secondary)
             }
         }
@@ -163,7 +163,7 @@ struct ScanView: View {
                 if isRunning { ProgressView().tint(.white) } else { Image(systemName: "checkmark.shield") }
                 Text(isRunning ? L("Checking…") : L("Check fair price"))
             }
-            .font(.headline)
+            .font(.candor(.headline, .semibold))
             .frame(maxWidth: .infinity)
             .frame(height: 50)
         }

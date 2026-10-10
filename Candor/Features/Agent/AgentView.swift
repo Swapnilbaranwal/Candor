@@ -64,7 +64,7 @@ struct AgentView: View {
                                 .fill(Theme.saffron)
                                 .frame(width: 8, height: 8)
                             Text(L("Offline"))
-                                .font(.caption.weight(.semibold))
+                                .font(.candor(.caption1, .semibold))
                         }
                         .fixedSize() // without this the bar squeezes the label down to its first letter
                         .padding(.horizontal, 6)
@@ -100,7 +100,7 @@ struct AgentView: View {
                 Text(L("Hi %@, I'm Candor", app.persona.firstName))
                     .font(.heading(.title2))
                 Text(L("I check fares, prices and situations for you, using real fare charts and price references. You'll see every step I take."))
-                    .font(.subheadline)
+                    .font(.candor(.subheadline))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -117,9 +117,9 @@ struct AgentView: View {
                                 .multilineTextAlignment(.leading)
                                 .foregroundStyle(.primary)
                             Spacer(minLength: 0)
-                            Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(.tertiary)
+                            Image(systemName: "arrow.up.right").font(.candor(.caption1)).foregroundStyle(.tertiary)
                         }
-                        .font(.subheadline.weight(.medium))
+                        .font(.candor(.subheadline, .medium))
                         .padding(14)
                         .background(Theme.surface, in: .rect(cornerRadius: 16))
                     }
@@ -139,7 +139,7 @@ struct AgentView: View {
                         .scaledToFill()
                         .frame(width: 56, height: 56)
                         .clipShape(.rect(cornerRadius: 14))
-                    Text(L("Photo attached")).font(.caption.weight(.semibold))
+                    Text(L("Photo attached")).font(.candor(.caption1, .semibold))
                     Spacer()
                     Button {
                         self.attachment = nil
@@ -158,7 +158,7 @@ struct AgentView: View {
                 HStack(alignment: .bottom, spacing: 10) {
                     PhotosPicker(selection: $pickerItem, matching: .images) {
                         Image(systemName: "photo.badge.plus")
-                            .font(.title3)
+                            .font(.candor(.title3))
                             .frame(width: 48, height: 48)
                             .background(Theme.surface, in: .circle)
                     }

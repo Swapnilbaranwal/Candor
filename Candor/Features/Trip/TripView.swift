@@ -150,14 +150,14 @@ struct TripView: View {
     private func dayHeader(day: TripDay, date: Date, plan: DayPlan) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Localizer.shared.locale)))
-                .font(.subheadline.weight(.semibold))
+                .font(.candor(.subheadline, .semibold))
                 .foregroundStyle(Theme.accent)
             Text(day.displayTitle)
                 .font(.heading(.title2))
                 .fixedSize(horizontal: false, vertical: true)
             if !plan.entries.isEmpty {
                 Text(L("%1$@ stops · %2$@ travel · %3$@", plan.entries.count, durationText(plan.travelMinutes), plan.fareText))
-                    .font(.subheadline)
+                    .font(.candor(.subheadline))
                     .foregroundStyle(.secondary)
             }
         }
@@ -188,7 +188,7 @@ struct TripView: View {
         Map(position: $mapPosition) {
             Annotation(plan.startName, coordinate: origin) {
                 Image(systemName: "location.fill")
-                    .font(.caption.weight(.bold))
+                    .font(.candor(.caption1, .bold))
                     .foregroundStyle(.white)
                     .frame(width: 24, height: 24)
                     .background(Theme.teal, in: .circle)
@@ -200,7 +200,7 @@ struct TripView: View {
             ForEach(Array(plan.entries.enumerated()), id: \.element.id) { number, entry in
                 Annotation(L(entry.stop.name), coordinate: entry.stop.coordinate) {
                     Text("\(number + 1)")
-                        .font(.caption.weight(.bold))
+                        .font(.candor(.caption1, .bold))
                         .foregroundStyle(.white)
                         .frame(width: 26, height: 26)
                         .background(Theme.accent, in: .circle)
@@ -218,17 +218,17 @@ struct TripView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
                 Image(systemName: "location.fill")
-                    .font(.footnote.weight(.bold))
+                    .font(.candor(.footnote, .bold))
                     .foregroundStyle(.white)
                     .frame(width: 34, height: 34)
                     .background(Theme.teal, in: .circle)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(L("Start")).font(.caption).foregroundStyle(.secondary)
-                    Text(plan.startName).font(.subheadline.weight(.semibold))
+                    Text(L("Start")).font(.candor(.caption1)).foregroundStyle(.secondary)
+                    Text(plan.startName).font(.candor(.subheadline, .semibold))
                 }
                 Spacer()
                 Text(timeText(plan.start))
-                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .font(.candor(.subheadline, .semibold).monospacedDigit())
                     .foregroundStyle(.secondary)
             }
             .card(cornerRadius: 16, padding: 12)
@@ -236,11 +236,11 @@ struct TripView: View {
             if plan.entries.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "mappin.and.ellipse")
-                        .font(.largeTitle)
+                        .font(.candor(.largeTitle))
                         .foregroundStyle(Theme.accent)
-                    Text(L("No places yet")).font(.headline)
+                    Text(L("No places yet")).font(.candor(.headline, .semibold))
                     Text(L("Add the places you want to see. Candor works out the order of the day, how to get between them and what it should cost."))
-                        .font(.subheadline)
+                        .font(.candor(.subheadline))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -260,26 +260,26 @@ struct TripView: View {
         return Button { legSheet = leg } label: {
             HStack(spacing: 12) {
                 Image(systemName: option.mode.icon)
-                    .font(.footnote.weight(.semibold))
+                    .font(.candor(.footnote, .semibold))
                     .foregroundStyle(option.mode.color)
                     .frame(width: 34)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(option.mode.title) · \(durationText(option.minutes)) · \(option.fareText)")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.candor(.subheadline, .semibold))
                         .foregroundStyle(.primary)
                     Text(option.summary)
-                        .font(.caption)
+                        .font(.candor(.caption1))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
                 if leg.options.count > 1 {
                     Text(L("%@ ways", leg.options.count))
-                        .font(.caption.weight(.semibold))
+                        .font(.candor(.caption1, .semibold))
                         .foregroundStyle(option.mode.color)
                 }
                 Image(systemName: "chevron.right")
-                    .font(.caption)
+                    .font(.candor(.caption1))
                     .foregroundStyle(.tertiary)
             }
             .padding(.vertical, 8)
@@ -307,27 +307,27 @@ struct TripView: View {
             } label: {
                 HStack(alignment: .top, spacing: 12) {
                     Text("\(number)")
-                        .font(.subheadline.weight(.bold))
+                        .font(.candor(.subheadline, .bold))
                         .foregroundStyle(.white)
                         .frame(width: 34, height: 34)
                         .background(Theme.accent, in: .circle)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(L(stop.name))
-                            .font(.headline)
+                            .font(.candor(.headline, .semibold))
                             .foregroundStyle(.primary)
                             .multilineTextAlignment(.leading)
                         Text("\(timeText(entry.arrival))–\(timeText(entry.departure)) · \(L("%@ there", durationText(stop.stayMinutes)))")
-                            .font(.caption.monospacedDigit())
+                            .font(.candor(.caption1).monospacedDigit())
                             .foregroundStyle(.secondary)
                         if let closed = stop.closedNote(on: date) {
                             Label(closed, systemImage: "exclamationmark.triangle.fill")
-                                .font(.caption.weight(.semibold))
+                                .font(.candor(.caption1, .semibold))
                                 .foregroundStyle(Theme.rose)
                         }
                     }
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.down")
-                        .font(.caption)
+                        .font(.candor(.caption1))
                         .foregroundStyle(.tertiary)
                         .rotationEffect(.degrees(expanded ? 180 : 0))
                 }
@@ -339,18 +339,18 @@ struct TripView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     if let note = stop.note, !note.isEmpty {
                         Label(note, systemImage: "quote.bubble")
-                            .font(.subheadline)
+                            .font(.candor(.subheadline))
                             .foregroundStyle(Theme.accent)
                     }
                     if let spot = stop.spot {
-                        Text(L(spot.blurb)).font(.subheadline)
+                        Text(L(spot.blurb)).font(.candor(.subheadline))
                         Label(L(spot.tip), systemImage: "lightbulb.fill")
-                            .font(.subheadline)
+                            .font(.candor(.subheadline))
                             .foregroundStyle(.secondary)
                     }
                     Button { ask(about: stop) } label: {
                         Label(L("Ask Candor about this place"), systemImage: "text.bubble")
-                            .font(.subheadline.weight(.semibold))
+                            .font(.candor(.subheadline, .semibold))
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
@@ -379,7 +379,7 @@ struct TripView: View {
                 }
                 .buttonStyle(.bordered)
             }
-            .font(.subheadline.weight(.semibold))
+            .font(.candor(.subheadline, .semibold))
         }
     }
 }
@@ -402,17 +402,17 @@ private struct TripSetupView: View {
                         .font(.heading(.largeTitle))
                         .fixedSize(horizontal: false, vertical: true)
                     Text(L("Candor orders your places, works out how to get between them, and tells you the fair fare for every ride."))
-                        .font(.subheadline)
+                        .font(.candor(.subheadline))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
                 VStack(spacing: 12) {
                     DatePicker(L("First day"), selection: $firstDay, displayedComponents: .date)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.candor(.subheadline, .semibold))
                     Divider()
                     Stepper(value: $days, in: 1...10) {
-                        Text(L("Days: %@", days)).font(.subheadline.weight(.semibold))
+                        Text(L("Days: %@", days)).font(.candor(.subheadline, .semibold))
                     }
                 }
                 .card(cornerRadius: 16)
@@ -420,7 +420,7 @@ private struct TripSetupView: View {
                 if isPlanning {
                     HStack(spacing: 14) {
                         AgentMark(size: 48, isActive: true)
-                        Text(L("Planning your days…")).font(.headline)
+                        Text(L("Planning your days…")).font(.candor(.headline, .semibold))
                         Spacer(minLength: 0)
                     }
                     .card()
@@ -456,14 +456,14 @@ private struct TripSetupView: View {
         Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: icon)
-                    .font(.title2)
+                    .font(.candor(.title2))
                     .foregroundStyle(.white)
                     .frame(width: 52, height: 52)
                     .background(tint, in: .rect(cornerRadius: 14))
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.headline).foregroundStyle(.primary)
+                    Text(title).font(.candor(.headline, .semibold)).foregroundStyle(.primary)
                     Text(subtitle)
-                        .font(.subheadline)
+                        .font(.candor(.subheadline))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
@@ -531,14 +531,14 @@ struct LegDetailSheet: View {
                             .font(.heading(.title3))
                             .fixedSize(horizontal: false, vertical: true)
                         Text(L("About %@ km by road", leg.km.formatted(.number.precision(.fractionLength(1)))))
-                            .font(.subheadline)
+                            .font(.candor(.subheadline))
                             .foregroundStyle(.secondary)
                     }
                     ForEach(leg.sortedOptions) { option in
                         optionCard(option)
                     }
                     Text(L("Times and fares are estimates from the official fare chart and DMRC fare slabs."))
-                        .font(.caption)
+                        .font(.candor(.caption1))
                         .foregroundStyle(.secondary)
                 }
                 .padding(20)
@@ -558,16 +558,16 @@ struct LegDetailSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
                 Image(systemName: option.mode.icon)
-                    .font(.headline)
+                    .font(.candor(.headline, .semibold))
                     .foregroundStyle(.white)
                     .frame(width: 40, height: 40)
                     .background(option.mode.color, in: .circle)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(option.mode.title).font(.headline)
+                        Text(option.mode.title).font(.candor(.headline, .semibold))
                         if option.mode == leg.best {
                             Text(L("Best"))
-                                .font(.caption2.weight(.bold))
+                                .font(.candor(.caption2, .bold))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
@@ -575,14 +575,14 @@ struct LegDetailSheet: View {
                         }
                     }
                     Text(option.summary)
-                        .font(.caption)
+                        .font(.candor(.caption1))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(option.fareText).font(.subheadline.weight(.bold).monospacedDigit())
-                    Text(durationText(option.minutes)).font(.caption).foregroundStyle(.secondary)
+                    Text(option.fareText).font(.candor(.subheadline, .bold).monospacedDigit())
+                    Text(durationText(option.minutes)).font(.candor(.caption1)).foregroundStyle(.secondary)
                 }
             }
 
@@ -590,12 +590,12 @@ struct LegDetailSheet: View {
                 ForEach(Array(option.steps.enumerated()), id: \.offset) { number, step in
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Text("\(number + 1)")
-                            .font(.caption.weight(.bold))
+                            .font(.candor(.caption1, .bold))
                             .foregroundStyle(option.mode.color)
                             .frame(width: 20, height: 20)
                             .background(option.mode.color.opacity(0.15), in: .circle)
                         Text(step)
-                            .font(.subheadline)
+                            .font(.candor(.subheadline))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -605,7 +605,7 @@ struct LegDetailSheet: View {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(option.tips, id: \.self) { tip in
                         Label(tip, systemImage: "lightbulb.fill")
-                            .font(.caption)
+                            .font(.candor(.caption1))
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -617,7 +617,7 @@ struct LegDetailSheet: View {
                     RideCheckView(initialDestination: leg.to)
                 } label: {
                     Label(L("Check a driver's quote"), systemImage: "checkmark.shield.fill")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.candor(.subheadline, .semibold))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -746,15 +746,15 @@ struct AddPlaceSheet: View {
                 .frame(width: 32, height: 32)
                 .background(color.opacity(0.15), in: .circle)
             VStack(alignment: .leading, spacing: 2) {
-                Text(name).font(.subheadline.weight(.semibold))
+                Text(name).font(.candor(.subheadline, .semibold))
                 if !detail.isEmpty {
-                    Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    Text(detail).font(.candor(.caption1)).foregroundStyle(.secondary).lineLimit(2)
                 }
             }
             Spacer(minLength: 0)
             Button(action: action) {
                 Image(systemName: added ? "checkmark.circle.fill" : "plus.circle.fill")
-                    .font(.title2)
+                    .font(.candor(.title2))
                     .foregroundStyle(added ? Theme.mint : Theme.accent)
             }
             .buttonStyle(.plain)
@@ -825,10 +825,10 @@ struct EditDaySheet: View {
                 Section {
                     ForEach(stops) { stop in
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(L(stop.name)).font(.subheadline.weight(.semibold))
+                            Text(L(stop.name)).font(.candor(.subheadline, .semibold))
                             Stepper(value: stayBinding(stop.id), in: 15...300, step: 15) {
                                 Text(L("Time there: %@", durationText(stop.stayMinutes)))
-                                    .font(.caption)
+                                    .font(.candor(.caption1))
                                     .foregroundStyle(.secondary)
                             }
                         }

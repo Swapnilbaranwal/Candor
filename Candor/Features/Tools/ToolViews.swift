@@ -36,7 +36,7 @@ struct ScamRadarView: View {
     private var checkCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label(L("Something feels off?"), systemImage: "shield.lefthalf.filled")
-                .font(.headline)
+                .font(.candor(.headline, .semibold))
             TextField(L("Describe what's happening, e.g. \"the driver says my hotel is closed\""), text: $situation, axis: .vertical)
                 .lineLimit(2...4)
                 .focused($focused)
@@ -79,7 +79,7 @@ struct ScamRadarView: View {
                         .foregroundStyle(.white)
                         .frame(width: 40, height: 40)
                         .background(Theme.rose, in: .rect(cornerRadius: 12))
-                    Text(L(scam.title)).font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                    Text(L(scam.title)).font(.candor(.headline, .semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
                     Spacer()
                     Image(systemName: "chevron.down")
                         .rotationEffect(.degrees(isOpen ? 180 : 0))
@@ -90,16 +90,16 @@ struct ScamRadarView: View {
 
             if isOpen {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(L(scam.howItWorks)).font(.subheadline)
+                    Text(L(scam.howItWorks)).font(.candor(.subheadline))
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(L("Red flags")).font(.caption.weight(.bold)).foregroundStyle(Theme.rose)
+                        Text(L("Red flags")).font(.candor(.caption1, .bold)).foregroundStyle(Theme.rose)
                         ForEach(scam.redFlags, id: \.self) { flag in
-                            Label(L(flag), systemImage: "flag.fill").font(.caption)
+                            Label(L(flag), systemImage: "flag.fill").font(.candor(.caption1))
                         }
                     }
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(L("What to do")).font(.caption.weight(.bold)).foregroundStyle(Theme.mint)
-                        Text(L(scam.whatToDo)).font(.subheadline)
+                        Text(L("What to do")).font(.candor(.caption1, .bold)).foregroundStyle(Theme.mint)
+                        Text(L(scam.whatToDo)).font(.candor(.subheadline))
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -147,7 +147,7 @@ struct ConverterView: View {
                 VStack(spacing: 18) {
                     HStack {
                         Text(fromINR ? "🇮🇳 INR" : "\(CurrencyOption.option(code)?.flag ?? "") \(code)")
-                            .font(.headline)
+                            .font(.candor(.headline, .semibold))
                         Spacer()
                         Button {
                             withAnimation(.snappy) { fromINR.toggle() }
@@ -158,34 +158,34 @@ struct ConverterView: View {
                         .buttonBorderShape(.circle)
                         Spacer()
                         Text(fromINR ? "\(CurrencyOption.option(code)?.flag ?? "") \(code)" : "🇮🇳 INR")
-                            .font(.headline)
+                            .font(.candor(.headline, .semibold))
                     }
                     TextField(L("Amount"), text: $amountText)
                         .keyboardType(.decimalPad)
                         .focused($focused)
-                        .font(.system(size: 44, weight: .bold, design: .rounded).monospacedDigit())
+                        .font(.candor(size: 44, .bold).monospacedDigit())
                         .multilineTextAlignment(.center)
                     Image(systemName: "equal").foregroundStyle(.secondary)
                     Text(resultText)
-                        .font(.system(size: 40, weight: .bold, design: .rounded).monospacedDigit())
+                        .font(.candor(size: 40, .bold).monospacedDigit())
                         .foregroundStyle(Theme.accent)
                         .contentTransition(.numericText())
                         .animation(.snappy, value: resultText)
                     Text(app.currency.isLive
                          ? L("ECB reference rate · updated %@", app.currency.lastUpdated?.formatted(date: .omitted, time: .shortened) ?? "")
                          : L("Indicative rate. Connect to the internet for today's rate."))
-                        .font(.caption)
+                        .font(.candor(.caption1))
                         .foregroundStyle(.secondary)
                 }
                 .card(cornerRadius: 16, padding: 22)
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(L("Quick reference")).font(.headline)
+                    Text(L("Quick reference")).font(.candor(.headline, .semibold))
                     ForEach([20.0, 100, 500, 1000, 2000, 5000], id: \.self) { value in
                         HStack {
-                            Text(inr(value)).font(.subheadline.weight(.semibold).monospacedDigit())
+                            Text(inr(value)).font(.candor(.subheadline, .semibold).monospacedDigit())
                             Spacer()
-                            Text(app.homeAmount(value)).font(.subheadline.monospacedDigit()).foregroundStyle(.secondary)
+                            Text(app.homeAmount(value)).font(.candor(.subheadline).monospacedDigit()).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -237,12 +237,12 @@ struct EmergencyView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Label(L("Quick tips"), systemImage: "lightbulb.fill").font(.headline)
+                    Label(L("Quick tips"), systemImage: "lightbulb.fill").font(.candor(.headline, .semibold))
                     Text(L("• Move to a busy, official place: station counter, hotel lobby or police booth."))
                     Text(L("• Never hand over your passport or cards under pressure."))
                     Text(L("• Keep a photo of your passport and visa on your phone."))
                 }
-                .font(.subheadline)
+                .font(.candor(.subheadline))
                 .card()
             }
             .padding(.horizontal, 20)
@@ -256,19 +256,19 @@ struct EmergencyView: View {
     private func callCard(title: String, number: String, display: String, icon: String, tint: Color) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(.candor(.title2))
                 .foregroundStyle(.white)
                 .frame(width: 54, height: 54)
                 .background(tint, in: .rect(cornerRadius: 14))
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.subheadline).foregroundStyle(.secondary)
-                Text(display).font(.title2.weight(.bold).monospacedDigit())
+                Text(title).font(.candor(.subheadline)).foregroundStyle(.secondary)
+                Text(display).font(.candor(.title2, .bold).monospacedDigit())
             }
             Spacer()
             if let url = URL(string: "tel:\(number)") {
                 Link(destination: url) {
                     Image(systemName: "phone.fill")
-                        .font(.title3)
+                        .font(.candor(.title3))
                         .foregroundStyle(.white)
                         .frame(width: 48, height: 48)
                         .background(tint, in: .circle)
@@ -295,11 +295,11 @@ struct HistoryView: View {
                 } else {
                     HStack {
                         VStack(alignment: .leading) {
-                            Text(L("Overcharges caught so far")).font(.caption).foregroundStyle(.secondary)
+                            Text(L("Overcharges caught so far")).font(.candor(.caption1)).foregroundStyle(.secondary)
                             Text(inr(app.totalFlaggedINR)).font(.heading(.title1))
                         }
                         Spacer()
-                        Text("≈ " + app.homeAmount(app.totalFlaggedINR)).font(.headline.monospacedDigit()).foregroundStyle(.secondary)
+                        Text("≈ " + app.homeAmount(app.totalFlaggedINR)).font(.candor(.headline, .semibold).monospacedDigit()).foregroundStyle(.secondary)
                     }
                     .card()
                     ForEach(app.records) { record in

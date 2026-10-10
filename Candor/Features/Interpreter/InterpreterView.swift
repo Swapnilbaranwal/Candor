@@ -51,7 +51,7 @@ struct InterpreterView: View {
     private var translateCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(toHindi ? app.persona.languageName : L("Hindi")).font(.subheadline.weight(.semibold))
+                Text(toHindi ? app.persona.languageName : L("Hindi")).font(.candor(.subheadline, .semibold))
                 Spacer()
                 Button {
                     withAnimation(.snappy) { toHindi.toggle(); translation = nil; roman = nil }
@@ -61,7 +61,7 @@ struct InterpreterView: View {
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.circle)
                 Spacer()
-                Text(toHindi ? L("Hindi") : app.persona.languageName).font(.subheadline.weight(.semibold))
+                Text(toHindi ? L("Hindi") : app.persona.languageName).font(.candor(.subheadline, .semibold))
             }
 
             TextField(toHindi ? L("Type what you want to say…") : L("Type the Hindi or Hinglish you heard…"), text: $input, axis: .vertical)
@@ -86,16 +86,16 @@ struct InterpreterView: View {
 
             if !app.hasGemini {
                 Label(L("Free translation needs a Gemini key (Me → AI settings). The phrasebook below works offline."), systemImage: "key.fill")
-                    .font(.caption)
+                    .font(.candor(.caption1))
                     .foregroundStyle(.secondary)
             }
             if let error {
-                Text(error).font(.caption).foregroundStyle(Theme.rose)
+                Text(error).font(.candor(.caption1)).foregroundStyle(Theme.rose)
             }
             if let translation {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(translation).font(.title3.weight(.semibold)).textSelection(.enabled)
-                    if let roman { Text(roman).font(.subheadline).foregroundStyle(.secondary) }
+                    Text(translation).font(.candor(.title3, .semibold)).textSelection(.enabled)
+                    if let roman { Text(roman).font(.candor(.subheadline)).foregroundStyle(.secondary) }
                     HStack {
                         Button {
                             Speaker.shared.speak(translation, language: toHindi ? "hi-IN" : app.persona.languageCode)
@@ -124,8 +124,8 @@ struct InterpreterView: View {
     private func phraseRow(_ phrase: Phrase) -> some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(L(phrase.english)).font(.caption).foregroundStyle(.secondary)
-                Text(phrase.roman).font(.headline)
+                Text(L(phrase.english)).font(.candor(.caption1)).foregroundStyle(.secondary)
+                Text(phrase.roman).font(.candor(.headline, .semibold))
                 Text(phrase.hindi).font(.hindi(.subheadline))
             }
             Spacer()
@@ -181,12 +181,12 @@ struct ShowPhraseSheet: View {
                     .minimumScaleFactor(0.4)
                 if !phrase.roman.isEmpty {
                     Text(phrase.roman)
-                        .font(.title2.weight(.semibold))
+                        .font(.candor(.title2, .semibold))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
                 Text(L(phrase.english))
-                    .font(.body)
+                    .font(.candor(.body))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                 Spacer()

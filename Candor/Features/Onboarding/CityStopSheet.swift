@@ -67,7 +67,7 @@ struct CityStopSheet: View {
             if let city {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(city.displayName).font(.headline)
+                        Text(city.displayName).font(.candor(.headline, .semibold))
                         CoverageLabel(coverage: city.coverage)
                     }
                     Spacer()
@@ -98,7 +98,7 @@ struct CityStopSheet: View {
                     .buttonStyle(.plain)
                 }
                 if let searchError {
-                    Text(searchError).font(.caption).foregroundStyle(.secondary)
+                    Text(searchError).font(.candor(.caption1)).foregroundStyle(.secondary)
                 }
             }
         } header: {
@@ -135,7 +135,7 @@ struct CityStopSheet: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(stay.name)
                             if let address = stay.address {
-                                Text(address).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                Text(address).font(.candor(.caption1)).foregroundStyle(.secondary).lineLimit(1)
                             }
                         }
                         Spacer()
@@ -153,7 +153,7 @@ struct CityStopSheet: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(place.name).foregroundStyle(.primary)
                                 if let address = place.address {
-                                    Text(address).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                    Text(address).font(.candor(.caption1)).foregroundStyle(.secondary).lineLimit(1)
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -262,7 +262,7 @@ struct CoverageLabel: View {
             Image(systemName: coverage == .verified ? "checkmark.seal.fill" : "map")
             Text(coverage.title)
         }
-        .font(.caption)
+        .font(.candor(.caption1))
         .foregroundStyle(coverage == .verified ? Theme.mint : .secondary)
     }
 }
