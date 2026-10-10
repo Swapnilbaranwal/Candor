@@ -271,16 +271,23 @@ struct HomeView: View {
 
     private func tripRow(number: Int, entry: DayPlan.Entry) -> some View {
         let option = entry.leg.bestOption
+        let visited = entry.stop.isVisited
         return HStack(spacing: 12) {
-            Text("\(number)")
-                .font(.candor(.subheadline, .bold))
-                .foregroundStyle(.white)
-                .frame(width: 30, height: 30)
-                .background(Theme.accent, in: .circle)
+            Group {
+                if visited {
+                    Image(systemName: "checkmark").font(.candor(.subheadline, .bold))
+                } else {
+                    Text("\(number)").font(.candor(.subheadline, .bold))
+                }
+            }
+            .foregroundStyle(.white)
+            .frame(width: 30, height: 30)
+            .background(visited ? Theme.mint : Theme.accent, in: .circle)
             VStack(alignment: .leading, spacing: 2) {
                 Text(L(entry.stop.name))
                     .font(.candor(.subheadline, .semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(visited ? .secondary : .primary)
+                    .strikethrough(visited, color: .secondary)
                     .lineLimit(1)
                 HStack(spacing: 4) {
                     Image(systemName: option.mode.icon).foregroundStyle(option.mode.color)

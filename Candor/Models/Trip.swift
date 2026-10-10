@@ -144,6 +144,13 @@ struct TripStop: Codable, Equatable, Hashable, Identifiable {
     /// Why Candor suggested it, when Gemini planned the day.
     var note: String?
     var stayMinutes: Int
+    /// When the traveller ticked off getting here (the leg before this stop).
+    var arrivedAt: Date?
+    /// When the traveller ticked off visiting this place.
+    var visitedAt: Date?
+
+    var isArrived: Bool { arrivedAt != nil || visitedAt != nil }
+    var isVisited: Bool { visitedAt != nil }
 
     init(spot: Spot, note: String? = nil) {
         spotID = spot.id

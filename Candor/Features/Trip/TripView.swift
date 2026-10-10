@@ -159,6 +159,14 @@ struct TripView: View {
                 Text(L("%1$@ stops · %2$@ travel · %3$@", plan.entries.count, durationText(plan.travelMinutes), plan.fareText))
                     .font(.candor(.subheadline))
                     .foregroundStyle(.secondary)
+                let visited = plan.entries.filter(\.stop.isVisited).count
+                if visited > 0 {
+                    Label(visited == plan.entries.count ? L("Day done") : L("%1$@ of %2$@ visited", visited, plan.entries.count),
+                          systemImage: "checkmark.circle.fill")
+                        .font(.candor(.subheadline, .semibold))
+                        .foregroundStyle(Theme.mint)
+                        .padding(.top, 2)
+                }
             }
         }
     }
@@ -172,7 +180,8 @@ struct TripView: View {
                                                        title: plan.startName, number: nil)]
                     + plan.entries.enumerated().map { number, entry in
                         GoogleTripMap.Pin(latitude: entry.stop.latitude, longitude: entry.stop.longitude,
-                                          title: L(entry.stop.name), number: number + 1)
+                                          title: L(entry.stop.name), number: number + 1,
+                                          visited: entry.stop.isVisited)
                     })
             } else {
                 appleMap(plan, origin: origin, coordinates: coordinates)
@@ -203,7 +212,7 @@ struct TripView: View {
                         .font(.candor(.caption1, .bold))
                         .foregroundStyle(.white)
                         .frame(width: 26, height: 26)
-                        .background(Theme.accent, in: .circle)
+                        .background(entry.stop.isVisited ? Theme.mint : Theme.accent, in: .circle)
                         .overlay(Circle().stroke(.white, lineWidth: 2))
                 }
             }
@@ -249,53 +258,105 @@ struct TripView: View {
             }
 
             ForEach(Array(plan.entries.enumerated()), id: \.element.id) { number, entry in
-                legRow(entry.leg)
+                legRow(entry.leg, stop: entry.stop)
                 stopCard(entry, number: number + 1, date: date)
             }
         }
     }
 
-    private func legRow(_ leg: Leg) -> some View {
+    private func legRow(_ leg: Leg, stop: TripStop) -> some View {
         let option = leg.bestOption
-        return Button { legSheet = leg } label: {
-            HStack(spacing: 12) {
-                Image(systemName: option.mode.icon)
-                    .font(.candor(.footnote, .semibold))
-                    .foregroundStyle(option.mode.color)
-                    .frame(width: 34)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(option.mode.title) · \(durationText(option.minutes)) · \(option.fareText)")
-                        .font(.candor(.subheadline, .semibold))
-                        .foregroundStyle(.primary)
-                    Text(option.summary)
-                        .font(.candor(.caption1))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 0)
-                if leg.options.count > 1 {
-                    Text(L("%@ ways", leg.options.count))
-                        .font(.candor(.caption1, .semibold))
-                        .foregroundStyle(option.mode.color)
-                }
-                Image(systemName: "chevron.right")
-                    .font(.candor(.caption1))
-                    .foregroundStyle(.tertiary)
+        let done = stop.isArrived
+        return HStack(spacing: 0) {
+            // Tick off the journey here. Keeps the timeline line running through it.
+            Button {
+                toggleArrived(stop)
+            } label: {
+                Image(systemName: done ? "checkmark.circle.fill" : option.mode.icon)
+                    .font(.candor(done ? .title3 : .footnote, .semibold))
+                    .foregroundStyle(done ? Theme.mint : option.mode.color)
+                    .frame(width: 34, height: 34)
+                    .background(Theme.surface, in: .circle)
+                    .contentShape(.circle)
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 12)
-            .background(option.mode.color.opacity(0.10), in: .rect(cornerRadius: 14))
-            .overlay(alignment: .leading) {
-                Rectangle()
-                    .fill(option.mode.color.opacity(0.5))
-                    .frame(width: 2)
-                    .padding(.vertical, -6)
-                    .offset(x: 28)
+            .buttonStyle(.plain)
+            .padding(.leading, 12)
+            .accessibilityLabel(done ? L("Undo: got to %@", L(stop.name)) : L("Mark as reached: %@", L(stop.name)))
+
+            Button { legSheet = leg } label: {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(option.mode.title) · \(durationText(option.minutes)) · \(option.fareText)")
+                            .font(.candor(.subheadline, .semibold))
+                            .foregroundStyle(done ? .secondary : .primary)
+                            .strikethrough(done, color: .secondary)
+                        Text(done ? L("Done") : option.summary)
+                            .font(.candor(.caption1))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                    if leg.options.count > 1 && !done {
+                        Text(L("%@ ways", leg.options.count))
+                            .font(.candor(.caption1, .semibold))
+                            .foregroundStyle(option.mode.color)
+                    }
+                    Image(systemName: "chevron.right")
+                        .font(.candor(.caption1))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.leading, 12)
+                .padding(.trailing, 12)
+                .padding(.vertical, 8)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(L("Shows every way to get there"))
+            .accessibilityIdentifier("tripLeg")
+        }
+        .background((done ? Theme.mint : option.mode.color).opacity(0.10), in: .rect(cornerRadius: 14))
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill((done ? Theme.mint : option.mode.color).opacity(0.5))
+                .frame(width: 2)
+                .padding(.vertical, -6)
+                .offset(x: 28)
+                .allowsHitTesting(false)
+        }
+    }
+
+    // MARK: Ticking off
+
+    /// Changes one stop on the current day.
+    private func updateStop(_ id: UUID, _ change: (inout TripStop) -> Void) {
+        // Read everything first: `currentIndex` reads `app.trip`, so it can't be used inside the write.
+        let dayIndex = currentIndex
+        guard var trip = app.trip, trip.days.indices.contains(dayIndex),
+              let index = trip.days[dayIndex].stops.firstIndex(where: { $0.id == id }) else { return }
+        change(&trip.days[dayIndex].stops[index])
+        withAnimation(.snappy) { app.trip = trip }
+    }
+
+    private func toggleArrived(_ stop: TripStop) {
+        updateStop(stop.id) { stop in
+            if stop.isArrived {
+                stop.arrivedAt = nil
+                stop.visitedAt = nil
+            } else {
+                stop.arrivedAt = .now
             }
         }
-        .buttonStyle(.plain)
-        .accessibilityHint(L("Shows every way to get there"))
-        .accessibilityIdentifier("tripLeg")
+    }
+
+    private func toggleVisited(_ stop: TripStop) {
+        updateStop(stop.id) { stop in
+            if stop.isVisited {
+                stop.visitedAt = nil
+            } else {
+                stop.visitedAt = .now
+                if stop.arrivedAt == nil { stop.arrivedAt = .now }
+            }
+        }
     }
 
     private func stopCard(_ entry: DayPlan.Entry, number: Int, date: Date) -> some View {
@@ -306,15 +367,13 @@ struct TripView: View {
                 expandedStop = expanded ? nil : stop.id
             } label: {
                 HStack(alignment: .top, spacing: 12) {
-                    Text("\(number)")
-                        .font(.candor(.subheadline, .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 34, height: 34)
-                        .background(Theme.accent, in: .circle)
+                    // Spacer for the visit toggle, which sits on top (a button can't sit inside this one).
+                    Color.clear.frame(width: 34, height: 34)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(L(stop.name))
                             .font(.candor(.headline, .semibold))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(stop.isVisited ? .secondary : .primary)
+                            .strikethrough(stop.isVisited, color: .secondary)
                             .multilineTextAlignment(.leading)
                         Text("\(timeText(entry.arrival))–\(timeText(entry.departure)) · \(L("%@ there", durationText(stop.stayMinutes)))")
                             .font(.candor(.caption1).monospacedDigit())
@@ -334,6 +393,29 @@ struct TripView: View {
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
+            .overlay(alignment: .topLeading) {
+                Button { toggleVisited(stop) } label: {
+                    ZStack {
+                        if stop.isVisited {
+                            Image(systemName: "checkmark")
+                                .font(.candor(.subheadline, .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 34, height: 34)
+                                .background(Theme.mint, in: .circle)
+                        } else {
+                            Text("\(number)")
+                                .font(.candor(.subheadline, .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 34, height: 34)
+                                .background(Theme.accent, in: .circle)
+                        }
+                    }
+                    .contentShape(.circle)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(stop.isVisited ? L("Undo visited: %@", L(stop.name)) : L("Mark as visited: %@", L(stop.name)))
+                .accessibilityIdentifier("tripVisit")
+            }
 
             if expanded {
                 VStack(alignment: .leading, spacing: 10) {
@@ -348,6 +430,14 @@ struct TripView: View {
                             .font(.candor(.subheadline))
                             .foregroundStyle(.secondary)
                     }
+                    Button { toggleVisited(stop) } label: {
+                        Label(stop.isVisited ? L("Visited") : L("Mark as visited"),
+                              systemImage: stop.isVisited ? "checkmark.circle.fill" : "checkmark.circle")
+                            .font(.candor(.subheadline, .semibold))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(Theme.mint)
                     Button { ask(about: stop) } label: {
                         Label(L("Ask Candor about this place"), systemImage: "text.bubble")
                             .font(.candor(.subheadline, .semibold))

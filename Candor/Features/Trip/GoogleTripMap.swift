@@ -10,6 +10,8 @@ struct GoogleTripMap: UIViewRepresentable {
         let title: String
         /// Stop number, or nil for the day's start.
         let number: Int?
+        /// Ticked off as visited: drawn in green.
+        var visited = false
 
         var coordinate: CLLocationCoordinate2D {
             CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
@@ -84,7 +86,7 @@ struct GoogleTripMap: UIViewRepresentable {
         return UIGraphicsImageRenderer(size: size).image { _ in
             let rect = CGRect(origin: .zero, size: size).insetBy(dx: 1, dy: 1)
             let disc = UIBezierPath(ovalIn: rect)
-            UIColor(pin.number == nil ? Theme.teal : Theme.accent).setFill()
+            UIColor(pin.number == nil ? Theme.teal : (pin.visited ? Theme.mint : Theme.accent)).setFill()
             disc.fill()
             UIColor.white.setStroke()
             disc.lineWidth = 2
