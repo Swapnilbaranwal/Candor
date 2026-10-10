@@ -85,7 +85,7 @@ struct ExploreView: View {
                     Label(spot.category.title, systemImage: spot.category.icon)
                         .font(.caption.weight(.bold))
                         .foregroundStyle(spot.category.color)
-                    Text(L(spot.name)).font(.title3.weight(.bold))
+                    Text(L(spot.name)).font(.heading(.title3))
                 }
                 Spacer()
                 Text("\(location.distanceKm(to: spot.coordinate).formatted(.number.precision(.fractionLength(1)))) km")

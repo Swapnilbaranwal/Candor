@@ -153,7 +153,7 @@ struct TripView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.accent)
             Text(day.displayTitle)
-                .font(.title2.weight(.bold))
+                .font(.heading(.title2))
                 .fixedSize(horizontal: false, vertical: true)
             if !plan.entries.isEmpty {
                 Text(L("%1$@ stops · %2$@ travel · %3$@", plan.entries.count, durationText(plan.travelMinutes), plan.fareText))
@@ -399,7 +399,7 @@ private struct TripSetupView: View {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L("Plan your days in %@", L((app.trip?.cities.first?.city ?? .delhi).name)))
-                        .font(.largeTitle.weight(.bold))
+                        .font(.heading(.largeTitle))
                         .fixedSize(horizontal: false, vertical: true)
                     Text(L("Candor orders your places, works out how to get between them, and tells you the fair fare for every ride."))
                         .font(.subheadline)
@@ -528,7 +528,7 @@ struct LegDetailSheet: View {
                 VStack(alignment: .leading, spacing: 14) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("\(L(leg.from)) \(Localizer.shared.arrow) \(L(leg.to))")
-                            .font(.title3.weight(.bold))
+                            .font(.heading(.title3))
                             .fixedSize(horizontal: false, vertical: true)
                         Text(L("About %@ km by road", leg.km.formatted(.number.precision(.fractionLength(1)))))
                             .font(.subheadline)

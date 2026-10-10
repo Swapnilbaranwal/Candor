@@ -31,6 +31,14 @@ struct MainTabView: View {
         .tint(Theme.saffron)
         .tabBarMinimizeBehavior(.onScrollDown)
         .onAppear {
+            // `-candor.tab trip` at launch opens a tab directly (screenshots and UI tests).
+            switch UserDefaults.standard.string(forKey: "candor.tab") {
+            case "trip": tab = .trip
+            case "check": tab = .check
+            case "agent": tab = .agent
+            case "profile": tab = .profile
+            default: break
+            }
             if let start = app.startTab {
                 tab = start
                 app.startTab = nil

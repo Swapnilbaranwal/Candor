@@ -296,7 +296,7 @@ struct HistoryView: View {
                     HStack {
                         VStack(alignment: .leading) {
                             Text(L("Overcharges caught so far")).font(.caption).foregroundStyle(.secondary)
-                            Text(inr(app.totalFlaggedINR)).font(.title.weight(.bold))
+                            Text(inr(app.totalFlaggedINR)).font(.heading(.title1))
                         }
                         Spacer()
                         Text("≈ " + app.homeAmount(app.totalFlaggedINR)).font(.headline.monospacedDigit()).foregroundStyle(.secondary)

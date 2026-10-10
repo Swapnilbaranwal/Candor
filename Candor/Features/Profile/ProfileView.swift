@@ -50,7 +50,7 @@ struct ProfileView: View {
                 .frame(width: 92, height: 92)
                 .background(Theme.accent, in: .circle)
             Text(app.persona.name.isEmpty ? L("Traveller") : app.persona.name)
-                .font(.title2.weight(.bold))
+                .font(.heading(.title2))
             Text(app.persona.accountLabel)
                 .font(.subheadline.monospacedDigit())
                 .foregroundStyle(.secondary)

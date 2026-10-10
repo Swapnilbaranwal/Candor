@@ -55,7 +55,7 @@ struct HomeView: View {
         HStack(alignment: .center, spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(L("Namaste, %@", app.persona.firstName))
-                    .font(.largeTitle.weight(.bold))
+                    .font(.heading(.largeTitle))
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
                 HStack(spacing: 6) {
@@ -100,7 +100,7 @@ struct HomeView: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(L("What are you being asked to pay?"))
-                    .font(.title2.weight(.bold))
+                    .font(.heading(.title2))
                     .fixedSize(horizontal: false, vertical: true)
                 Text(L("Candor tells you the fair price, how far over the ask is, and what to say."))
                     .font(.subheadline)
@@ -214,7 +214,7 @@ struct HomeView: View {
                             .foregroundStyle(.secondary)
                     }
                     Text(day.displayTitle)
-                        .font(.title3.weight(.bold))
+                        .font(.heading(.title3))
                         .foregroundStyle(.primary)
                         .multilineTextAlignment(.leading)
                     if plan.entries.isEmpty {

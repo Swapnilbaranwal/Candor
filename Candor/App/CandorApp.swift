@@ -8,6 +8,9 @@ struct CandorApp: App {
 
     init() {
         GoogleMapsSetup.start()
+        // Navigation-bar titles ("Trip", sheet titles) in the heading face too.
+        UINavigationBar.appearance().largeTitleTextAttributes = [.font: CandorType.heading(.largeTitle)]
+        UINavigationBar.appearance().titleTextAttributes = [.font: CandorType.heading(.headline, weight: 650)]
         let app = AppState()
         let location = LocationService()
         _app = State(initialValue: app)

@@ -35,11 +35,18 @@ Never use gradients on text, buttons or backgrounds.
 
 ## Type
 
-System font (SF Pro), Dynamic Type styles only.
+Three faces, all scaling with Dynamic Type:
+
+- **Bricolage Grotesque** for screen titles and card headings: `.font(.heading(.largeTitle))`,
+  `.heading(.title2)`, `.heading(.title3)`. Its optical sizes keep big titles tight. It covers
+  Latin scripts; in other scripts the system substitutes SF Pro automatically.
+- **SF Pro** (the system font) for everything else: body, labels, buttons, prices.
+- **Mukta** for Hindi (Devanagari): `.font(.hindi(.subheadline))`.
 
 | Role | Style |
 |---|---|
-| Screen title | `.largeTitle.bold` (tab roots) or `.title2.bold` (flows, sheets) |
+| Screen title | `.heading(.largeTitle)` (tab roots) or `.heading(.title2)` (flows, sheets) |
+| Card heading | `.heading(.title3)` |
 | Section title | `.headline` |
 | Body | `.body` / `.subheadline` |
 | Supporting text | `.subheadline` or `.caption`, `.secondary` |

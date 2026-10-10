@@ -126,7 +126,7 @@ struct InterpreterView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(L(phrase.english)).font(.caption).foregroundStyle(.secondary)
                 Text(phrase.roman).font(.headline)
-                Text(phrase.hindi).font(.subheadline)
+                Text(phrase.hindi).font(.hindi(.subheadline))
             }
             Spacer()
             Button {
@@ -176,7 +176,7 @@ struct ShowPhraseSheet: View {
             VStack(spacing: 24) {
                 Spacer()
                 Text(phrase.hindi)
-                    .font(.system(size: 54, weight: .bold))
+                    .font(.hindi(.largeTitle, semibold: true, size: 54))
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.4)
                 if !phrase.roman.isEmpty {

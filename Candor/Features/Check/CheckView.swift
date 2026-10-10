@@ -32,7 +32,7 @@ struct CheckView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     Text(L("Check"))
-                        .font(.largeTitle.weight(.bold))
+                        .font(.heading(.largeTitle))
                         .padding(.top, 12)
                     mainChecks
                     VStack(alignment: .leading, spacing: 12) {
@@ -82,7 +82,7 @@ struct CheckView: View {
                     .frame(width: 56, height: 56)
                     .background(color, in: .rect(cornerRadius: 14))
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.title3.weight(.bold)).foregroundStyle(.primary)
+                    Text(title).font(.heading(.title3)).foregroundStyle(.primary)
                     Text(subtitle)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)

@@ -98,7 +98,7 @@ struct AgentView: View {
                 .padding(.top, 30)
             VStack(spacing: 6) {
                 Text(L("Hi %@, I'm Candor", app.persona.firstName))
-                    .font(.title2.weight(.bold))
+                    .font(.heading(.title2))
                 Text(L("I check fares, prices and situations for you, using real fare charts and price references. You'll see every step I take."))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -177,7 +177,7 @@ struct AgentView: View {
 
                     Button(action: send) {
                         Image(systemName: agent.isWorking ? "ellipsis" : "arrow.up")
-                            .font(.title3.weight(.bold))
+                            .font(.heading(.title3))
                             .foregroundStyle(.white)
                             .frame(width: 48, height: 48)
                             .background(canSend ? Theme.saffron : Color.gray.opacity(0.5), in: .circle)

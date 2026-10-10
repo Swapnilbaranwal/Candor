@@ -138,7 +138,7 @@ struct VerdictCardView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(L("Say it")).font(.caption2.weight(.bold)).foregroundStyle(.secondary)
                         Text(tip.roman).font(.subheadline.weight(.semibold))
-                        Text(tip.hindi).font(.caption).foregroundStyle(.secondary)
+                        Text(tip.hindi).font(.hindi(.caption1)).foregroundStyle(.secondary)
                         // What the phrase means, in the traveller's own language.
                         Text(L(tip.english)).font(.caption).foregroundStyle(.secondary)
                     }

@@ -144,7 +144,7 @@ struct SectionHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.title3.weight(.bold))
+            Text(title).font(.heading(.title3))
             if let subtitle {
                 Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
             }
@@ -179,5 +179,52 @@ struct MarkdownText: View {
             .joined(separator: "\n")
         let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         return (try? AttributedString(markdown: cleaned, options: options)) ?? AttributedString(raw)
+    }
+}
+
+// MARK: - Type
+
+/// Headings use Bricolage Grotesque, a warm grotesque with optical sizes; body text stays SF Pro
+/// (see DESIGN.md). Hindi uses Mukta. All three ship in Candor/Fonts (SIL Open Font License).
+enum CandorType {
+    /// PostScript name of the bundled Bricolage variable font (its default instance).
+    private static let headingFontName = "BricolageGrotesque-96ptExtraBold"
+
+    /// A heading at `style`'s size, following the reader's text size. Falls back to bold SF Pro.
+    static func heading(_ style: UIFont.TextStyle, weight: CGFloat = 700) -> UIFont {
+        let size = UIFont.preferredFont(forTextStyle: style).pointSize
+        // Variable font: set the weight and the optical size (tighter at large sizes) explicitly.
+        let axes: [Int: CGFloat] = [axis("wght"): weight, axis("opsz"): min(max(size, 12), 96)]
+        let descriptor = UIFontDescriptor(fontAttributes: [
+            .name: headingFontName,
+            UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): axes
+        ])
+        let font = UIFont(descriptor: descriptor, size: size)
+        let base = font.fontName.hasPrefix("BricolageGrotesque") ? font : .systemFont(ofSize: size, weight: .bold)
+        return UIFontMetrics(forTextStyle: style).scaledFont(for: base, maximumPointSize: size * 2)
+    }
+
+    /// Devanagari text (Hindi phrases), in Mukta, scaled with the reader's text size.
+    static func hindi(_ style: UIFont.TextStyle, semibold: Bool = false, size: CGFloat? = nil) -> UIFont {
+        let pointSize = size ?? UIFont.preferredFont(forTextStyle: style).pointSize
+        let base = UIFont(name: semibold ? "Mukta-SemiBold" : "Mukta-Regular", size: pointSize)
+            ?? .systemFont(ofSize: pointSize, weight: semibold ? .semibold : .regular)
+        return UIFontMetrics(forTextStyle: style).scaledFont(for: base)
+    }
+
+    private static func axis(_ tag: String) -> Int {
+        tag.unicodeScalars.reduce(0) { ($0 << 8) | Int($1.value) }
+    }
+}
+
+extension Font {
+    /// Screen titles and card headings.
+    static func heading(_ style: UIFont.TextStyle) -> Font {
+        Font(CandorType.heading(style))
+    }
+
+    /// Hindi (Devanagari) text.
+    static func hindi(_ style: UIFont.TextStyle, semibold: Bool = false, size: CGFloat? = nil) -> Font {
+        Font(CandorType.hindi(style, semibold: semibold, size: size))
     }
 }

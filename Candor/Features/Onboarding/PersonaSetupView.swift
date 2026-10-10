@@ -66,7 +66,7 @@ struct PersonaSetupView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(step.title)
-                                .font(.title2.weight(.bold))
+                                .font(.heading(.title2))
                                 .fixedSize(horizontal: false, vertical: true)
                             Text(step.subtitle)
                                 .font(.subheadline)
@@ -371,7 +371,7 @@ struct PersonaSetupView: View {
                 VStack(spacing: 22) {
                     CandorLogo(size: 88)
                     Text(L("Setting up Candor for you"))
-                        .font(.title2.weight(.bold))
+                        .font(.heading(.title2))
                     VStack(alignment: .leading, spacing: 12) {
                         ForEach(buildSteps) { step in
                             StepRow(step: step)
@@ -390,7 +390,7 @@ struct PersonaSetupView: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(L("Want Candor to plan your days?"))
-                    .font(.title2.weight(.bold))
+                    .font(.heading(.title2))
                     .fixedSize(horizontal: false, vertical: true)
                 Text(planSummary)
                     .font(.subheadline)

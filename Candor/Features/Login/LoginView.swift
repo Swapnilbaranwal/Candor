@@ -90,7 +90,7 @@ struct LoginView: View {
     private var loginCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(L("Sign in")).font(.title2.weight(.bold))
+                Text(L("Sign in")).font(.heading(.title2))
                 Text(L("Use whatever you have. No Indian number needed."))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
