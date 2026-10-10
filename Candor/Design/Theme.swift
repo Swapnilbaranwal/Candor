@@ -184,56 +184,20 @@ struct MarkdownText: View {
 
 // MARK: - Type
 
-/// Candor uses one typeface everywhere: Bricolage Grotesque, a variable font with weight and
-/// optical-size axes (see DESIGN.md). It ships in Candor/Fonts (SIL Open Font License).
-/// Scripts it doesn't cover (Arabic, Hebrew, CJK, Thai) fall back to the system font; Hindi uses
-/// Mukta, Devanagari designed to sit next to it.
+/// Candor uses one typeface everywhere: SF Pro, the system font (see DESIGN.md). It covers every
+/// language the app speaks, including Hindi, and scales with the reader's text size.
 enum CandorType {
-    /// PostScript name of the bundled Bricolage variable font (its default instance).
-    private static let fontName = "BricolageGrotesque-96ptExtraBold"
-
-    /// Bricolage at a text style's size (scaled with the reader's text size) or a fixed size.
+    /// SF Pro at a text style's size (scaled with the reader's text size) or a fixed size.
     static func font(_ style: UIFont.TextStyle, weight: UIFont.Weight = .regular, size: CGFloat? = nil) -> UIFont {
         let pointSize = size ?? UIFont.preferredFont(forTextStyle: style).pointSize
-        // Variable font: set the weight and the optical size explicitly. Optical size follows the
-        // point size, so small labels get open, sturdy letters and big titles tight ones.
-        let axes: [Int: CGFloat] = [axis("wght"): wghtValue(weight), axis("opsz"): min(max(pointSize, 12), 96)]
-        let descriptor = UIFontDescriptor(fontAttributes: [
-            .name: fontName,
-            UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): axes
-        ])
-        let custom = UIFont(descriptor: descriptor, size: pointSize)
-        let base = custom.fontName.hasPrefix("BricolageGrotesque") ? custom : .systemFont(ofSize: pointSize, weight: weight)
+        let base = UIFont.systemFont(ofSize: pointSize, weight: weight)
         if size != nil { return base }
-        return UIFontMetrics(forTextStyle: style).scaledFont(for: base, maximumPointSize: pointSize * 2)
+        return UIFontMetrics(forTextStyle: style).scaledFont(for: base)
     }
 
     /// Headings: bold.
     static func heading(_ style: UIFont.TextStyle, weight: UIFont.Weight = .bold) -> UIFont {
         font(style, weight: weight)
-    }
-
-    /// Devanagari text (Hindi phrases), in Mukta, scaled with the reader's text size.
-    static func hindi(_ style: UIFont.TextStyle, semibold: Bool = false, size: CGFloat? = nil) -> UIFont {
-        let pointSize = size ?? UIFont.preferredFont(forTextStyle: style).pointSize
-        let base = UIFont(name: semibold ? "Mukta-SemiBold" : "Mukta-Regular", size: pointSize)
-            ?? .systemFont(ofSize: pointSize, weight: semibold ? .semibold : .regular)
-        return UIFontMetrics(forTextStyle: style).scaledFont(for: base)
-    }
-
-    private static func wghtValue(_ weight: UIFont.Weight) -> CGFloat {
-        switch weight {
-        case .ultraLight, .thin, .light: 300
-        case .medium: 500
-        case .semibold: 600
-        case .bold: 700
-        case .heavy, .black: 800
-        default: 400
-        }
-    }
-
-    private static func axis(_ tag: String) -> Int {
-        tag.unicodeScalars.reduce(0) { ($0 << 8) | Int($1.value) }
     }
 }
 
@@ -253,8 +217,8 @@ extension Font {
         Font(CandorType.heading(style))
     }
 
-    /// Hindi (Devanagari) text.
+    /// Hindi (Devanagari) text: the same system font, which includes Devanagari.
     static func hindi(_ style: UIFont.TextStyle, semibold: Bool = false, size: CGFloat? = nil) -> Font {
-        Font(CandorType.hindi(style, semibold: semibold, size: size))
+        Font(CandorType.font(style, weight: semibold ? .semibold : .regular, size: size))
     }
 }

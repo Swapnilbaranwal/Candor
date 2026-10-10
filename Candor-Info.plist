@@ -2,13 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyLists-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Heading and Hindi fonts bundled in Candor/Fonts (all SIL Open Font License). -->
-	<key>UIAppFonts</key>
-	<array>
-		<string>BricolageGrotesque.ttf</string>
-		<string>Mukta-Regular.ttf</string>
-		<string>Mukta-SemiBold.ttf</string>
-	</array>
 	<!-- Google Maps (Places API) key for development, from the GOOGLE_MAPS_API_KEY build setting.
 	     Leave it unset when the Cloud Run backend is set up: it holds the key instead. -->
 	<key>GoogleMapsAPIKey</key>

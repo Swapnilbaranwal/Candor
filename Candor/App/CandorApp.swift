@@ -63,6 +63,8 @@ struct RootView: View {
         // Numbers and dates formatted with `.formatted()` still follow the phone's own locale.
         // One typeface everywhere: text without its own font uses Candor's body style.
         .font(.candor(.body))
+        // The accent for every screen, the login included (the tab view sets it again for its tabs).
+        .tint(Theme.accent)
         .environment(\.locale, Localizer.shared.locale)
         .environment(\.layoutDirection, Localizer.shared.layoutDirection)
         .onChange(of: app.phase, initial: true) { _, phase in

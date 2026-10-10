@@ -35,14 +35,9 @@ Never use gradients on text, buttons or backgrounds.
 
 ## Type
 
-One typeface for the whole app: **Bricolage Grotesque** (variable, weight and optical-size
-axes; bundled in `Candor/Fonts`, SIL Open Font License). Every text uses it through
-`Font.candor(_:_:)`, scales with Dynamic Type, and gets the optical size for its point size.
-The root view sets `.font(.candor(.body))`, so text without its own font uses it too, and the
-navigation bar and segmented controls are styled to match.
-
-Exceptions, only where Bricolage has no letters: Hindi (Devanagari) uses **Mukta**
-(`.font(.hindi(.subheadline))`); Arabic, Hebrew, CJK and Thai fall back to the system font.
+One typeface for the whole app: **SF Pro**, the system font. It covers every language Candor
+speaks (including Hindi), has tabular digits for prices, and scales with Dynamic Type.
+Use the `Font.candor(_:_:)` and `Font.heading(_:)` helpers so sizes and weights stay consistent.
 
 | Role | Style |
 |---|---|
@@ -53,7 +48,6 @@ Exceptions, only where Bricolage has no letters: Hindi (Devanagari) uses **Mukta
 | Supporting text | `.candor(.subheadline)` or `.candor(.caption1)`, `.secondary` |
 | Numbers (prices, times) | add `.monospacedDigit()` |
 
-Never use `.system` fonts for text (SF Symbols sized with `.system(size:)` are fine).
 One title and at most one supporting line per screen or card.
 
 ## Shape and space
