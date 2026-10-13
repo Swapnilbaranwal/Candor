@@ -11,6 +11,10 @@ final class LoginKeyboardDelayUITests: XCTestCase {
         app.launchArguments += ["-candor.signedIn", "NO"]
         app.launch()
 
+        // The landing page opens the sign-in sheet.
+        let getStarted = app.buttons["getStarted"].firstMatch
+        if getStarted.waitForExistence(timeout: 15) { getStarted.tap() }
+
         let field = app.textFields.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 30), "Login text field not found")
         // Let the intro spring animations settle so tap() doesn't stall waiting for quiescence.

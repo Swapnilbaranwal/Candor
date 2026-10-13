@@ -168,7 +168,7 @@ struct ScanView: View {
             .frame(height: 50)
         }
         .buttonStyle(.borderedProminent)
-        .tint(Theme.saffron)
+        .tint(Theme.accent)
         .disabled(!canCheck)
     }
 

@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyLists-1.0.dtd">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Google Maps (Places API) key for development, from the GOOGLE_MAPS_API_KEY build setting.
-	     Leave it unset when the Cloud Run backend is set up: it holds the key instead. -->
+	<key>GeminiAPIKey</key>
+	<string>$(GEMINI_API_KEY)</string>
 	<key>GoogleMapsAPIKey</key>
 	<string>$(GOOGLE_MAPS_API_KEY)</string>
-	<!-- Branded launch screen: Candor's warm background with the logo in the middle.
-	     SplashView draws the same logo in the same place, so launch hands over without a jump. -->
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

@@ -13,7 +13,7 @@ Sign in with **Apple, Google, email, a mobile number from any country, or as a g
 
 ## Turn on Gemini (optional)
 
-**Build-time key:** copy `Secrets.swift.example` to `Candor/Config/Secrets.swift` (that file is git-ignored) and paste your key there. The app picks it up automatically. A key typed in the app takes priority.
+**Build-time key:** copy `Keys.xcconfig.example` to `Keys.xcconfig` (git-ignored) and set `GEMINI_API_KEY`. The app reads it through Info.plist. A key typed in the app takes priority. Without it the project still builds.
 
 
 The app works offline with an on-device agent. For photo reading, live reasoning and free translation:
@@ -28,15 +28,26 @@ The app works offline with an on-device agent. For photo reading, live reasoning
 static let geminiProxyURL = "https://YOUR_SERVICE_URL"
 ```
 
-With a URL there, the app needs no key. A key typed in *Me → AI settings* still takes priority and goes straight to the Gemini API. With neither, the app uses the key in `Secrets.swift`, or the on-device agent.
+With a URL there, the app needs no key. A key typed in *Me → AI settings* still takes priority and goes straight to the Gemini API. With neither, the app uses `GEMINI_API_KEY` from `Keys.xcconfig`, or the on-device agent.
+
+## 3D illustrations (one-time step)
+
+The app uses free 3D illustrations from IconScout (free licence, no attribution required). Fetch them into the asset catalog once:
+
+```sh
+sh Get3DArt.command
+```
+
+The links in the script are signed and expire a few days after they were issued. Until the images are there, the app shows its drawn illustrations instead, so it always builds and runs.
 
 ## What's inside
 
 | Area | What it does |
 | --- | --- |
-| Login | Apple, Google, email, phone (country-code picker, number length checked per country) or guest. Apple and Google are prototype stubs until the real SDK flows are wired in. |
+| Login | An illustrated landing page (*Get Started* / *Log in*) opening a sign-in sheet: Apple, Google, email, phone (country-code picker, number length checked per country) or guest. Apple and Google are prototype stubs until the real SDK flows are wired in. |
 | Persona setup | Name, language (defaults to device), home currency, travel style, days, interests, then an animated "agent setup" sequence. |
-| Home | Leads with the price check: "What are you being asked to pay?", Scan a price, Check a ride and a one-tap example that runs the agent. Then the overcharge total (once there are saved checks), scam of the day, recent checks and a row of the other tools. |
+| Home | Serif greeting with today's date, an *Ask Candor* search pill and camera button, an animated illustrated city card (sky follows the clock, India Gate in 3D) with today's plan, **Way back home**, the fair-price check, 3D tool tiles and the scam of the day. |
+| Way back home | Candor keeps asking where you're staying (Home card, a bar above the tab bar, and a sheet on launch) until you answer. Then: route map from where you are, walk / Metro / auto / cab with fair fares, steps, *Start* in Apple Maps, and a full-screen *Show the driver* card in Hindi. |
 | Explore | Map of verified Delhi places (sights, fixed-price shops, markets, transport) with tips, "Fair fare" and "Ask Candor". |
 | Scan | Camera or Photos input plus the asked price. The agent reads it, then shows a verdict card with the fair range, a gauge and a phrase to say. |
 | Agent | Chat with a visible tool trail. Tools: `lookup_price`, `route_distance`, `estimate_fare`, `check_scam`, `find_nearby`, `convert_currency`, `report_verdict`. |

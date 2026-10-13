@@ -240,6 +240,8 @@ final class DeckCaptureUITests: XCTestCase {
         // Sign-in and persona setup.
         var app = launchApp(name: "", signedIn: false, complete: false)
         pause(2.5)
+        shot("00-landing")
+        if tapIfPresent(app.buttons["getStarted"], what: "Get Started") { pause(1.2) }
         shot("01-sign-in")
         if tapIfPresent(app.buttons["Continue as guest"], what: "Continue as guest") {
             // Step 1: add Delhi as the trip's city.

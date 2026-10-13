@@ -43,7 +43,7 @@ final class AppState {
         trip = d.data(forKey: Keys.trip).flatMap { try? decoder.decode(Trip.self, from: $0) }
         let savedKey = d.string(forKey: Keys.geminiKey) ?? ""
         // With the Cloud Run proxy set up, the app needs no key of its own.
-        geminiKey = savedKey.isEmpty && Backend.geminiProxy == nil ? Secrets.geminiAPIKey : savedKey
+        geminiKey = savedKey.isEmpty && Backend.geminiProxy == nil ? Backend.bundledGeminiKey : savedKey
         // gemini-2.5-flash is closed to new API keys (404 "no longer available to new users").
         geminiModel = d.string(forKey: Keys.geminiModel) ?? "gemini-3.8-flash"
         if d.bool(forKey: Keys.signedIn) {

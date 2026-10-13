@@ -16,4 +16,12 @@ enum Backend {
         guard address.hasPrefix("https://") || address.hasPrefix("http://") else { return nil }
         return address
     }
+
+    /// Gemini API key baked in at build time from `Keys.xcconfig` (git-ignored) via Info.plist.
+    /// Empty when the file or the `GEMINI_API_KEY` line is missing, so a fresh clone still builds.
+    static var bundledGeminiKey: String {
+        let value = (Bundle.main.object(forInfoDictionaryKey: "GeminiAPIKey") as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.hasPrefix("$(") ? "" : value
+    }
 }

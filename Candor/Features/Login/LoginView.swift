@@ -10,6 +10,7 @@ struct LoginView: View {
     @State private var country = DelhiData.defaultCountry
     @State private var loading: SignInMethod?
     @State private var appeared = false
+    @State private var showSignIn = false
     @FocusState private var fieldFocused: Bool
 
     private enum ContactMode: String, CaseIterable, Identifiable {
@@ -43,46 +44,100 @@ struct LoginView: View {
     }
 
     var body: some View {
-        ZStack {
-            AppBackground()
-
-            VStack(spacing: 0) {
-                Spacer()
-
-                // The hero steps aside while typing so the card clears the keyboard.
-                if !fieldFocused {
-                    hero
-                        .transition(.opacity.combined(with: .scale(scale: 0.92)))
-                    Spacer()
-                }
-
-                loginCard
-                    .offset(y: appeared ? 0 : 60)
-                    .opacity(appeared ? 1 : 0)
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 12)
-            .animation(.snappy, value: fieldFocused)
+        VStack(spacing: 0) {
+            hero
+            landingText
+            Spacer(minLength: 12)
+            landingButtons
         }
-        .onTapGesture { fieldFocused = false }
+        .ignoresSafeArea(edges: .top)
+        .background(AppBackground())
+        .sheet(isPresented: $showSignIn) { signInSheet }
         .onAppear {
-            withAnimation(.spring(duration: 0.9, bounce: 0.35)) { appeared = true }
+            withAnimation(.spring(duration: 0.9, bounce: 0.3)) { appeared = true }
         }
     }
 
-    // MARK: Hero
+    // MARK: Landing
 
-    /// Logo and name only: the sign-in card below is the whole job of this screen.
+    /// An illustrated Delhi under today's sky with the wordmark, and India Gate in 3D in front.
     private var hero: some View {
-        VStack(spacing: 16) {
-            CandorLogo(size: 96)
-                .scaleEffect(appeared ? 1 : 0.6)
-                .opacity(appeared ? 1 : 0)
+        ZStack {
+            CityScene()
             Text("Candor")
-                .font(.candor(size: 46, .bold))
+                .font(.display(size: 48, .bold))
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
+                .offset(y: -30)
+                .scaleEffect(appeared ? 1 : 0.85)
                 .opacity(appeared ? 1 : 0)
-                .offset(y: appeared ? 0 : 12)
         }
+        .containerRelativeFrame(.vertical) { length, _ in length * 0.54 }
+        .clipShape(ArcBottomShape(depth: 30))
+        .overlay(alignment: .bottomTrailing) {
+            Floating3D(.indiaGate, size: 110, symbol: "building.columns.fill")
+                .padding(.trailing, 18)
+                .offset(y: 40)
+                .opacity(appeared ? 1 : 0)
+        }
+    }
+
+    private var landingText: some View {
+        VStack(spacing: 12) {
+            Image(systemName: DayPeriod.now().symbol)
+                .font(.system(size: 30, weight: .light))
+                .symbolEffect(.breathe, options: .repeating)
+            Text(L("Discover India like a local"))
+                .font(.display(size: 34))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(L("Fair prices, safe rides and your way back home, in your language."))
+                .font(.candor(.subheadline))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 10)
+        .reveal(1)
+    }
+
+    private var landingButtons: some View {
+        VStack(spacing: 12) {
+            Button(L("Get Started")) {
+                mode = .email
+                showSignIn = true
+            }
+            .buttonStyle(.pill)
+            .accessibilityIdentifier("getStarted")
+
+            Button(L("Log in")) { showSignIn = true }
+                .buttonStyle(.pillOutline)
+                .accessibilityIdentifier("logIn")
+        }
+        .padding(.horizontal, 28)
+        .padding(.bottom, 16)
+        .reveal(2)
+    }
+
+    /// The sign-in options, in a sheet over the landing page.
+    private var signInSheet: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                ProductArt()
+                    .padding(.top, 14)
+                    .padding(.horizontal, -20)
+                loginCard
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .scrollDismissesKeyboard(.interactively)
+        .background(Theme.canvas)
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .presentationCornerRadius(32)
     }
 
     // MARK: Sign-in card
@@ -132,8 +187,7 @@ struct LoginView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 50)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme.saffron)
+            .buttonStyle(.pill)
             .disabled(!contactIsValid || loading != nil)
             .animation(.snappy, value: contactIsValid)
             .sensoryFeedback(.success, trigger: contactIsValid) { _, valid in valid }
@@ -151,7 +205,8 @@ struct LoginView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(22)
-        .background(Theme.surface, in: .rect(cornerRadius: 16))
+        .background(Theme.surface, in: .rect(cornerRadius: Theme.Radius.large))
+        .shadow(color: Theme.shadow, radius: 18, y: 8)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()

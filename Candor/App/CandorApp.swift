@@ -36,6 +36,9 @@ struct RootView: View {
     @Environment(AppState.self) private var app
     @Environment(LocationService.self) private var location
     @State private var showSplash = true
+    /// Day feels like day, night like night: the app's appearance follows the time of day.
+    @State private var period = DayPeriod.now()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack {
@@ -70,10 +73,33 @@ struct RootView: View {
         .onChange(of: app.phase, initial: true) { _, phase in
             if phase == .main { location.start() }
         }
+        .preferredColorScheme(period.colorScheme)
+        .onChange(of: period, initial: true) { _, value in applyAppearance(value) }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { period = DayPeriod.now() }
+        }
+        .task {
+            // Check the sky every minute so dusk turns into night while the app is open.
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                let now = DayPeriod.now()
+                if now != period { withAnimation(.smooth(duration: 1.2)) { period = now } }
+            }
+        }
         .task { await app.currency.refresh() }
         .task {
             try? await Task.sleep(for: .seconds(1.4))
             withAnimation(.smooth(duration: 0.5)) { showSplash = false }
+        }
+    }
+}
+
+extension RootView {
+    /// Sheets and full-screen covers are separate presentations, so the window itself is switched too.
+    fileprivate func applyAppearance(_ period: DayPeriod) {
+        let style: UIUserInterfaceStyle = period.colorScheme == .dark ? .dark : .light
+        for scene in UIApplication.shared.connectedScenes {
+            (scene as? UIWindowScene)?.windows.forEach { $0.overrideUserInterfaceStyle = style }
         }
     }
 }

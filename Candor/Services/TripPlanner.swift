@@ -246,25 +246,37 @@ enum TripPlanner {
         return result
     }
 
-    /// Plans with Gemini, city by city. In a verified city Gemini picks from Candor's own places
-    /// (every id is checked). In an AI-guide city it names real places, which are then found in
-    /// Google Maps; anything it can't find is dropped. Falls back to `suggest` per city.
-    static func suggestWithGemini(app: AppState, trip: Trip) async -> Trip {
+    /// Plans with Gemini, city by city, with Google Search grounding so the plan reflects what's
+    /// on the web for the traveller's dates. In a verified city Gemini picks from Candor's own
+    /// places (every id is checked). In an AI-guide city it names real places, which are then found
+    /// in Google Maps; anything it can't find is dropped. Alongside the days it collects what's
+    /// worth knowing (events on those dates, dishes and where to eat them, markets and their days,
+    /// weather, tips) into `Trip.insights`. Falls back to `suggest` per city.
+    /// `progress` gets a short, readable line for each step, for the planning screen.
+    static func suggestWithGemini(app: AppState, trip: Trip,
+                                  progress: @escaping (String) -> Void = { _ in }) async -> Trip {
         let persona = app.persona
         let client = GeminiClient(apiKey: app.geminiKey, model: app.geminiModel)
         var planned = trip
         planned.source = .candor
         var days: [TripDay] = []
+        var insights: [TripInsight] = []
         for group in dayGroups(trip) {
             guard let cityStay = group.cityStay else {
                 days += group.dates.map { _ in TripDay() }
                 continue
             }
+            let name = L(cityStay.city.name)
+            progress(L("Searching what's on in %@ on your dates", name))
+            async let found = cityInsights(client: client, persona: persona, trip: trip,
+                                           cityStay: cityStay, dates: group.dates)
+            progress(L("Picking places in %@ for your interests", name))
             let fromGemini: [TripDay]?
             if let pack = cityStay.city.pack {
                 fromGemini = try? await geminiDays(client: client, persona: persona, trip: trip, cityStay: cityStay,
                                                    pack: pack, dates: group.dates)
             } else {
+                progress(L("Finding each place on Google Maps"))
                 fromGemini = try? await geminiOpenDays(client: client, persona: persona, trip: trip,
                                                        cityStay: cityStay, dates: group.dates)
             }
@@ -275,9 +287,51 @@ enum TripPlanner {
             } else {
                 days += group.dates.map { _ in TripDay() }
             }
+            progress(L("Collecting food, markets and events in %@", name))
+            insights += await found
         }
         planned.days = days
+        planned.insights = insights
         return planned
+    }
+
+    /// Events, food, markets, weather and tips for one city on the trip's dates, from the web.
+    /// Empty when Gemini can't be reached; the plan doesn't depend on it.
+    private static func cityInsights(client: GeminiClient, persona: Persona, trip: Trip, cityStay: CityStay,
+                                     dates: [Date]) async -> [TripInsight] {
+        guard let first = dates.first, let last = dates.last else { return [] }
+        let english = Locale(identifier: "en")
+        let range = first.formatted(.dateTime.weekday(.wide).day().month(.wide).year().locale(english))
+            + " to " + last.formatted(.dateTime.weekday(.wide).day().month(.wide).year().locale(english))
+        let city = cityStay.city
+        let prompt = """
+        Search the web for what a visitor to \(city.name), \(city.country) should know for \(range).
+        Find, specifically for those dates: festivals, events, concerts or exhibitions; public holidays \
+        or closures; the weather to expect and what to wear. Also: must-try local dishes, each with one \
+        specific, well-reviewed place to eat it; markets worth visiting with the days they are open or \
+        closed; one or two practical tips (transport cards, common scams, etiquette).
+        The traveller: \(traveller(persona, trip: trip, cityStay: cityStay))
+        Be concrete: real names, dates and places. Skip anything you can't confirm for these dates.
+        Write "title", "detail" and "when" in \(persona.englishLanguageName), short.
+        Reply only with JSON: {"insights":[{"kind":"event|food|market|weather|tip","title":"<short>",\
+        "detail":"<one sentence>","when":"<dates or days, optional>","source":<0-based index of the web result it came from, optional>}]}
+        Give 6 to 10 items, events first.
+        """
+        guard let answer = try? await client.askGrounded(prompt),
+              let object = GeminiClient.jsonObject(in: answer.text),
+              let raw = object["insights"] as? [[String: Any]] else { return [] }
+        return raw.prefix(12).compactMap { item in
+            guard let title = item["title"] as? String, !title.isEmpty else { return nil }
+            let kind = TripInsight.Kind(rawValue: (item["kind"] as? String ?? "").lowercased()) ?? .tip
+            var insight = TripInsight(city: city.name, kind: kind, title: title,
+                                      detail: item["detail"] as? String ?? "", when: item["when"] as? String)
+            if let index = item["source"] as? Int, answer.sources.indices.contains(index) {
+                insight.sourceTitle = answer.sources[index].title
+                insight.sourceURL = answer.sources[index].url
+            }
+            if insight.when?.isEmpty == true { insight.when = nil }
+            return insight
+        }
     }
 
     private static func traveller(_ persona: Persona, trip: Trip, cityStay: CityStay) -> String {
@@ -379,9 +433,14 @@ enum TripPlanner {
         return days
     }
 
+    /// Asks with Google Search grounding (opening days, what's on), then plain JSON if that fails.
     private static func askDays(client: GeminiClient, prompt: String) async throws -> [[String: Any]] {
+        let grounded = prompt + "\nCheck opening days and anything special on these dates on the web. Reply only with the JSON."
+        if let answer = try? await client.askGrounded(grounded),
+           let days = GeminiClient.jsonObject(in: answer.text)?["days"] as? [[String: Any]], !days.isEmpty {
+            return days
+        }
         let raw = try await client.ask(prompt, json: true)
-        let object = (try? JSONSerialization.jsonObject(with: Data(raw.utf8))) as? [String: Any] ?? [:]
-        return object["days"] as? [[String: Any]] ?? []
+        return GeminiClient.jsonObject(in: raw)?["days"] as? [[String: Any]] ?? []
     }
 }

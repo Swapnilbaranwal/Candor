@@ -1,86 +1,111 @@
 # Candor design system
 
-Candor is a calm, honest travel companion. The interface should feel like a well-made
-guidebook: quiet surfaces, clear type, and colour only where it means something. Every
-token below lives in `Candor/Design/Theme.swift`; use it instead of literal values.
+Candor should feel like a beautiful printed travel guide that came alive: airy white pages,
+elegant serif headings, rich illustrations, and gentle motion that makes India feel close and
+safe. Every token below lives in `Candor/Design/Theme.swift`, `Components.swift` and
+`Illustrations.swift`; use them instead of literal values.
 
 ## Principles
 
-1. **Content first.** Prices, places and times are the interface. Decoration that doesn't
-   help someone decide what to pay or where to go comes out.
-2. **Colour carries meaning.** One accent for actions and selection. Other colours only
-   signal something: fair or overcharge, a place category, a Metro line.
-3. **Glass is for system chrome.** Tab bar, toolbars, sheets and system controls keep
-   Liquid Glass. Content sits on plain surfaces.
-4. **Say it once.** One title, one supporting line. No label above a heading, no repeated hints.
-5. **Honest by design.** Every price shows its source. Verified data and estimates look
-   different ("Verified guide" vs "AI guide", "Estimate:" tips).
+1. **Illustration leads, content decides.** Each screen opens with art (the living Delhi scene,
+   a floating 3D object) and then gets straight to prices, places and times.
+2. **Calm surfaces, one ink.** Soft grey canvas, white cards with soft shadows, an ink pill for
+   the main action. Colour comes from the art and from meaning (fair, overcharge, travel modes).
+3. **Motion with purpose.** Screens assemble top to bottom, cards sink when pressed, the sky
+   moves, home glows. Respect Reduce Motion: every looping animation pauses when it is on.
+4. **Say it once.** One serif title, one supporting line.
+5. **Honest by design.** Every price shows its source; estimates look like estimates.
 
 ## Colour
 
 | Token | Use |
 |---|---|
-| `Theme.accent` (saffron) | Primary buttons, selection, progress, links |
-| `Theme.accentSoft` | Fills behind accent icons and selected rows |
-| `Theme.canvas` | Page background (warm off-white / near black) |
-| `Theme.surface` | Cards and grouped rows (white / dark grey) |
-| `Theme.field` | Text fields and inputs on a card |
-| `Theme.hairline` | Unselected outlines, dividers |
-| `Theme.mint` | Fair price, verified, success |
-| `Theme.rose` | Overcharge, scams, warnings |
-| `Theme.teal`, `Theme.indigo` | Categories and travel modes only (map pins, Metro, walk/auto/cab) |
-| `Theme.brandGradient` | The logo, launch screen and splash. Nowhere else |
+| `Theme.ink` | Primary pill buttons, selected chips and modes, the camera button |
+| `Theme.accent` | System tint: ink in light mode, saffron in dark mode |
+| `Theme.saffron` | Brand highlight: icons in the search bar, "keep asking" glow, route line |
+| `Theme.canvas` | Page background (soft grey / near black) |
+| `Theme.surface` | Cards (white / dark grey) |
+| `Theme.shadow` | The soft drop shadow under cards and floating controls |
+| `Theme.mint` / `Theme.rose` | Fair / overcharge, success / warning |
+| `Theme.teal`, `Theme.indigo` | Travel modes and categories |
+| `DayPeriod` palettes | Illustration skies and hills (dawn, day, dusk, night) |
 
-Never use gradients on text, buttons or backgrounds.
+Gradients belong to illustrations and the logo, never to text or buttons.
 
 ## Type
 
-One typeface for the whole app: **SF Pro**, the system font. It covers every language Candor
-speaks (including Hindi), has tabular digits for prices, and scales with Dynamic Type.
-Use the `Font.candor(_:_:)` and `Font.heading(_:)` helpers so sizes and weights stay consistent.
-
-| Role | Style |
-|---|---|
-| Screen title | `.heading(.largeTitle)` (tab roots) or `.heading(.title2)` (flows, sheets) |
-| Card heading | `.heading(.title3)` |
-| Section title | `.candor(.headline, .semibold)` |
-| Body | `.candor(.body)` / `.candor(.subheadline)` |
-| Supporting text | `.candor(.subheadline)` or `.candor(.caption1)`, `.secondary` |
-| Numbers (prices, times) | add `.monospacedDigit()` |
-
-One title and at most one supporting line per screen or card.
+- **Headings:** the system serif (New York) via `.heading(_:)` and `.display(size:)`. Screen
+  titles `.heading(.largeTitle)`, card titles `.heading(.title3)`, hero titles `.display(size: 34)`.
+- **Reading:** SF Pro via `.candor(_:_:)`. Prices and times add `.monospacedDigit()`.
+- Scripts the serif doesn't cover (Devanagari, CJK, Arabic, Thai…) fall back automatically.
 
 ## Shape and space
 
 | Token | Value | Use |
 |---|---|---|
-| `Theme.Radius.small` | 10 | Badges, small tiles |
-| `Theme.Radius.medium` | 14 | Rows, text fields, buttons |
-| `Theme.Radius.large` | 16 | Cards (the maximum) |
+| `Theme.Radius.small` | 12 | Badges, tiles |
+| `Theme.Radius.medium` | 18 | Rows, inputs |
+| `Theme.Radius.large` | 26 | Cards |
 
-Spacing on a 4-point grid: 4, 8, 12, 16, 20, 24. Screen side margins are 20.
-Cards pad 16. Cards don't nest inside cards, and have no shadows or coloured side borders.
+Hero cards use 30. Buttons and search fields are capsules (56 pt tall, 50–52 in tight rows).
+Screen margins 20, card padding 16–20, 4-point grid.
 
 ## Components
 
-- **Card** (`.card()`): padded content on `Theme.surface`. Optional `tint` for meaning
-  (a verdict, a warning), never decoration.
-- **Chip** (`Chip`): selected = filled with the accent (or a category colour), white text;
-  unselected = surface with a hairline. Lay chips out with `FlowLayout`, left-aligned.
-- **Buttons:** `.borderedProminent` with the accent for the main action, `.bordered` for the
-  rest. One prominent button per screen.
-- **Agent** (`AgentMark`): the brand seal on a soft accent disc; a spinner while working.
-  No orbs, glows or sparkle icons for AI. Icons describe the action (`text.bubble`,
-  `calendar`, `checkmark.shield`).
-- **Icons:** SF Symbols, beside text rather than stacked in tiles above headings.
-- **Lists and forms in sheets:** native `Form`/`List` styling.
+- **Pill buttons:** `.buttonStyle(.pill)` (ink, the main action), `.pillOutline`, `.pillSoft`.
+- **Pressable cards:** wrap tappable cards in `Button` + `.buttonStyle(.pressable)`.
+- **Circle icons:** `CircleIcon` for back, edit, profile, the camera button (`filled: true`).
+- **Cards:** `.card()`: white surface, soft shadow, radius 26.
+- **Tags:** `TagPill` (icon + label on canvas) and `Chip` for selectable filters.
+- **Page dots:** `PageDots` under hero art.
+- **Entrances:** `.reveal(order)` on each top-level section of a screen.
+
+## Logo
+
+An open "C" in a sunrise gradient (coral to saffron) holding a mint map pin: honest guidance,
+right to the place. `CandorLogo(size:tile:)` draws it in code (on the night-indigo tile of the
+app icon, or bare with `tile: false`); `AppIcon` and `LaunchLogo` are the same mark as PNGs.
+The landing screen shows only the wordmark over the city, not the logo.
+
+## Day and night
+
+The whole app follows the sky: light from dawn to dusk, dark at night (`DayPeriod.colorScheme`,
+checked every minute and when the app returns). The drawn scenes use the same clock: sun and
+clouds by day, a crescent moon, stars and lit windows at night.
+
+## Illustrations
+
+- **Drawn scenes** (`Illustrations.swift`): `CityScene` (Delhi skyline, sky follows the clock),
+  `HomeNestArt` (house at the end of a marching dotted path), `StayQuestionArt` (suitcase and a
+  hopping pin). Original vector art, animated with `TimelineView`, paused under Reduce Motion.
+- **First run** (`OnboardingArt.swift`): `ProductArt` (sign-in: fair price, translation, way
+  back home and Lens floating over Delhi), `JourneyArt` (a plane flies town to town while a car,
+  an auto and a scooter take the road), `PartyArt` (60 pt portraits for solo, couple, family,
+  friends), `StyleArt` and `InterestArt` (travel style tiles and interest icons), and `RecipeRing`
+  (setting up as a recipe: ingredients orbit and drop into the pot as the ring fills). All
+  vector and `Canvas`, no Lottie or image downloads, so screens stay fast.
+- **3D objects** (`Art3D`, IconScout, free licence, no attribution): India Gate, home with pin,
+  suitcase, hot-air-balloon adventure, translator, train, location pin, camera. Show them with
+  `Floating3D`, which floats them gently over a soft contact shadow and falls back to a drawn
+  scene or symbol if the image isn't in the bundle. Run `Get3DArt.command` to fetch them.
 
 ## Motion
 
-Short and functional: `.snappy` for selection, `.smooth` for screen changes. No looping
-animation in content (the only exception is the progress spinner).
+- Entrances: `.reveal(n)` (spring, staggered ~70 ms).
+- Presses: `PressableStyle` (scale 0.975, spring).
+- Selection: `.snappy`; mode tiles slide with `matchedGeometryEffect`.
+- Ambient: drifting clouds, breathing sun, flapping birds, twinkling stars, glowing windows,
+  floating 3D objects, the pulsing "where are you staying?" card. All stop under Reduce Motion.
+
+## Way back home
+
+The traveller's stay is home. Until Candor knows it, it keeps asking: a pulsing card on Home,
+a bar above the tab bar on every tab, and the "You're new to the city" sheet on launch and on
+return (at most every 10 minutes). Once set, Home shows the way back with the best mode, time
+and fair fare, and the full screen shows the route, every mode, steps, "Start" in Apple Maps
+and a "Show the driver" card in Hindi.
 
 ## Copy
 
-Plain, short and specific. Sentence case. Say what happens: "Plan it for me", "Check a
-driver's quote". Every user-facing string goes through `L("English")`.
+Plain, short and warm. Sentence case. Every user-facing string goes through `L("English")`
+and gets a key in each `Localization/candor-<code>.json`.

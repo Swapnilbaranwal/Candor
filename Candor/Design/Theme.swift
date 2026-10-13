@@ -10,16 +10,31 @@ enum Theme {
     static let teal = Color(red: 0.12, green: 0.68, blue: 0.74)
     static let mint = Color(red: 0.16, green: 0.74, blue: 0.48)
 
+    /// Ink: the near-black of primary buttons and selection in light mode (white-on-ink pills,
+    /// like a printed travel guide). Dark mode uses saffron so filled buttons keep contrast.
+    static let ink = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 0.96, green: 0.95, blue: 0.93, alpha: 1)
+            : UIColor(red: 0.08, green: 0.09, blue: 0.11, alpha: 1)
+    })
+
     /// Actions, selection, progress.
-    static let accent = saffron
+    static let accent = Color(uiColor: UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 1.00, green: 0.58, blue: 0.20, alpha: 1)
+            : UIColor(red: 0.08, green: 0.09, blue: 0.11, alpha: 1)
+    })
     /// Fills behind accent-coloured icons and selected rows.
-    static let accentSoft = saffron.opacity(0.14)
+    static let accentSoft = saffron.opacity(0.16)
+
+    /// Soft drop shadow under cards (light mode only reads it).
+    static let shadow = Color.black.opacity(0.07)
 
     /// The page: a warm off-white, near-black in dark mode.
     static let canvas = Color(uiColor: UIColor { traits in
         traits.userInterfaceStyle == .dark
             ? UIColor(red: 0.07, green: 0.07, blue: 0.08, alpha: 1)
-            : UIColor(red: 0.975, green: 0.965, blue: 0.95, alpha: 1)
+            : UIColor(red: 0.953, green: 0.949, blue: 0.941, alpha: 1)
     })
     /// Cards and grouped rows on the canvas.
     static let surface = Color(uiColor: UIColor { traits in
@@ -34,9 +49,9 @@ enum Theme {
 
     /// Corner radii: small controls, medium rows and buttons, large cards.
     enum Radius {
-        static let small: CGFloat = 10
-        static let medium: CGFloat = 14
-        static let large: CGFloat = 16
+        static let small: CGFloat = 12
+        static let medium: CGFloat = 18
+        static let large: CGFloat = 26
     }
 
     /// The brand mark's gradient. Used for the logo only.
@@ -65,28 +80,15 @@ struct AppBackground: View {
 extension View {
     /// Padded content on a plain card. A tint washes the card faintly; use it for meaning only.
     func card(cornerRadius: CGFloat = Theme.Radius.large, tint: Color? = nil, padding: CGFloat = 16) -> some View {
-        let shape = RoundedRectangle(cornerRadius: min(cornerRadius, Theme.Radius.large), style: .continuous)
+        // Older call sites pass 16 for "a card"; they get the current card radius.
+        let radius = cornerRadius >= 16 ? Theme.Radius.large : cornerRadius
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         return self
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background((tint ?? .clear).opacity(0.4), in: shape)
             .background(Theme.surface, in: shape)
-    }
-}
-
-/// Brand mark: a white seal with a rose tick on the brand gradient. Same mark as the launch screen
-/// and splash (`LaunchLogo`), so the logo doesn't change as the app opens.
-struct CandorLogo: View {
-    var size: CGFloat = 80
-
-    var body: some View {
-        Image(systemName: "checkmark.seal.fill")
-            .font(.system(size: size * 0.46, weight: .semibold))
-            .symbolRenderingMode(.palette)
-            .foregroundStyle(Theme.rose, .white)
-            .frame(width: size, height: size)
-            .background(Theme.brandGradient, in: .circle)
-            .accessibilityHidden(true)
+            .shadow(color: Theme.shadow, radius: 18, x: 0, y: 8)
     }
 }
 
@@ -184,8 +186,8 @@ struct MarkdownText: View {
 
 // MARK: - Type
 
-/// Candor uses one typeface everywhere: SF Pro, the system font (see DESIGN.md). It covers every
-/// language the app speaks, including Hindi, and scales with the reader's text size.
+/// Candor's type (see DESIGN.md): SF Pro for reading, the system serif (New York) for headings.
+/// Both cover every language the app speaks and scale with the reader's text size.
 enum CandorType {
     /// SF Pro at a text style's size (scaled with the reader's text size) or a fixed size.
     static func font(_ style: UIFont.TextStyle, weight: UIFont.Weight = .regular, size: CGFloat? = nil) -> UIFont {
@@ -195,9 +197,20 @@ enum CandorType {
         return UIFontMetrics(forTextStyle: style).scaledFont(for: base)
     }
 
-    /// Headings: bold.
-    static func heading(_ style: UIFont.TextStyle, weight: UIFont.Weight = .bold) -> UIFont {
-        font(style, weight: weight)
+    /// Headings: the system serif (New York), like a printed travel guide. Scripts New York
+    /// doesn't cover (Devanagari, CJK, Arabic…) fall back to the system font automatically.
+    static func heading(_ style: UIFont.TextStyle, weight: UIFont.Weight = .semibold) -> UIFont {
+        serif(font(style, weight: weight))
+    }
+
+    /// Large display type (wordmark, hero titles) in the serif face.
+    static func display(size: CGFloat, weight: UIFont.Weight = .semibold) -> UIFont {
+        serif(UIFont.systemFont(ofSize: size, weight: weight))
+    }
+
+    private static func serif(_ base: UIFont) -> UIFont {
+        guard let descriptor = base.fontDescriptor.withDesign(.serif) else { return base }
+        return UIFont(descriptor: descriptor, size: base.pointSize)
     }
 }
 
@@ -212,9 +225,14 @@ extension Font {
         Font(CandorType.font(.body, weight: weight, size: size))
     }
 
-    /// Screen titles and card headings: bold.
+    /// Screen titles and card headings: serif.
     static func heading(_ style: UIFont.TextStyle) -> Font {
         Font(CandorType.heading(style))
+    }
+
+    /// Serif display type at a fixed size (wordmark, hero titles).
+    static func display(size: CGFloat, _ weight: UIFont.Weight = .semibold) -> Font {
+        Font(CandorType.display(size: size, weight: weight))
     }
 
     /// Hindi (Devanagari) text: the same system font, which includes Devanagari.

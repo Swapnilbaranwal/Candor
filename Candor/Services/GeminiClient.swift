@@ -15,7 +15,7 @@ enum GeminiError: LocalizedError {
 /// Minimal REST client for the Gemini API (generateContent with function calling).
 ///
 /// With no key, requests go to Candor's Cloud Run proxy (`Backend.geminiProxy`), which holds the
-/// key on the server. With a key, typed in settings or from `Secrets` in development, they go
+/// key on the server. With a key, typed in settings or from `Keys.xcconfig` in development, they go
 /// straight to the Gemini API.
 struct GeminiClient {
     var apiKey: String
@@ -86,6 +86,56 @@ struct GeminiClient {
         let text = Self.text(of: content)
         guard !text.isEmpty else { throw GeminiError.emptyResponse }
         return text
+    }
+
+    /// Asks with Google Search grounding, so the answer can use what's on the web today (events
+    /// on the traveller's dates, opening days, new places). Grounded answers can't be forced into
+    /// JSON mode, so the JSON is picked out of the text. Returns the text and the web pages used.
+    /// Falls back to a plain JSON request when search grounding isn't available.
+    func askGrounded(_ prompt: String) async throws -> (text: String, sources: [WebSource]) {
+        let message: [String: Any] = ["role": "user", "parts": [["text": prompt]]]
+        let body: [String: Any] = ["contents": [message], "tools": [["google_search": [String: Any]()]]]
+        do {
+            let response = try await generate(body)
+            guard let content = Self.firstContent(response) else { throw GeminiError.emptyResponse }
+            let text = Self.text(of: content)
+            guard !text.isEmpty else { throw GeminiError.emptyResponse }
+            return (text, Self.sources(of: response))
+        } catch let error as GeminiError {
+            // No grounding on this key or model (400): ask without it rather than fail the plan.
+            if case .http(let code, _) = error, code == 400 || code == 403 {
+                return (try await ask(prompt, json: true), [])
+            }
+            throw error
+        }
+    }
+
+    /// A web page Gemini read while answering.
+    struct WebSource: Hashable {
+        let title: String
+        let url: String
+    }
+
+    static func sources(of response: [String: Any]) -> [WebSource] {
+        let candidate = (response["candidates"] as? [[String: Any]])?.first
+        let metadata = candidate?["groundingMetadata"] as? [String: Any]
+        let chunks = metadata?["groundingChunks"] as? [[String: Any]] ?? []
+        // Kept in chunk order (no de-duplication) so an index from the model lines up.
+        return chunks.map { chunk in
+            let web = chunk["web"] as? [String: Any]
+            let url = web?["uri"] as? String ?? ""
+            return WebSource(title: (web?["title"] as? String) ?? url, url: url)
+        }
+    }
+
+    /// The JSON object in a model answer, even when it's wrapped in ```json fences or prose.
+    static func jsonObject(in text: String) -> [String: Any]? {
+        if let object = (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any] {
+            return object
+        }
+        guard let start = text.firstIndex(of: "{"), let end = text.lastIndex(of: "}"), start < end else { return nil }
+        let slice = String(text[start...end])
+        return (try? JSONSerialization.jsonObject(with: Data(slice.utf8))) as? [String: Any]
     }
 
     /// Translates text. Returns (translation, romanised pronunciation if target is Hindi).

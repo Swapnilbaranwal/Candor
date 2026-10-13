@@ -118,6 +118,10 @@ struct TripView: View {
             VStack(alignment: .leading, spacing: 18) {
                 dayChips(trip)
                 dayHeader(day: day, date: date, plan: plan)
+                let finds = trip.insights.filter { $0.city == trip.cityStay(ofDay: index)?.city.name }
+                if !finds.isEmpty {
+                    TripInsightsSection(insights: finds)
+                }
                 if !plan.entries.isEmpty {
                     dayMap(plan)
                 }

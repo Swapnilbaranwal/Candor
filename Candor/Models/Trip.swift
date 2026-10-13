@@ -23,6 +23,8 @@ struct Trip: Codable, Equatable {
     var party: TravelParty?
     /// Head count for a family or group (solo and couple are implied).
     var travellers: Int?
+    /// What Gemini found on the web for these dates: events, food, markets, weather, tips.
+    var insights: [TripInsight] = []
 
     init(source: Source, startDate: Date, days: [TripDay], cities: [CityStay] = [],
          party: TravelParty? = nil, travellers: Int? = nil) {
@@ -49,6 +51,7 @@ struct Trip: Codable, Equatable {
         cities = try c.decodeIfPresent([CityStay].self, forKey: .cities) ?? []
         party = try c.decodeIfPresent(TravelParty.self, forKey: .party)
         travellers = try c.decodeIfPresent(Int.self, forKey: .travellers)
+        insights = try c.decodeIfPresent([TripInsight].self, forKey: .insights) ?? []
     }
 
     /// The day to show first: today's day while the trip is on, else the first or last day.
@@ -90,6 +93,26 @@ struct Trip: Codable, Equatable {
         guard let party else { return "not given" }
         return party.fixedCount == nil ? "\(party.rawValue) of \(travellers ?? 3)" : party.rawValue
     }
+}
+
+/// Something worth knowing for the trip, found on the web when Candor planned it:
+/// "Diwali on 20 Oct: markets are packed, book cabs early."
+struct TripInsight: Codable, Equatable, Identifiable {
+    enum Kind: String, Codable, CaseIterable {
+        case event, food, market, weather, tip
+    }
+
+    var id = UUID()
+    /// English city name, matching `CityStay.city.name`.
+    var city: String
+    var kind: Kind
+    var title: String
+    var detail: String
+    /// "Sat & Sun", "18 Oct, 7 pm", when the item happens on certain days.
+    var when: String?
+    /// The web page it came from, when Gemini searched.
+    var sourceTitle: String?
+    var sourceURL: String?
 }
 
 /// One city on the trip: when the traveller is there and where they sleep.
