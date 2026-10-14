@@ -7,7 +7,6 @@ struct CandorApp: App {
     @State private var agent: CandorAgent
 
     init() {
-        GoogleMapsSetup.start()
         // Navigation-bar titles ("Trip", sheet titles) in the heading face too.
         UINavigationBar.appearance().largeTitleTextAttributes = [.font: CandorType.heading(.largeTitle)]
         UINavigationBar.appearance().titleTextAttributes = [.font: CandorType.heading(.headline, weight: .semibold)]
@@ -73,23 +72,22 @@ struct RootView: View {
         .onChange(of: app.phase, initial: true) { _, phase in
             if phase == .main { location.start() }
         }
-        .preferredColorScheme(period.colorScheme)
+        // One look all day: Candor's warm light theme. Only the sky on today's trip card
+        // follows the time (morning, afternoon, evening, night).
+        .preferredColorScheme(.light)
         .onChange(of: period, initial: true) { _, value in applyAppearance(value) }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { period = DayPeriod.now() }
         }
-        .task {
-            // Check the sky every minute so dusk turns into night while the app is open.
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(60))
-                let now = DayPeriod.now()
-                if now != period { withAnimation(.smooth(duration: 1.2)) { period = now } }
-            }
-        }
         .task { await app.currency.refresh() }
         .task {
-            try? await Task.sleep(for: .seconds(1.4))
-            withAnimation(.smooth(duration: 0.5)) { showSplash = false }
+            // Long enough to read the name, short enough to never feel like waiting.
+            try? await Task.sleep(for: .milliseconds(900))
+            withAnimation(.easeOut(duration: 0.2)) { showSplash = false }
+            // Google Maps is only needed on the Trip tab: start it once the first screen is up,
+            // so it doesn't hold up launch.
+            try? await Task.sleep(for: .milliseconds(300))
+            GoogleMapsSetup.start()
         }
     }
 }
@@ -97,45 +95,58 @@ struct RootView: View {
 extension RootView {
     /// Sheets and full-screen covers are separate presentations, so the window itself is switched too.
     fileprivate func applyAppearance(_ period: DayPeriod) {
-        let style: UIUserInterfaceStyle = period.colorScheme == .dark ? .dark : .light
+        let style: UIUserInterfaceStyle = .light
         for scene in UIApplication.shared.connectedScenes {
             (scene as? UIWindowScene)?.windows.forEach { $0.overrideUserInterfaceStyle = style }
         }
     }
 }
 
-/// Picks up where the launch screen leaves off: the same logo on the same colour, in the same spot,
-/// then the name and tagline appear before the first screen fades in.
+/// Candor's planning loader as a still picture: the logo at the centre, a dotted orbit, and
+/// India's ingredients (food, Metro, monuments, fair prices, markets, walks) resting around it,
+/// with the name underneath. Nothing moves or spins, so it's on screen instantly and never
+/// holds up the app.
 struct SplashView: View {
-    @State private var revealed = false
+    private static let ingredients: [(icon: String, tint: Color)] = [
+        ("fork.knife", Theme.saffron), ("tram.fill", Theme.teal), ("building.columns.fill", Theme.rose),
+        ("indianrupeesign", Theme.emerald), ("bag.fill", Theme.coral), ("figure.walk", Theme.indigo)
+    ]
 
     var body: some View {
         ZStack {
             Color("LaunchBackground")
-            AppBackground()
-                .opacity(revealed ? 1 : 0)
-
-            Image("LaunchLogo")
-                .shadow(color: Theme.rose.opacity(revealed ? 0.45 : 0), radius: 24, y: 8)
-                .scaleEffect(revealed ? 1.06 : 1)
-                .overlay(alignment: .top) {
-                    VStack(spacing: 8) {
-                        Text("Candor")
-                            .font(.candor(size: 44, .bold))
-                        Text(L("Explore India. Pay what locals pay."))
-                            .font(.candor(.subheadline))
-                            .foregroundStyle(.secondary)
+            VStack(spacing: 28) {
+                ZStack {
+                    Circle()
+                        .stroke(Theme.ink.opacity(0.12), style: StrokeStyle(lineWidth: 1.5, dash: [3, 7]))
+                        .frame(width: 236, height: 236)
+                    ForEach(Self.ingredients.indices, id: \.self) { index in
+                        let item = Self.ingredients[index]
+                        let angle = 2 * Double.pi * Double(index) / Double(Self.ingredients.count) - Double.pi / 2
+                        Image(systemName: item.icon)
+                            .font(.system(size: 19, weight: .semibold))
+                            .foregroundStyle(item.tint)
+                            .frame(width: 48, height: 48)
+                            .background(Color.white, in: .circle)
+                            .overlay(Circle().strokeBorder(item.tint.opacity(0.18), lineWidth: 1))
+                            .offset(x: 118 * cos(angle), y: 118 * sin(angle))
                     }
-                    .fixedSize()
-                    .offset(y: 150)
-                    .opacity(revealed ? 1 : 0)
-                    .offset(y: revealed ? 0 : 12)
+                    CandorLogo(size: 104)
                 }
+                .frame(width: 300, height: 300)
+
+                VStack(spacing: 6) {
+                    Text("Candor")
+                        .font(.display(size: 40, .bold))
+                        .foregroundStyle(Theme.ink)
+                    Text(L("Explore India. Pay what locals pay."))
+                        .font(.candor(.subheadline))
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .ignoresSafeArea()
         .accessibilityElement(children: .combine)
-        .onAppear {
-            withAnimation(.smooth(duration: 0.8)) { revealed = true }
-        }
+        .accessibilityLabel("Candor")
     }
 }

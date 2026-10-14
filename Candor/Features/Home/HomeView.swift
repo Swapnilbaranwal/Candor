@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 struct HomeView: View {
     @Binding var tab: AppTab
@@ -6,29 +7,41 @@ struct HomeView: View {
     @Environment(AppState.self) private var app
     @Environment(LocationService.self) private var location
     @Environment(CandorAgent.self) private var agent
+    @State private var journey: JourneyRequest?
 
     /// Opens the demo: one tap from Home to the agent's trail and a verdict card.
     private let demoPrompt = "Auto to India Gate, driver wants ₹300"
 
     var body: some View {
+        // The view model does the thinking (today's plan, the next hop, the copy); this view lays it out.
+        let model = HomeViewModel(app: app, location: location)
         NavigationStack {
             ScrollView {
+                // A plain stack: a dozen cards, all built once when Home opens, so nothing is
+                // built mid-scroll. No entrance animations either: Home is simply there.
                 VStack(alignment: .leading, spacing: 22) {
-                    header.reveal(0)
-                    searchBar.reveal(1)
-                    heroCard.reveal(2)
+                    header(model)
+                    heroCard(model)
+                    sectionTitle(L("Explore your way"),
+                                 subtitle: L("Wander on your own with Candor in your pocket, or walk with a verified local who knows every lane."))
+                    TravelCompanionPicker()
                     HomeBaseCard()
                         .animation(.spring(response: 0.5, dampingFraction: 0.8), value: app.home?.name)
-                        .reveal(3)
-                    checkCard.reveal(4)
-                    toolTiles.reveal(5)
-                    scamOfTheDay.reveal(6)
+                    sectionTitle(L("Getting around"),
+                                 subtitle: L("Every honest way to your next stop, from Metro to cab, with the fare a local would pay."))
+                    gettingAround(model.nextLeg)
+                    checkCard
+                    scamOfTheDay
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 30)
             }
+            .scrollIndicators(.hidden)
             .background(AppBackground())
             .toolbar(.hidden, for: .navigationBar)
+            .sheet(item: $journey) { request in
+                JourneyView(leg: request.leg, mode: request.mode)
+            }
         }
     }
 
@@ -47,24 +60,11 @@ struct HomeView: View {
 
     // MARK: Header
 
-    private var greeting: String {
-        let hour = Calendar.current.component(.hour, from: .now)
-        switch hour {
-        case 5..<12: return L("Good morning")
-        case 12..<17: return L("Good afternoon")
-        default: return L("Good evening")
-        }
-    }
-
-    private var today: String {
-        Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Localizer.shared.locale))
-    }
-
-    private var header: some View {
+    private func header(_ model: HomeViewModel) -> some View {
         HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
                 Label {
-                    Text("\(greeting) · \(today)")
+                    Text("\(model.greeting) · \(model.today)")
                 } icon: {
                     Image(systemName: DayPeriod.now().symbol)
                         .symbolEffect(.breathe, options: .repeating)
@@ -73,130 +73,186 @@ struct HomeView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
 
-                Text(L("Namaste, %@", app.persona.firstName))
-                    .font(.heading(.largeTitle))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                Text(L("Namaste, %@", model.displayName))
+                    .font(.headingItalic(.largeTitle))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
 
                 HStack(spacing: 5) {
                     Image(systemName: "location.fill").foregroundStyle(Theme.saffron)
-                    Text(location.placeLabel)
+                    Text(model.placeLine)
                 }
                 .font(.candor(.caption1, .medium))
                 .foregroundStyle(.secondary)
             }
             Spacer()
+            // Ask Candor lives up here as one tap, so the first screen is the day, not a search box.
+            Button { tab = .agent } label: {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundStyle(Color(hex: 0xC4621A))
+                    .frame(width: 46, height: 46)
+                    .background(Circle().fill(Theme.surface).shadow(color: Theme.shadow, radius: 8, y: 4))
+                    .overlay(Circle().strokeBorder(Theme.gold.opacity(0.45), lineWidth: 1))
+            }
+            .buttonStyle(.pressable)
+            .accessibilityLabel(L("Ask Candor anything…"))
+            .accessibilityIdentifier("homeAsk")
             Button { tab = .profile } label: {
                 Text(app.persona.initials)
                     .font(.heading(.headline))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.white)
                     .frame(width: 52, height: 52)
-                    .background(Theme.surface, in: .circle)
+                    .background(Circle().fill(Theme.ink).shadow(color: Theme.shadow, radius: 8, y: 4))
                     .overlay(alignment: .topTrailing) {
                         Circle().fill(app.hasGemini ? Theme.mint : Theme.saffron)
                             .frame(width: 12, height: 12)
                             .overlay(Circle().strokeBorder(Theme.surface, lineWidth: 2))
                     }
-                    .shadow(color: Theme.shadow, radius: 12, y: 6)
             }
             .buttonStyle(.pressable)
         }
         .padding(.top, 12)
     }
 
-    // MARK: Search
-
-    /// Ask anything (opens the agent), or point the camera at a price.
-    private var searchBar: some View {
-        HStack(spacing: 10) {
-            Button { tab = .agent } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "sparkle.magnifyingglass")
-                        .foregroundStyle(Theme.saffron)
-                    Text(L("Ask Candor anything…"))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
-                }
-                .font(.candor(.body))
-                .padding(.horizontal, 18)
-                .frame(height: 56)
-                .background(Theme.surface, in: .capsule)
-                .shadow(color: Theme.shadow, radius: 12, y: 6)
-            }
-            .buttonStyle(.pressable)
-
-            Button { openCheck(.scan) } label: {
-                CircleIcon(systemName: "camera.viewfinder", size: 56, filled: true)
-            }
-            .buttonStyle(.pressable)
-            .accessibilityLabel(L("Scan a price"))
-        }
-    }
-
     // MARK: Hero: the city and today's plan
 
-    private var city: City { app.trip?.cityStay(on: .now)?.city ?? .delhi }
-
-    private var heroTitle: String {
-        guard let trip = app.trip, !trip.days.isEmpty else { return L("Plan your days in %@", L(city.name)) }
-        return trip.days[trip.todayIndex].displayTitle
-    }
-
-    private var heroSubtitle: String {
-        guard let trip = app.trip, !trip.days.isEmpty else { return L("Places, travel times and fair fares between them.") }
-        return tripCityLine(trip, index: trip.todayIndex)
-    }
-
-    private var heroCard: some View {
+    /// Today as a postcard: the city under today's sky, the day's title over it, and the first
+    /// stops on a glass panel.
+    private func heroCard(_ model: HomeViewModel) -> some View {
         Button { tab = .trip } label: {
-            VStack(spacing: 14) {
-                ZStack(alignment: .topLeading) {
-                    CityScene()
-                        .frame(height: 210)
-                        .clipShape(.rect(cornerRadius: 22, style: .continuous))
-                    Label(L(city.name), systemImage: "mappin.circle.fill")
-                        .font(.candor(.caption1, .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.black.opacity(0.25), in: .capsule)
-                        .padding(12)
+            VStack(alignment: .leading, spacing: 0) {
+                ZStack(alignment: .bottomLeading) {
+                    CityScene(animated: false, landmarks: model.isDelhi)
+                        .frame(height: 230)
+                    LinearGradient(colors: [.clear, .black.opacity(0.45)], startPoint: .center, endPoint: .bottom)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label(L(model.city.name), systemImage: "mappin.circle.fill")
+                            .font(.candor(.caption1, .semibold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color.white.opacity(0.22), in: .capsule)
+                        Text(model.heroTitle)
+                            .font(.heading(.title2))
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(2)
+                        Text(model.heroSubtitle)
+                            .font(.candor(.subheadline))
+                            .opacity(0.9)
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(16)
                 }
-                .overlay(alignment: .bottomTrailing) {
-                    Floating3D(.indiaGate, size: 104, symbol: "building.columns.fill")
-                        .offset(x: -6, y: 26)
+                .overlay(alignment: .topTrailing) {
+                    if model.todayDone {
+                        Label(L("Today done"), systemImage: "checkmark.seal.fill")
+                            .font(.candor(.caption1, .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(Theme.emerald, in: .capsule)
+                            .padding(14)
+                            .transition(.scale.combined(with: .opacity))
+                    } else if model.isDelhi {
+                        Floating3D(.indiaGate, size: 96, float: false, symbol: "building.columns.fill")
+                            .padding(.trailing, 10)
+                            .padding(.top, 14)
+                    }
                 }
 
-                if let trip = app.trip, trip.days.count > 1 {
-                    PageDots(count: min(trip.days.count, 7), index: min(trip.todayIndex, 6), color: Theme.ink)
+                VStack(alignment: .leading, spacing: 12) {
+                    todaySummary(model)
+                    HStack {
+                        Text(model.hasPlan ? L("Open today's plan") : L("Plan my days"))
+                            .font(.candor(.subheadline, .semibold))
+                            .foregroundStyle(Theme.ink)
+                        Spacer()
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 30, height: 30)
+                            .background(Theme.brandFill, in: .circle)
+                    }
                 }
-
-                VStack(spacing: 4) {
-                    Text(heroTitle)
-                        .font(.heading(.title3))
-                        .foregroundStyle(.primary)
-                        .multilineTextAlignment(.center)
-                    Text(heroSubtitle)
-                        .font(.candor(.subheadline))
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.horizontal, 8)
-                .padding(.top, 6)
-
-                interestTags
-
-                todayStops
+                .padding(16)
             }
-            .padding(10)
-            .padding(.bottom, 6)
-            .background(Theme.surface, in: .rect(cornerRadius: 30, style: .continuous))
-            .shadow(color: Theme.shadow, radius: 18, y: 8)
+            .clipShape(.rect(cornerRadius: 30, style: .continuous))
+            // Shadow on a plain shape behind the card, never around the sky and text inside it.
+            .background(RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .fill(Theme.surface)
+                .shadow(color: Theme.shadow, radius: 14, y: 7))
         }
         .buttonStyle(.pressable)
         .accessibilityIdentifier("homePlanTrip")
     }
+
+    private func sectionTitle(_ title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title).font(.heading(.title2))
+            Text(subtitle).font(.candor(.subheadline)).foregroundStyle(.secondary)
+        }
+        .padding(.top, 6)
+    }
+
+
+    /// Every way to travel, with what a typical hop should cost: Metro, bus, e-rickshaw, auto,
+    /// bike taxi, cab. Tapping one asks Candor how to use it.
+    // MARK: Getting around
+
+    private func gettingAround(_ leg: Leg) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "location.fill").foregroundStyle(Theme.teal)
+                Text(L(leg.from)).lineLimit(1)
+                Image(systemName: "arrow.right").font(.caption.bold()).foregroundStyle(.tertiary)
+                Text(L(leg.to)).lineLimit(1).fontWeight(.semibold)
+            }
+            .font(.candor(.subheadline))
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(leg.sortedOptions) { option in
+                        Button { journey = JourneyRequest(leg: leg, mode: option.mode) } label: {
+                            modeCard(option, best: option.mode == leg.best)
+                        }
+                        .buttonStyle(.pressable)
+                        .accessibilityIdentifier("getAround-\(option.mode.rawValue)")
+                    }
+                }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 2)
+            }
+            .scrollClipDisabled()
+        }
+    }
+
+    private func modeCard(_ option: LegOption, best: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                SoftIcon(symbol: option.mode.icon, tint: option.mode.color, size: 42)
+                Spacer()
+                if best {
+                    Text(L("Best"))
+                        .font(.candor(.caption2, .bold))
+                        .foregroundStyle(Theme.mint)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Theme.mint.opacity(0.14), in: .capsule)
+                }
+            }
+            Spacer(minLength: 0)
+            Text(option.mode.title).font(.heading(.headline)).foregroundStyle(.primary)
+            Text(option.fareText)
+                .font(.candor(.title3, .bold).monospacedDigit())
+                .foregroundStyle(option.mode.color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(durationText(option.minutes)).font(.candor(.caption1)).foregroundStyle(.secondary)
+        }
+        .frame(width: 128, height: 158, alignment: .leading)
+        .glossCard(option.mode.color, padding: 14)
+    }
+
 
     private static let interestIcons: [String: String] = [
         "Heritage": "building.columns.fill", "Street food": "fork.knife", "Markets": "bag.fill",
@@ -211,77 +267,60 @@ struct HomeView: View {
                 TagPill(title: L(interest), icon: Self.interestIcons[interest] ?? "star.fill")
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(8)
-        .background(Theme.canvas.opacity(0.6), in: .capsule)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Today's first stops, timed, with how to get there and the fair fare.
+    /// Today at a glance: how many places, travel time and fares, and how much is done.
+    /// The stop-by-stop detail lives on the Trip tab, one tap away.
     @ViewBuilder
-    private var todayStops: some View {
-        if let trip = app.trip, !trip.days.isEmpty {
-            let index = trip.todayIndex
-            let start = location.dayStart(trip: trip, day: index)
-            let plan = TripPlanner.dayPlan(trip.days[index], date: trip.date(ofDay: index), origin: start.coordinate,
-                                           originName: start.name, style: app.persona.travelStyle,
-                                           city: trip.cityStay(ofDay: index)?.city,
-                                           likesWalking: app.persona.hasTaste("Happy to walk"))
-            if !plan.entries.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(Array(plan.entries.prefix(3).enumerated()), id: \.element.id) { number, entry in
-                        tripRow(number: number + 1, entry: entry)
-                    }
-                    if plan.entries.count > 3 {
-                        Text(L("+ %@ more", plan.entries.count - 3))
-                            .font(.candor(.caption1, .semibold))
+    private func todaySummary(_ model: HomeViewModel) -> some View {
+        if model.todayDone {
+            HStack(spacing: 12) {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(Theme.emerald)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L("All %@ places visited. Lovely day!", model.todayStopCount))
+                        .font(.candor(.subheadline, .semibold))
+                    if let next = model.nextDayLine {
+                        Text(next)
+                            .font(.candor(.caption1))
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                 }
-                .padding(.horizontal, 10)
+                Spacer(minLength: 0)
+            }
+        } else if let plan = model.todayPlan, !plan.entries.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    summaryStat("mappin.and.ellipse", L("%@ places", plan.entries.count))
+                    summaryStat("clock.fill", durationText(plan.travelMinutes))
+                    summaryStat("indianrupeesign", plan.fareText)
+                }
+                if model.todayVisited > 0 {
+                    HStack(spacing: 8) {
+                        ProgressView(value: Double(model.todayVisited), total: Double(max(model.todayStopCount, 1)))
+                            .tint(Theme.emerald)
+                        Text(L("%1$@ of %2$@ visited", model.todayVisited, model.todayStopCount))
+                            .font(.candor(.caption1, .semibold).monospacedDigit())
+                            .foregroundStyle(Theme.emerald)
+                    }
+                }
             }
         }
     }
 
-    /// "Delhi · Day 2 of 3"
-    private func tripCityLine(_ trip: Trip, index: Int) -> String {
-        let day = L("Day %1$@ of %2$@", index + 1, trip.days.count)
-        guard let city = trip.cityStay(ofDay: index)?.city else { return day }
-        return L(city.name) + " · " + day
-    }
-
-    private func tripRow(number: Int, entry: DayPlan.Entry) -> some View {
-        let option = entry.leg.bestOption
-        let visited = entry.stop.isVisited
-        return HStack(spacing: 12) {
-            Group {
-                if visited {
-                    Image(systemName: "checkmark").font(.candor(.subheadline, .bold))
-                } else {
-                    Text("\(number)").font(.candor(.subheadline, .bold))
-                }
-            }
-            .foregroundStyle(.white)
-            .frame(width: 30, height: 30)
-            .background(visited ? Theme.mint : Theme.ink, in: .circle)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L(entry.stop.name))
-                    .font(.candor(.subheadline, .semibold))
-                    .foregroundStyle(visited ? .secondary : .primary)
-                    .strikethrough(visited, color: .secondary)
-                    .lineLimit(1)
-                HStack(spacing: 4) {
-                    Image(systemName: option.mode.icon).foregroundStyle(option.mode.color)
-                    Text("\(option.mode.title) · \(durationText(option.minutes)) · \(option.fareText)")
-                }
-                .font(.candor(.caption1))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-            Text(timeText(entry.arrival))
-                .font(.candor(.caption1, .semibold).monospacedDigit())
-                .foregroundStyle(.secondary)
+    private func summaryStat(_ icon: String, _ text: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon).font(.system(size: 11, weight: .bold))
+            Text(text).lineLimit(1)
         }
+        .font(.candor(.caption1, .semibold).monospacedDigit())
+        .foregroundStyle(Theme.ink)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Theme.accentSoft, in: .capsule)
     }
 
     // MARK: Fair-price check
@@ -294,38 +333,37 @@ struct HomeView: View {
                     Text(L("What are you being asked to pay?"))
                         .font(.heading(.title2))
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(L("Candor tells you the fair price, how far over the ask is, and what to say."))
+                    Text(L("Snap the menu or tell us the fare. Candor shows what locals pay, how far over the ask is, and the polite words to bargain."))
                         .font(.candor(.subheadline))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
-                Floating3D(.camera, size: 76, symbol: "camera.viewfinder")
+                PriceTagArt(size: 84)
             }
 
             HStack(spacing: 10) {
                 Button { openCheck(.scan) } label: {
                     Label(L("Scan a price"), systemImage: "camera.viewfinder")
                 }
-                .buttonStyle(PillButtonStyle(kind: .filled, height: 50))
+                .buttonStyle(PillButtonStyle(kind: .amber, height: 48))
 
                 Button { openCheck(.ride) } label: {
                     Label(L("Check a ride"), systemImage: "car.fill")
                 }
-                .buttonStyle(PillButtonStyle(kind: .outline, height: 50))
+                .buttonStyle(PillButtonStyle(kind: .cream, height: 48))
             }
 
             Button { ask(demoPrompt) } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "text.bubble.fill")
-                        .foregroundStyle(Theme.saffron)
+                        .foregroundStyle(Theme.mint)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(L("Try an example"))
                             .font(.candor(.caption1, .bold))
                             .foregroundStyle(.secondary)
                         Text(L(demoPrompt))
                             .font(.candor(.subheadline, .medium))
-                            .foregroundStyle(.primary)
                             .multilineTextAlignment(.leading)
                     }
                     Spacer(minLength: 0)
@@ -333,8 +371,9 @@ struct HomeView: View {
                         .font(.candor(.caption1, .bold))
                         .foregroundStyle(.secondary)
                 }
+                .foregroundStyle(.primary)
                 .padding(14)
-                .background(Theme.accentSoft, in: .rect(cornerRadius: 18, style: .continuous))
+                .background(Color.white.opacity(0.5), in: .rect(cornerRadius: 18, style: .continuous))
             }
             .buttonStyle(.pressable)
             .accessibilityIdentifier("homeExample")
@@ -345,7 +384,7 @@ struct HomeView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .card(padding: 20)
+        .velvetCard(.saffron, radius: 30, padding: 20)
     }
 
     // MARK: Tools
@@ -355,15 +394,15 @@ struct HomeView: View {
         let title: String
         let art: Art3D
         let symbol: String
-        let tint: Color
+        let colors: [Color]
         var id: String { title }
     }
 
     private var tools: [ToolTile] {
         [
-            ToolTile(route: .interpreter, title: L("Interpreter"), art: .translator, symbol: "character.bubble.fill", tint: Theme.indigo),
-            ToolTile(route: .ride, title: L("Check a ride"), art: .train, symbol: "car.fill", tint: Theme.teal),
-            ToolTile(route: .scams, title: L("Scam radar"), art: .pin, symbol: "shield.lefthalf.filled", tint: Theme.rose)
+            ToolTile(route: .interpreter, title: L("Interpreter"), art: .translator, symbol: "character.bubble.fill", colors: CardPalette.words),
+            ToolTile(route: .ride, title: L("Check a ride"), art: .train, symbol: "car.fill", colors: CardPalette.transit),
+            ToolTile(route: .scams, title: L("Scam radar"), art: .pin, symbol: "shield.lefthalf.filled", colors: CardPalette.safety)
         ]
     }
 
@@ -372,7 +411,7 @@ struct HomeView: View {
             ForEach(tools) { tool in
                 Button { openCheck(tool.route) } label: {
                     VStack(spacing: 8) {
-                        Floating3D(tool.art, size: 58, float: false, symbol: tool.symbol, tint: tool.tint)
+                        Floating3D(tool.art, size: 58, float: false, symbol: tool.symbol, tint: tool.colors[0])
                         Text(tool.title)
                             .font(.candor(.footnote, .semibold))
                             .foregroundStyle(.primary)
@@ -381,8 +420,7 @@ struct HomeView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Theme.surface, in: .rect(cornerRadius: 22, style: .continuous))
-                    .shadow(color: Theme.shadow, radius: 12, y: 6)
+                    .glossCard(tool.colors[0], radius: 22)
                 }
                 .buttonStyle(.pressable)
             }
@@ -396,24 +434,40 @@ struct HomeView: View {
         let scams = DelhiData.scams
         let day = Calendar.current.ordinality(of: .day, in: .year, for: .now) ?? 0
         let scam = scams[day % scams.count]
+        // An awareness note, not a highlight: calm cream card, a soft coral shield, plain words.
         return Button { openCheck(.scams) } label: {
-            HStack(spacing: 12) {
-                Image(systemName: scam.icon)
-                    .font(.candor(.body))
-                    .foregroundStyle(.white)
-                    .frame(width: 42, height: 42)
-                    .background(Theme.rose, in: .circle)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L("SCAM OF THE DAY")).font(.candor(.caption2, .bold)).foregroundStyle(Theme.rose)
+            HStack(spacing: 14) {
+                AwarenessBadge(size: 48)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L("Good to know today"))
+                        .font(.candor(.caption1, .semibold))
+                        .foregroundStyle(Color(hex: 0xC2512E))
                     Text(L(scam.title))
                         .font(.heading(.headline))
                         .foregroundStyle(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    Text(L("How the trick works and what to say"))
+                        .font(.candor(.caption1))
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                Image(systemName: "chevron.right")
+                    .font(.candor(.footnote, .semibold))
+                    .foregroundStyle(.tertiary)
             }
-            .card(padding: 14)
+            .padding(16)
+            .background(Theme.surface, in: .rect(cornerRadius: 24, style: .continuous))
+            .overlay(alignment: .leading) {
+                UnevenRoundedRectangle(topLeadingRadius: 24, bottomLeadingRadius: 24)
+                    .fill(Color(hex: 0xE07A55))
+                    .frame(width: 5)
+            }
+            .clipShape(.rect(cornerRadius: 24, style: .continuous))
+            .background(RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Theme.surface)
+                .shadow(color: Color(hex: 0x5A4A3A).opacity(0.08), radius: 12, y: 6))
         }
         .buttonStyle(.pressable)
     }
@@ -446,4 +500,11 @@ struct RecordRow: View {
         }
         .card(cornerRadius: 16, padding: 12)
     }
+}
+
+/// Opens the journey screen for one way of getting somewhere.
+struct JourneyRequest: Identifiable {
+    let id = UUID()
+    let leg: Leg
+    let mode: TravelMode
 }

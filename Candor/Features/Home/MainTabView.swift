@@ -32,10 +32,17 @@ struct MainTabView: View {
             }
         }
         .tint(Theme.accent)
-        .tabBarMinimizeBehavior(.onScrollDown)
+        // No shrinking tab bar on scroll: it changed the page's bottom inset the moment you
+        // started scrolling, which re-laid out all of Home and froze the first swipe.
         // Always one tap from home, or from telling Candor where home is.
         .tabViewBottomAccessory {
             HomeAccessory()
+        }
+        .alert(L("You're new to the city"), isPresented: $router.showPrompt) {
+            Button(L("Add my stay")) { router.showSetup = true }
+            Button(L("Not now"), role: .cancel) {}
+        } message: {
+            Text(L("Tell Candor where you're staying and it can always show you the way back."))
         }
         .sheet(isPresented: $router.showSetup) {
             StaySetupSheet()

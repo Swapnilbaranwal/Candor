@@ -73,6 +73,9 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        // Only tell the app when the traveller has really moved. Every GPS tick used to redraw
+        // Home, Trip and the tab bar's way-home line about once a second.
+        manager.distanceFilter = 60
         status = manager.authorizationStatus
     }
 
@@ -125,6 +128,7 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let latest = locations.last else { return }
         Task { @MainActor in
+            if let current = self.location, current.distance(from: latest) < 40 { return }
             self.location = latest
         }
     }

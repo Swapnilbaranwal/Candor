@@ -18,8 +18,17 @@ struct GoogleTripMap: UIViewRepresentable {
         }
     }
 
+    /// A hop on real roads, in its travel mode's colour.
+    struct Line: Equatable {
+        let latitudes: [Double]
+        let longitudes: [Double]
+        let color: UIColor
+    }
+
     /// The start first, then the stops in visiting order.
     let pins: [Pin]
+    /// Real routes between them. Empty until they load: then a dashed straight line stands in.
+    var lines: [Line] = []
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -41,8 +50,9 @@ struct GoogleTripMap: UIViewRepresentable {
     }
 
     func updateUIView(_ map: GMSMapView, context: Context) {
-        guard context.coordinator.pins != pins else { return }
+        guard context.coordinator.pins != pins || context.coordinator.lines != lines else { return }
         context.coordinator.pins = pins
+        context.coordinator.lines = lines
         render(on: map)
     }
 
@@ -53,13 +63,31 @@ struct GoogleTripMap: UIViewRepresentable {
         let path = GMSMutablePath()
         pins.forEach { path.add($0.coordinate) }
 
-        let line = GMSPolyline(path: path)
-        line.strokeWidth = 3
-        line.spans = GMSStyleSpans(path,
-                                   [GMSStrokeStyle.solidColor(UIColor(Theme.accent)), GMSStrokeStyle.solidColor(.clear)],
-                                   [180, 120],
-                                   .rhumb)
-        line.map = map
+        if lines.isEmpty {
+            let line = GMSPolyline(path: path)
+            line.strokeWidth = 3
+            line.spans = GMSStyleSpans(path,
+                                       [GMSStrokeStyle.solidColor(UIColor(Theme.accent)), GMSStrokeStyle.solidColor(.clear)],
+                                       [180, 120],
+                                       .rhumb)
+            line.map = map
+        } else {
+            for route in lines {
+                let routePath = GMSMutablePath()
+                for (lat, lng) in zip(route.latitudes, route.longitudes) {
+                    routePath.add(CLLocationCoordinate2D(latitude: lat, longitude: lng))
+                    path.add(CLLocationCoordinate2D(latitude: lat, longitude: lng))
+                }
+                let casing = GMSPolyline(path: routePath)
+                casing.strokeWidth = 7
+                casing.strokeColor = .white
+                casing.map = map
+                let line = GMSPolyline(path: routePath)
+                line.strokeWidth = 4
+                line.strokeColor = route.color
+                line.map = map
+            }
+        }
 
         for pin in pins {
             let marker = GMSMarker(position: pin.coordinate)
@@ -111,6 +139,7 @@ struct GoogleTripMap: UIViewRepresentable {
 
     final class Coordinator {
         var pins: [Pin] = []
+        var lines: [Line] = []
     }
 }
 
@@ -122,5 +151,6 @@ enum GoogleMapsSetup {
         let key = GooglePlaces.apiKey
         guard !key.isEmpty, !isReady else { return }
         isReady = GMSServices.provideAPIKey(key)
+        Google3DSetup.start(key: key)
     }
 }

@@ -22,6 +22,7 @@ enum TripPlanner {
         for stop in day.stops {
             let leg = leg(from: from, fromName: fromName, fromAirport: fromAirport, to: stop, at: cursor,
                           style: style, city: city, likesWalking: likesWalking)
+                .choosing(stop.travelMode)
             let arrival = cursor.addingTimeInterval(Double(leg.bestOption.minutes) * 60)
             let departure = arrival.addingTimeInterval(Double(stop.stayMinutes) * 60)
             entries.append(DayPlan.Entry(stop: stop, leg: leg, arrival: arrival, departure: departure))
@@ -62,9 +63,38 @@ enum TripPlanner {
                 tips: []))
         }
 
-        if road >= 3, city?.pack?.hasMetro == true,
+        if road >= 2.5, city?.pack?.hasMetro == true,
            let metro = metroOption(from: origin, to: stop, place: place, night: night) {
             options.append(metro)
+        }
+
+        // City buses run nearly everywhere; Google adds the actual route numbers in the leg sheet.
+        if road >= 1.5 && road <= 40 && !night {
+            options.append(busOption(road: road, place: place, verified: verifiedFares))
+        }
+
+        // Shared e-rickshaws cover the last mile: short hops, a few rupees a seat.
+        if straight >= 0.5 && straight <= 3 && !airport {
+            options.append(LegOption(
+                mode: .eRickshaw,
+                minutes: Int((road / 12 * 60 + 4).rounded(.up)),
+                fareLow: 10, fareHigh: 30,
+                summary: L("Shared e-rickshaw, about %@ km", oneDecimal(road)),
+                steps: [L("Hop on a shared e-rickshaw heading towards %@", place),
+                        L("Pay the driver when you get off")],
+                tips: [L("The fare is per seat when shared. Agree on it before you sit.")]))
+        }
+
+        // Bike taxis (Rapido, Uber Moto, Ola Bike): quickest through traffic for one person.
+        if road >= 1 && road <= 20 && !airport {
+            options.append(LegOption(
+                mode: .bikeTaxi,
+                minutes: Int((road / 24 * 60 + 5).rounded(.up)),
+                fareLow: (20 + 6 * road).rounded(), fareHigh: (30 + 9 * road).rounded(),
+                summary: L("Bike taxi, about %@ km", oneDecimal(road)),
+                steps: [L("Book a bike taxi in Rapido, Uber or Ola to %@", place),
+                        L("Wear the helmet the rider hands you")],
+                tips: [L("Best for one person with a small bag. The app shows the fare before you book.")]))
         }
 
         if road <= 25 && !airport {
@@ -93,8 +123,24 @@ enum TripPlanner {
                     L("Check the fare before you confirm")],
             tips: cabTips))
 
+        // Candor's own private car: a verified driver at a fixed, fair price, booked by phone.
+        if road >= 2 {
+            let fixed = (max(cabLow, cabHigh) * 1.1 / 10).rounded(.up) * 10
+            options.append(LegOption(
+                mode: .privateCar,
+                minutes: Int((road / 22 * 60 + 10).rounded(.up)),
+                fareLow: fixed, fareHigh: fixed,
+                summary: L("Verified driver, fixed fare, door to door"),
+                steps: [L("Call or WhatsApp Candor Cars to book"),
+                        L("Your driver's name and car number arrive by message"),
+                        L("Pay the fixed fare at the end. No meter, no haggling.")],
+                tips: [L("Book at least 30 minutes ahead. AC car for up to 4 people.")]))
+        }
+
         return Leg(from: fromName, to: stop.name, km: road, options: options,
-                   best: best(options, straight: max(straight - walkBonus, 0), road: road, style: style))
+                   best: best(options, straight: max(straight - walkBonus, 0), road: road, style: style),
+                   fromLatitude: origin.latitude, fromLongitude: origin.longitude,
+                   toLatitude: stop.latitude, toLongitude: stop.longitude)
     }
 
     private static func best(_ options: [LegOption], straight: Double, road: Double, style: TravelStyle) -> TravelMode {
@@ -102,10 +148,13 @@ enum TripPlanner {
         func minutes(_ mode: TravelMode) -> Int? { options.first { $0.mode == mode }?.minutes }
         switch style {
         case .luxury:
-            return has(.walk) && straight <= 0.8 ? .walk : .cab
+            if has(.walk) && straight <= 0.8 { return .walk }
+            return has(.privateCar) ? .privateCar : .cab
         case .budget:
             if has(.walk) && straight <= 1.5 { return .walk }
+            if has(.eRickshaw) && straight <= 2 { return .eRickshaw }
             if has(.metro) { return .metro }
+            if has(.bus) { return .bus }
             if has(.auto) { return .auto }
             return .cab
         case .comfort:
@@ -116,13 +165,36 @@ enum TripPlanner {
         }
     }
 
+    /// A city bus: walk to the stop, ride, walk on. Delhi's DTC and cluster fares by distance
+    /// (non-AC low, AC high); elsewhere the same range is an estimate.
+    private static func busOption(road: Double, place: String, verified: Bool) -> LegOption {
+        let low: Double = road <= 4 ? 5 : (road <= 10 ? 10 : 15)
+        let high: Double = road <= 4 ? 10 : (road <= 10 ? 15 : (road <= 15 ? 20 : 25))
+        var tips: [String]
+        if verified {
+            tips = [L("Pay the conductor in cash or UPI, or tap a One Delhi or NCMC card."),
+                    L("Women ride DTC and cluster buses free with a pink ticket.")]
+        } else {
+            tips = [L("Pay the conductor in cash or UPI."), L("Estimate: bus fares differ by city.")]
+        }
+        return LegOption(
+            mode: .bus,
+            minutes: Int((road / 15 * 60 + 18).rounded(.up)),
+            fareLow: low, fareHigh: high,
+            summary: L("City bus, about %@ km", oneDecimal(road)),
+            steps: [L("Walk to the nearest bus stop"),
+                    L("Take a bus towards %@ (see live routes below)", place),
+                    L("Get off at the stop nearest %@ and walk", place)],
+            tips: tips)
+    }
+
     /// Metro when both ends are within 2.5 km of a station: walk or a short auto to the station,
     /// the ride with its changes, then walk or auto to the place.
     private static func metroOption(from origin: CLLocationCoordinate2D, to stop: TripStop,
                                     place: String, night: Bool) -> LegOption? {
         let start = DelhiMetro.nearestStation(to: origin)
         let end = DelhiMetro.nearestStation(to: stop.coordinate)
-        guard start.km <= 2.5, end.km <= 2.5,
+        guard start.km <= 3.5, end.km <= 3.5,
               let route = DelhiMetro.route(from: start.station, to: end.station) else { return nil }
 
         var minutes = route.minutes
@@ -254,14 +326,19 @@ enum TripPlanner {
     /// weather, tips) into `Trip.insights`. Falls back to `suggest` per city.
     /// `progress` gets a short, readable line for each step, for the planning screen.
     static func suggestWithGemini(app: AppState, trip: Trip,
-                                  progress: @escaping (String) -> Void = { _ in }) async -> Trip {
+                                  progress: @escaping (String) -> Void = { _ in },
+                                  milestone: @escaping (Double) -> Void = { _ in }) async -> Trip {
         let persona = app.persona
         let client = GeminiClient(apiKey: app.geminiKey, model: app.geminiModel)
         var planned = trip
         planned.source = .candor
         var days: [TripDay] = []
         var insights: [TripInsight] = []
-        for group in dayGroups(trip) {
+        // Real progress through the planning, 0 to 1: each city's days, then its finds.
+        let groups = dayGroups(trip)
+        let cityCount = Double(max(groups.filter { $0.cityStay != nil }.count, 1))
+        var citiesDone = 0.0
+        for group in groups {
             guard let cityStay = group.cityStay else {
                 days += group.dates.map { _ in TripDay() }
                 continue
@@ -277,22 +354,62 @@ enum TripPlanner {
                                                    pack: pack, dates: group.dates)
             } else {
                 progress(L("Finding each place on Google Maps"))
-                fromGemini = try? await geminiOpenDays(client: client, persona: persona, trip: trip,
-                                                       cityStay: cityStay, dates: group.dates)
+                var open = try? await geminiOpenDays(client: client, persona: persona, trip: trip,
+                                                     cityStay: cityStay, dates: group.dates)
+                // A busy model or a slow search can leave the days empty on the first try:
+                // ask once more before falling back, so the traveller never gets blank days.
+                if open?.contains(where: { !$0.stops.isEmpty }) != true {
+                    open = try? await geminiOpenDays(client: client, persona: persona, trip: trip,
+                                                     cityStay: cityStay, dates: group.dates)
+                }
+                fromGemini = open
             }
             if let fromGemini, fromGemini.contains(where: { !$0.stops.isEmpty }) {
                 days += fromGemini
             } else if let pack = cityStay.city.pack {
                 days += suggestDays(persona: persona, pack: pack, dates: group.dates, from: cityStay.dayStart.coordinate)
             } else {
-                days += group.dates.map { _ in TripDay() }
+                // No Gemini answer at all: build the days from Google Maps' top sights for this city.
+                days += await placesDays(persona: persona, cityStay: cityStay, dates: group.dates)
             }
+            milestone((citiesDone + 0.66) / cityCount)
             progress(L("Collecting food, markets and events in %@", name))
             insights += await found
+            citiesDone += 1
+            milestone(citiesDone / cityCount)
         }
         planned.days = days
         planned.insights = insights
         return planned
+    }
+
+    /// Days for a city without Candor's own guide, from Google Maps' best-known sights there,
+    /// grouped by distance. Used when Gemini can't plan the city.
+    private static func placesDays(persona: Persona, cityStay: CityStay, dates: [Date]) async -> [TripDay] {
+        let city = cityStay.city
+        var queries = ["top tourist attractions in \(city.name)"]
+        queries += persona.interests.prefix(2).map { "best \($0.lowercased()) in \(city.name)" }
+        var seen = Set<String>()
+        var places: [GooglePlace] = []
+        for query in queries {
+            let found = (try? await GooglePlaces.search(query, in: city, reachKm: 30)) ?? []
+            for place in found where seen.insert(place.id).inserted { places.append(place) }
+        }
+        guard !places.isEmpty else { return dates.map { _ in TripDay() } }
+        var remaining = places
+        var from = cityStay.dayStart.coordinate
+        return dates.map { _ in
+            var stops: [TripStop] = []
+            while stops.count < 3, let next = remaining.min(by: {
+                DelhiMetro.km(from, $0.coordinate) < DelhiMetro.km(from, $1.coordinate)
+            }) {
+                remaining.removeAll { $0.id == next.id }
+                stops.append(TripStop(name: next.name, coordinate: next.coordinate))
+                from = next.coordinate
+            }
+            from = cityStay.dayStart.coordinate
+            return TripDay(stops: stops)
+        }
     }
 
     /// Events, food, markets, weather and tips for one city on the trip's dates, from the web.

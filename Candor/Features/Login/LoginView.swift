@@ -50,7 +50,6 @@ struct LoginView: View {
             Spacer(minLength: 12)
             landingButtons
         }
-        .ignoresSafeArea(edges: .top)
         .background(AppBackground())
         .sheet(isPresented: $showSignIn) { signInSheet }
         .onAppear {
@@ -60,33 +59,23 @@ struct LoginView: View {
 
     // MARK: Landing
 
-    /// An illustrated Delhi under today's sky with the wordmark, and India Gate in 3D in front.
+    /// The same picture as sign-in: Delhi under today's sky with what Candor does floating over
+    /// it (a fair price, a translation, the way back home, the Lens), and the wordmark above.
     private var hero: some View {
-        ZStack {
-            CityScene()
+        VStack(spacing: 18) {
             Text("Candor")
-                .font(.display(size: 48, .bold))
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
-                .offset(y: -30)
-                .scaleEffect(appeared ? 1 : 0.85)
+                .font(.display(size: 30, .semibold))
+                .foregroundStyle(Theme.ink)
+                .padding(.top, 12)
+            ProductArt()
+                .scaleEffect(appeared ? 1 : 0.92)
                 .opacity(appeared ? 1 : 0)
         }
-        .containerRelativeFrame(.vertical) { length, _ in length * 0.54 }
-        .clipShape(ArcBottomShape(depth: 30))
-        .overlay(alignment: .bottomTrailing) {
-            Floating3D(.indiaGate, size: 110, symbol: "building.columns.fill")
-                .padding(.trailing, 18)
-                .offset(y: 40)
-                .opacity(appeared ? 1 : 0)
-        }
+        .padding(.top, 8)
     }
 
     private var landingText: some View {
         VStack(spacing: 12) {
-            Image(systemName: DayPeriod.now().symbol)
-                .font(.system(size: 30, weight: .light))
-                .symbolEffect(.breathe, options: .repeating)
             Text(L("Discover India like a local"))
                 .font(.display(size: 34))
                 .multilineTextAlignment(.center)

@@ -41,17 +41,22 @@ extension AppState {
 final class WayHomeRouter {
     var showSetup = false
     var showWayHome = false
+    /// The small "You're new to the city" popup. Its "Add my stay" opens `showSetup`.
+    var showPrompt = false
     @ObservationIgnored private var lastAsked: Date?
 
     func askIfNeeded(_ app: AppState) {
-        guard app.phase == .main, app.home == nil, !showSetup, !showWayHome else { return }
+        guard app.phase == .main, app.home == nil, !showSetup, !showWayHome, !showPrompt else { return }
+        // Not straight after onboarding: the traveller has just skipped the hotel there.
+        if let onboarded = UserDefaults.standard.object(forKey: "candor.onboardedAt") as? Date,
+           Date.now.timeIntervalSince(onboarded) < 15 * 60 { return }
         // UI tests drive the screens themselves; a sheet popping up would cover them.
         guard !UserDefaults.standard.bool(forKey: "candor.uiTesting") else { return }
         if let lastAsked, Date.now.timeIntervalSince(lastAsked) < 600 { return }
         lastAsked = .now
         Task {
-            try? await Task.sleep(for: .seconds(1.2))
-            if app.home == nil { showSetup = true }
+            try? await Task.sleep(for: .seconds(2.5))
+            if app.home == nil { showPrompt = true }
         }
     }
 }
@@ -73,11 +78,16 @@ extension LocationService {
         if let current = location?.coordinate, DelhiMetro.km(current, stay.coordinate) < 80 {
             here = current
             name = L("Your location")
+        } else if let city = app.trip?.cities.map(\.city).first(where: { DelhiMetro.km($0.coordinate, stay.coordinate) < 80 })
+                    ?? [City.delhi].first(where: { DelhiMetro.km($0.coordinate, stay.coordinate) < 80 }) {
+            // Not in that city yet (or no GPS): time it from the city centre, never from another city.
+            here = city.coordinate
+            name = L("%@ centre", L(city.name))
         } else {
             here = origin
             name = originName
         }
-        let leg = TripPlanner.leg(from: here, fromName: name,
+        let leg = PlanCache.shared.leg(from: here, fromName: name,
                                   to: TripStop(name: stay.name, coordinate: stay.coordinate),
                                   at: .now, style: app.persona.travelStyle,
                                   city: app.currentCityStay?.city ?? .delhi,
@@ -129,14 +139,15 @@ struct StayPromptCard: View {
             .buttonStyle(.pill)
             .accessibilityIdentifier("addStay")
         }
-        .card(padding: 18)
+        .velvetCard(.pearl, padding: 18)
         .overlay {
             // A soft pulse around the card: the question stays until it's answered.
             RoundedRectangle(cornerRadius: Theme.Radius.large, style: .continuous)
                 .strokeBorder(Theme.saffron.opacity(glow ? 0.65 : 0.12), lineWidth: 2)
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) { glow = true }
+            // A one-time glow that settles, instead of pulsing forever while you scroll.
+            withAnimation(.easeInOut(duration: 0.8).repeatCount(3, autoreverses: true)) { glow = true }
         }
     }
 }
@@ -154,8 +165,10 @@ struct WayHomeCard: View {
             router.showWayHome = true
         } label: {
             HStack(spacing: 14) {
-                Floating3D(art: .homePin, size: 84) { HomeNestArt() }
-                VStack(alignment: .leading, spacing: 5) {
+                // Drawn art in the card's own colours: a lit house at the end of a dotted path.
+                HomeNestArt(animated: false)
+                    .frame(width: 72, height: 72)
+                VStack(alignment: .leading, spacing: 4) {
                     Text(L("Way back home"))
                         .font(.heading(.title3))
                         .foregroundStyle(.primary)
@@ -166,21 +179,28 @@ struct WayHomeCard: View {
                     if way.isHome {
                         Text(L("You're home. Rest well!"))
                             .font(.candor(.caption1, .semibold))
-                            .foregroundStyle(Theme.mint)
+                            .foregroundStyle(Theme.emerald)
                     } else {
                         HStack(spacing: 6) {
-                            Image(systemName: best.mode.icon).foregroundStyle(best.mode.color)
+                            Image(systemName: best.mode.icon)
                             Text("\(best.mode.title) · \(durationText(best.minutes)) · \(best.fareText)")
                         }
                         .font(.candor(.caption1, .semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.emerald)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                     }
                 }
                 Spacer(minLength: 0)
-                CircleIcon(systemName: "arrow.up.right", size: 44, filled: true)
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(LinearGradient(colors: [Color(hex: 0x1F7A5C), Theme.emerald],
+                                               startPoint: .top, endPoint: .bottom), in: .circle)
+                    .shadow(color: Theme.emerald.opacity(0.3), radius: 8, y: 4)
             }
-            .card(padding: 16)
+            .glossCard(Theme.emerald, padding: 16)
         }
         .buttonStyle(.pressable)
         .accessibilityIdentifier("wayHome")
@@ -684,8 +704,8 @@ struct WayHomeView: View {
         item.name = stay.name
         let directions: String = switch mode {
         case .walk: MKLaunchOptionsDirectionsModeWalking
-        case .metro: MKLaunchOptionsDirectionsModeTransit
-        case .auto, .cab: MKLaunchOptionsDirectionsModeDriving
+        case .metro, .bus: MKLaunchOptionsDirectionsModeTransit
+        case .auto, .cab, .bikeTaxi, .eRickshaw, .privateCar: MKLaunchOptionsDirectionsModeDriving
         }
         item.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: directions])
     }

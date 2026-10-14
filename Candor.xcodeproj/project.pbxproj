@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		18FD520E307F396100EB0DF2 /* GoogleMaps3D in Frameworks */ = {isa = PBXBuildFile; productRef = 18FD520D307F396100EB0DF2 /* GoogleMaps3D */; };
 		CA0D0F00000000000000F101 /* GoogleMaps in Frameworks */ = {isa = PBXBuildFile; productRef = CA0D0F00000000000000F103 /* GoogleMaps */; };
 /* End PBXBuildFile section */
 
@@ -52,6 +53,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				CA0D0F00000000000000F101 /* GoogleMaps in Frameworks */,
+				18FD520E307F396100EB0DF2 /* GoogleMaps3D in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -121,6 +123,7 @@
 			name = Candor;
 			packageProductDependencies = (
 				CA0D0F00000000000000F103 /* GoogleMaps */,
+				18FD520D307F396100EB0DF2 /* GoogleMaps3D */,
 			);
 			productName = Candor;
 			productReference = CA0D0F0000000000000000A1 /* Candor.app */;
@@ -156,6 +159,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				CA0D0F00000000000000F102 /* XCRemoteSwiftPackageReference "ios-maps-sdk" */,
+				18FD520C307F396100EB0DF2 /* XCRemoteSwiftPackageReference "ios-maps-3d-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CA0D0F0000000000000000C2 /* Products */;
@@ -475,6 +479,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		18FD520C307F396100EB0DF2 /* XCRemoteSwiftPackageReference "ios-maps-3d-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googlemaps/ios-maps-3d-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
 		CA0D0F00000000000000F102 /* XCRemoteSwiftPackageReference "ios-maps-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/googlemaps/ios-maps-sdk";
@@ -486,6 +498,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		18FD520D307F396100EB0DF2 /* GoogleMaps3D */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 18FD520C307F396100EB0DF2 /* XCRemoteSwiftPackageReference "ios-maps-3d-sdk" */;
+			productName = GoogleMaps3D;
+		};
 		CA0D0F00000000000000F103 /* GoogleMaps */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = CA0D0F00000000000000F102 /* XCRemoteSwiftPackageReference "ios-maps-sdk" */;

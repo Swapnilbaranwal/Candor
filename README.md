@@ -93,3 +93,22 @@ backend/
 - Fares follow the Delhi Transport Dept. 2022 revision: auto ₹30 for the first 1.5 km then ₹11/km; taxi ₹40 for the first km then ₹17/km (AC ₹20/km); +25% at night. **Verify these against the current notification.**
 - Street-food and market ranges are indicative prototype values, and each one is labelled with its source in the app.
 - Exchange rates use the ECB reference rate via frankfurter.app, with indicative fallback rates when offline.
+
+
+## Maps, routes and 3D
+
+- **Real routes and live Metro/bus:** enable the **Routes API** on the same Google key used for
+  Places and the Maps SDK. Candor then draws each hop on real roads, and the "Getting there"
+  sheet shows live public transport with Metro lines, bus numbers, stops and fares. Without it,
+  Apple Maps directions draw the roads and Candor's own Metro, bus, e-rickshaw, auto, bike-taxi
+  and cab estimates still show.
+- **Google 3D map ("Explore in 3D" on a Trip day):** in Xcode choose File > Add Package
+  Dependencies, enter `https://github.com/googlemaps/ios-maps-3d-sdk` and add the
+  `GoogleMaps3D` product to the Candor target, then enable **Maps 3D SDK for iOS** for the key in Google Cloud.
+  Until the package is added, the same screen uses Apple Maps' realistic 3D.
+
+## Travel with a guide
+
+Hourly, day-pass and Candor Plus (monthly) plans. A tour must start at least an hour ahead;
+Candor shortlists verified guides at booking and locks in the best one an hour before the
+start. Prototype: the guides are sample profiles, no payment is taken and nobody is contacted.

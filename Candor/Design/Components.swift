@@ -5,7 +5,8 @@ import SwiftUI
 /// Big capsule button. `.filled` is the screen's main action (ink pill, white text);
 /// `.outline` is the quiet partner next to it.
 struct PillButtonStyle: ButtonStyle {
-    enum Kind { case filled, outline, soft }
+    /// `amber` is the warm call to action for saffron cards, where burgundy would clash.
+    enum Kind { case filled, amber, outline, soft, cream }
     var kind: Kind = .filled
     var height: CGFloat = 56
 
@@ -23,33 +24,69 @@ struct PillButtonStyle: ButtonStyle {
         var body: some View {
             configuration.label
                 .font(.candor(.headline, .semibold))
+                .tracking(0.3)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .foregroundStyle(foreground)
                 .frame(maxWidth: .infinity)
                 .frame(height: height)
-                .background(background, in: .capsule)
+                // The button's shadow sits on its capsule only, not traced around the label.
+                .background(Capsule().fill(background)
+                    .shadow(color: isEnabled ? shadowColor : .clear, radius: kind == .cream ? 6 : 10, y: kind == .cream ? 3 : 6))
                 .overlay {
-                    if kind == .outline {
-                        Capsule().strokeBorder(Color.primary.opacity(0.18), lineWidth: 1.2)
+                    switch kind {
+                    case .filled, .amber:
+                        // Velvet buttons: a soft sheen on the upper half and a fine gold rim.
+                        Capsule()
+                            .fill(LinearGradient(colors: [.white.opacity(0.28), .white.opacity(0)],
+                                                 startPoint: .top, endPoint: .center))
+                            .padding(1.5)
+                            .allowsHitTesting(false)
+                        Capsule().strokeBorder(LinearGradient(colors: [Theme.gold.opacity(0.9), Theme.gold.opacity(0.25)],
+                                                              startPoint: .top, endPoint: .bottom),
+                                               lineWidth: 1)
+                    case .cream:
+                        Capsule().strokeBorder(Theme.gold.opacity(0.55), lineWidth: 1)
+                    case .outline:
+                        Capsule().strokeBorder(Theme.ink.opacity(0.35), lineWidth: 1.2)
+                    case .soft:
+                        EmptyView()
                     }
                 }
                 .contentShape(.capsule)
                 .opacity(isEnabled ? 1 : 0.45)
-                .scaleEffect(configuration.isPressed ? 0.97 : 1)
+                .scaleEffect(configuration.isPressed ? 0.96 : 1)
+                .brightness(configuration.isPressed ? -0.04 : 0)
                 .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
         }
 
         private var foreground: Color {
             switch kind {
-            case .filled: scheme == .dark ? .black : .white
-            case .outline, .soft: .primary
+            case .filled, .amber: .white
+            case .outline: Theme.ink
+            case .soft: .primary
+            case .cream: Color(hex: 0x5C1226)
+            }
+        }
+
+        private var shadowColor: Color { kind == .cream ? Color.black.opacity(0.12) : glow }
+
+        private var glow: Color {
+            switch kind {
+            case .filled: Color(hex: 0x2E0712).opacity(0.35)
+            case .amber: Color(hex: 0x8A3F0E).opacity(0.32)
+            default: .clear
             }
         }
 
         private var background: AnyShapeStyle {
             switch kind {
-            case .filled: AnyShapeStyle(Theme.ink)
+            case .filled: AnyShapeStyle(LinearGradient(colors: [Color(hex: 0x8A2340), Color(hex: 0x5C1226), Color(hex: 0x3E0A18)],
+                                                       startPoint: .top, endPoint: .bottom))
+            case .amber: AnyShapeStyle(LinearGradient(colors: [Color(hex: 0xF2A65A), Color(hex: 0xDB7B2E), Color(hex: 0xB75A1C)],
+                                                      startPoint: .top, endPoint: .bottom))
+            case .cream: AnyShapeStyle(LinearGradient(colors: [Color(hex: 0xFFFDF8), Color(hex: 0xF7ECDD)],
+                                                      startPoint: .top, endPoint: .bottom))
             case .outline: AnyShapeStyle(Theme.surface)
             case .soft: AnyShapeStyle(Theme.accentSoft)
             }
@@ -61,6 +98,8 @@ extension ButtonStyle where Self == PillButtonStyle {
     static var pill: PillButtonStyle { PillButtonStyle() }
     static var pillOutline: PillButtonStyle { PillButtonStyle(kind: .outline) }
     static var pillSoft: PillButtonStyle { PillButtonStyle(kind: .soft, height: 48) }
+    /// An ivory pill for buttons on velvet cards.
+    static var pillCream: PillButtonStyle { PillButtonStyle(kind: .cream, height: 48) }
 }
 
 /// Gives any tappable card a soft press: it sinks a little and springs back.
@@ -90,8 +129,9 @@ struct CircleIcon: View {
             .font(.system(size: size * 0.36, weight: .semibold))
             .foregroundStyle(filled ? Color.white : Color.primary)
             .frame(width: size, height: size)
-            .background(filled ? AnyShapeStyle(Theme.ink) : AnyShapeStyle(Theme.surface), in: .circle)
-            .shadow(color: Theme.shadow, radius: 12, x: 0, y: 6)
+            .background(Circle()
+                .fill(filled ? AnyShapeStyle(Theme.brandFill) : AnyShapeStyle(Theme.surface))
+                .shadow(color: Theme.shadow, radius: 8, x: 0, y: 4))
     }
 }
 
@@ -107,11 +147,11 @@ struct Reveal: ViewModifier {
     func body(content: Content) -> some View {
         content
             .opacity(shown ? 1 : 0)
-            .offset(y: shown || reduceMotion ? 0 : 22)
-            .scaleEffect(shown || reduceMotion ? 1 : 0.98, anchor: .top)
+            .offset(y: shown || reduceMotion ? 0 : 12)
             .onAppear {
                 guard !shown else { return }
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.82).delay(Double(order) * 0.07)) {
+                // Quick and short: the whole screen is in place within about a third of a second.
+                withAnimation(.snappy(duration: 0.3).delay(min(Double(order), 4) * 0.035)) {
                     shown = true
                 }
             }
@@ -202,11 +242,15 @@ struct Floating3D<Fallback: View>: View {
             .offset(y: up ? -size * 0.05 : size * 0.02)
             .rotationEffect(.degrees(up ? -2 : 2))
 
+            // A soft contact shadow drawn as a gradient: no blur pass on every frame of the float.
             Ellipse()
-                .fill(Color.black.opacity(up ? 0.06 : 0.12))
-                .frame(width: size * (up ? 0.42 : 0.52), height: size * 0.07)
-                .blur(radius: 3)
+                .fill(RadialGradient(colors: [Color.black.opacity(0.14), .clear],
+                                     center: .center, startRadius: 0, endRadius: size * 0.26))
+                .frame(width: size * 0.52, height: size * 0.08)
+                .scaleEffect(x: up ? 0.82 : 1, y: 1)
+                .opacity(up ? 0.6 : 1)
         }
+        .compositingGroup()
         .accessibilityHidden(true)
         .onAppear {
             guard float, !reduceMotion else { return }

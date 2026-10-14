@@ -23,35 +23,79 @@ struct GeminiClient {
 
     private static let geminiAPI = "https://generativelanguage.googleapis.com"
 
+    /// Models to try, in order, when the chosen one isn't available to this key (404).
+    static let fallbackModels = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite",
+                                 "gemini-3.1-flash-lite", "gemini-3-flash-preview"]
+
+    /// The model that last answered, so later calls go straight to it.
+    nonisolated(unsafe) private static var workingModel: (requested: String, working: String)?
+
     func generate(_ body: [String: Any]) async throws -> [String: Any] {
-        let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        let chosen = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        let remembered = Self.workingModel.flatMap { $0.requested == chosen ? $0.working : nil }
+        var models = [remembered ?? chosen, chosen] + Self.fallbackModels
+        var seen = Set<String>()
+        models = models.filter { !$0.isEmpty && seen.insert($0).inserted }
+
+        var failure = GeminiError.emptyResponse
+        for candidate in models {
+            do {
+                let json = try await send(body, model: candidate)
+                Self.workingModel = (chosen, candidate)
+                return json
+            } catch let error as GeminiError {
+                failure = error
+                // A missing model (404), a busy one (503/500) or one whose quota is used up (429)
+                // is worth trying the next model for: demand and quota are per model.
+                // A rejected key (400/401/403) fails the same way on every model, so stop.
+                guard case .http(let code, _) = error, [404, 429, 500, 503].contains(code) else { throw error }
+            }
+        }
+        throw failure
+    }
+
+    private func send(_ body: [String: Any], model: String) async throws -> [String: Any] {
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let base = key.isEmpty ? (Backend.geminiProxy ?? Self.geminiAPI) : Self.geminiAPI
-        guard let url = URL(string: "\(base)/v1beta/models/\(trimmedModel):generateContent") else {
+        guard let url = URL(string: "\(base)/v1beta/models/\(model):generateContent") else {
             throw GeminiError.http(0, "Invalid model name")
         }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 45
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !key.isEmpty { request.setValue(key, forHTTPHeaderField: "x-goog-api-key") }
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        // "Model is experiencing high demand" (503) is usually momentary, so ask again twice, a
-        // little later each time, before giving up. A used-up quota (429) is not: waiting a few
-        // seconds does not bring it back, and the traveller is better served by the offline agent.
+        // The key goes in the x-goog-api-key header. If Google rejects that (401), it is sent once
+        // more as the ?key= parameter, which some newer "AQ." keys need.
+        var useQueryKey = false
         var failure = GeminiError.emptyResponse
-        for attempt in 0..<3 {
-            if attempt > 0 {
-                try await Task.sleep(for: .seconds(attempt == 1 ? 1.5 : 3))
+        for attempt in 0..<4 {
+            var target = url
+            if useQueryKey, var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+                parts.queryItems = [URLQueryItem(name: "key", value: key)]
+                target = parts.url ?? url
             }
+            var request = URLRequest(url: target)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 45
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            if !key.isEmpty && !useQueryKey { request.setValue(key, forHTTPHeaderField: "x-goog-api-key") }
+            if let bundle = Bundle.main.bundleIdentifier {
+                request.setValue(bundle, forHTTPHeaderField: "X-Ios-Bundle-Identifier")
+            }
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
             let (data, response) = try await URLSession.shared.data(for: request)
             let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             if (200..<300).contains(status) { return json }
             let message = (json["error"] as? [String: Any])?["message"] as? String ?? "Request failed"
             failure = GeminiError.http(status, message)
-            guard status == 500 || status == 503 else { break }
+            print("Gemini \(model) → \(status): \(message)")
+            if status == 401, !useQueryKey, !key.isEmpty {
+                useQueryKey = true
+                continue
+            }
+            // "Model is experiencing high demand" (503) is usually momentary: try again a little later.
+            // A used-up quota (429) is not, and the offline agent serves the traveller better.
+            // One quick retry for a momentary spike, then move on to the next model.
+            guard status == 500 || status == 503, attempt < 1 else { break }
+            try await Task.sleep(for: .seconds(1.2))
         }
         throw failure
     }

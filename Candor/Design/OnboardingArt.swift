@@ -115,7 +115,7 @@ struct ProductArt: View {
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(width: 46, height: 46)
-                    .background(Color(hex: 0x1C1E48), in: .circle)
+                    .background(Theme.ink, in: .circle)
                     .shadow(color: .black.opacity(0.18), radius: 10, y: 6)
                     .offset(x: 118, y: -78 + 5 * sin(t * 1.5 + 0.7))
             }
@@ -653,11 +653,17 @@ struct RecipeRing: View {
     let steps: [RecipeStep]
     /// How many ingredients are in the pot.
     let done: Int
+    /// How far into the current ingredient the work is (0–1), so the ring keeps moving while it waits.
+    var partial: Double = 0
+    /// Off for the splash: no ring filling up, just the ingredients circling the logo.
+    var showsProgress = true
+    /// Seconds per full turn of the orbit.
+    var spinDuration: Double = 40
     @State private var spin = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var progress: Double {
-        steps.isEmpty ? 0 : Double(done) / Double(steps.count)
+        steps.isEmpty ? 0 : min((Double(done) + min(max(partial, 0), 1)) / Double(steps.count), 1)
     }
 
     var body: some View {
@@ -670,17 +676,19 @@ struct RecipeRing: View {
                     .frame(width: orbit * 2, height: orbit * 2)
 
                 // The pot: the progress ring around the logo, steam rising.
-                Circle()
-                    .stroke(Theme.accentSoft, lineWidth: 9)
-                    .frame(width: s * 0.44, height: s * 0.44)
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(AngularGradient(colors: [Theme.saffron, Theme.rose, Theme.indigo, Theme.saffron],
-                                            center: .center),
-                            style: StrokeStyle(lineWidth: 9, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .frame(width: s * 0.44, height: s * 0.44)
-                    .animation(.smooth(duration: 0.5), value: progress)
+                if showsProgress {
+                    Circle()
+                        .stroke(Theme.accentSoft, lineWidth: 9)
+                        .frame(width: s * 0.44, height: s * 0.44)
+                    Circle()
+                        .trim(from: 0, to: progress)
+                        .stroke(AngularGradient(colors: [Theme.saffron, Theme.rose, Theme.indigo, Theme.saffron],
+                                                center: .center),
+                                style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .frame(width: s * 0.44, height: s * 0.44)
+                        .animation(.smooth(duration: 0.5), value: progress)
+                }
                 Steam()
                     .frame(width: s * 0.2, height: s * 0.16)
                     .offset(y: -s * 0.15)
@@ -722,7 +730,7 @@ struct RecipeRing: View {
         .aspectRatio(1, contentMode: .fit)
         .onAppear {
             guard !reduceMotion else { return }
-            withAnimation(.linear(duration: 40).repeatForever(autoreverses: false)) { spin = true }
+            withAnimation(.linear(duration: spinDuration).repeatForever(autoreverses: false)) { spin = true }
         }
         .accessibilityHidden(true)
     }
@@ -760,5 +768,65 @@ private struct Steam: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Step backgrounds
+
+/// The onboarding page: ivory, washed softly with the step's colour, a little saffron warmth,
+/// and a faint rangoli-style mandala in the corner for an Indian touch.
+struct StepBackground: View {
+    let tint: Color
+
+    var body: some View {
+        ZStack {
+            AppBackground()
+            GeometryReader { geo in
+                let w = geo.size.width
+                // Soft washes drawn as radial gradients (a blur here re-renders while scrolling).
+                RadialGradient(colors: [tint.opacity(0.18), .clear], center: .center, startRadius: 0, endRadius: w * 0.6)
+                    .frame(width: w * 1.2, height: w * 1.2)
+                    .position(x: w * 0.9, y: 0)
+                RadialGradient(colors: [Theme.saffron.opacity(0.12), .clear], center: .center, startRadius: 0, endRadius: w * 0.5)
+                    .frame(width: w, height: w)
+                    .position(x: 0, y: geo.size.height * 0.85)
+                Mandala()
+                    .stroke(tint.opacity(0.12), lineWidth: 1)
+                    .frame(width: w * 0.62, height: w * 0.62)
+                    .position(x: w * 0.93, y: w * 0.17)
+            }
+        }
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
+    }
+}
+
+/// A simple rangoli: rings of petals around a centre, drawn as outlines.
+nonisolated struct Mandala: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let c = CGPoint(x: rect.midX, y: rect.midY)
+        let r = min(rect.width, rect.height) / 2
+        for ring in [1.0, 0.72, 0.46] {
+            let radius = r * ring
+            p.addEllipse(in: CGRect(x: c.x - radius * 0.18, y: c.y - radius * 0.18,
+                                    width: radius * 0.36, height: radius * 0.36))
+            let petals = ring == 1.0 ? 16 : (ring == 0.72 ? 12 : 8)
+            for i in 0..<petals {
+                let a = Double(i) / Double(petals) * 2 * .pi
+                let tip = CGPoint(x: c.x + radius * cos(a), y: c.y + radius * sin(a))
+                let side = radius * 0.16
+                let base = radius * 0.55
+                let left = CGPoint(x: c.x + base * cos(a - 0.22) , y: c.y + base * sin(a - 0.22))
+                let right = CGPoint(x: c.x + base * cos(a + 0.22), y: c.y + base * sin(a + 0.22))
+                p.move(to: left)
+                p.addQuadCurve(to: tip, control: CGPoint(x: (left.x + tip.x) / 2 - side * sin(a),
+                                                         y: (left.y + tip.y) / 2 + side * cos(a)))
+                p.addQuadCurve(to: right, control: CGPoint(x: (right.x + tip.x) / 2 + side * sin(a),
+                                                           y: (right.y + tip.y) / 2 - side * cos(a)))
+            }
+            p.addEllipse(in: CGRect(x: c.x - radius, y: c.y - radius, width: radius * 2, height: radius * 2))
+        }
+        return p
     }
 }

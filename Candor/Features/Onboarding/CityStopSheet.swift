@@ -216,7 +216,7 @@ struct CityStopSheet: View {
     /// The chosen city as a small hero card, with a button to change it.
     private func chosenCity(_ city: City) -> some View {
         ZStack(alignment: .bottomLeading) {
-            CityScene(animated: false)
+            CityScene(animated: false, landmarks: city.id == City.delhi.id)
                 .frame(height: 120)
             LinearGradient(colors: [.clear, .black.opacity(0.45)], startPoint: .top, endPoint: .bottom)
             HStack(alignment: .bottom) {
@@ -300,22 +300,35 @@ struct CityStopSheet: View {
             editingDate = selected ? nil : field
         } label: {
             VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.candor(.caption1, .semibold))
-                    .foregroundStyle(.secondary)
+                HStack {
+                    Text(label)
+                        .font(.candor(.caption1, .semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                    Image(systemName: selected ? "chevron.up" : "pencil")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Theme.ink)
+                        .frame(width: 22, height: 22)
+                        .background(Theme.accentSoft, in: .circle)
+                }
                 Text(date.formatted(.dateTime.day().locale(locale)))
                     .font(.display(size: 30, .bold).monospacedDigit())
                     .foregroundStyle(.primary)
                 Text(date.formatted(.dateTime.month(.abbreviated).weekday(.abbreviated).locale(locale)))
                     .font(.candor(.caption1))
                     .foregroundStyle(.secondary)
+                Text(selected ? L("Pick a date below") : L("Tap to change"))
+                    .font(.candor(.caption2, .semibold))
+                    .foregroundStyle(Theme.ink)
+                    .padding(.top, 4)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
             .background(selected ? Theme.accentSoft : Theme.canvas, in: .rect(cornerRadius: Theme.Radius.medium))
             .overlay {
                 RoundedRectangle(cornerRadius: Theme.Radius.medium)
-                    .strokeBorder(selected ? Theme.saffron : .clear, lineWidth: 1.5)
+                    .strokeBorder(selected ? Theme.ink : Color.primary.opacity(0.15),
+                                  style: StrokeStyle(lineWidth: selected ? 1.5 : 1, dash: selected ? [] : [5, 4]))
             }
         }
         .buttonStyle(.pressable)

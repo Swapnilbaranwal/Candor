@@ -112,13 +112,24 @@ extension Color {
 
 /// An illustrated Delhi: hills, India Gate, Qutub Minar, Humayun's Tomb and the Lotus Temple
 /// under a sky that follows the time of day. Clouds drift, the sun breathes, birds fly by.
+/// Whether a page is being scrolled right now. Living illustrations (the skyline's clouds and
+/// birds) hold still while it's true, so every frame goes to moving the page. Only views that
+/// read it redraw when it flips, not the whole screen.
+@Observable
+final class ScrollMotion {
+    static let shared = ScrollMotion()
+    var isScrolling = false
+}
+
 struct CityScene: View {
     var period: DayPeriod = .now()
     var animated = true
+    /// Delhi's monuments on the skyline. Off for other cities, which get hills and trees.
+    var landmarks = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !animated || reduceMotion)) { context in
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: !animated || reduceMotion || ScrollMotion.shared.isScrolling)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
             GeometryReader { geo in
                 let size = geo.size
@@ -134,9 +145,14 @@ struct CityScene: View {
                     HillShape(baseline: 0.70, amplitude: 0.05, waves: 2.3, phase: 1.4)
                         .fill(period.midHills)
 
-                    SkylineShape().fill(period.monuments)
-                    IndiaGateShape().fill(period.monuments, style: FillStyle(eoFill: true))
-                    if period.isNight { windowLights(size: size, t: t) }
+                    if landmarks {
+                        SkylineShape().fill(period.monuments)
+                        IndiaGateShape().fill(period.monuments, style: FillStyle(eoFill: true))
+                        if period.isNight { windowLights(size: size, t: t) }
+                    } else {
+                        HillShape(baseline: 0.78, amplitude: 0.04, waves: 1.8, phase: 1.1)
+                            .fill(period.monuments.opacity(0.55))
+                    }
 
                     HillShape(baseline: 0.86, amplitude: 0.035, waves: 1.2, phase: 2.2)
                         .fill(period.ground)
@@ -147,6 +163,8 @@ struct CityScene: View {
                     birds(size: size, t: t)
                 }
                 .frame(width: size.width, height: size.height)
+                // One GPU layer per frame instead of dozens of shape layers.
+                .drawingGroup()
             }
         }
         .clipped()
@@ -405,7 +423,7 @@ struct HomeNestArt: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !animated || reduceMotion)) { context in
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: !animated || reduceMotion)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
             GeometryReader { geo in
                 let s = min(geo.size.width, geo.size.height)
@@ -505,7 +523,7 @@ struct StayQuestionArt: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !animated || reduceMotion)) { context in
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: !animated || reduceMotion)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
             GeometryReader { geo in
                 let s = min(geo.size.width, geo.size.height)
@@ -553,6 +571,126 @@ struct StayQuestionArt: View {
                 .frame(width: geo.size.width, height: geo.size.height)
             }
         }
+        .accessibilityHidden(true)
+    }
+}
+
+// MARK: - Fair price art
+
+/// A price tag inside a camera viewfinder, a scan line gliding over it and a green "fair" tick:
+/// what the price check does, drawn in the card's own warm colours.
+struct PriceTagArt: View {
+    var size: CGFloat = 92
+    var animated = false
+    @State private var scanning = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(RadialGradient(colors: [Color.white.opacity(0.75), Color.white.opacity(0.15)],
+                                     center: .topLeading, startRadius: 0, endRadius: size * 0.9))
+                .overlay(Circle().strokeBorder(Color.white.opacity(0.6), lineWidth: 1))
+
+            // The tag.
+            ZStack {
+                TagShape()
+                    .fill(LinearGradient(colors: [Color(hex: 0xFFFDF8), Color(hex: 0xFBE6CC)],
+                                         startPoint: .top, endPoint: .bottom))
+                TagShape()
+                    .stroke(Color(hex: 0xC9741F).opacity(0.75), style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
+                Circle()
+                    .strokeBorder(Color(hex: 0xC9741F).opacity(0.8), lineWidth: 1.5)
+                    .frame(width: size * 0.09, height: size * 0.09)
+                    .offset(x: -size * 0.15)
+                Text("₹")
+                    .font(.custom("PTSerif-Bold", size: size * 0.26))
+                    .foregroundStyle(Color(hex: 0x7A3A10))
+                    .offset(x: size * 0.07)
+            }
+            .frame(width: size * 0.56, height: size * 0.34)
+            .rotationEffect(.degrees(-14))
+            .shadow(color: Color(hex: 0x8A3F0E).opacity(0.18), radius: 6, y: 4)
+
+            // Viewfinder corners and the scan line.
+            ViewfinderCorners()
+                .stroke(Color(hex: 0x8A3F0E).opacity(0.55), style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
+                .frame(width: size * 0.74, height: size * 0.74)
+            Capsule()
+                .fill(LinearGradient(colors: [.clear, Color(hex: 0xF2A65A).opacity(0.9), .clear],
+                                     startPoint: .leading, endPoint: .trailing))
+                .frame(width: size * 0.62, height: 2)
+                .offset(y: scanning ? size * 0.26 : -size * 0.26)
+
+            // Fair: a green tick on the corner.
+            Image(systemName: "checkmark")
+                .font(.system(size: size * 0.12, weight: .heavy))
+                .foregroundStyle(.white)
+                .frame(width: size * 0.26, height: size * 0.26)
+                .background(Theme.emerald, in: .circle)
+                .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+                .offset(x: size * 0.32, y: size * 0.3)
+        }
+        .frame(width: size, height: size)
+        .compositingGroup()
+        .accessibilityHidden(true)
+        .onAppear {
+            guard animated, !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) { scanning = true }
+        }
+    }
+}
+
+/// A luggage-style tag: square on the right, pointed on the left.
+private struct TagShape: Shape {
+    func path(in r: CGRect) -> Path {
+        let notch = r.width * 0.22
+        let radius = r.height * 0.14
+        var p = Path()
+        p.move(to: CGPoint(x: r.minX, y: r.midY))
+        p.addLine(to: CGPoint(x: r.minX + notch, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX - radius, y: r.minY))
+        p.addQuadCurve(to: CGPoint(x: r.maxX, y: r.minY + radius), control: CGPoint(x: r.maxX, y: r.minY))
+        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY - radius))
+        p.addQuadCurve(to: CGPoint(x: r.maxX - radius, y: r.maxY), control: CGPoint(x: r.maxX, y: r.maxY))
+        p.addLine(to: CGPoint(x: r.minX + notch, y: r.maxY))
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// The four corner brackets of a camera viewfinder.
+private struct ViewfinderCorners: Shape {
+    func path(in r: CGRect) -> Path {
+        let l = r.width * 0.2
+        var p = Path()
+        let corners: [(CGPoint, CGFloat, CGFloat)] = [
+            (CGPoint(x: r.minX, y: r.minY), 1, 1), (CGPoint(x: r.maxX, y: r.minY), -1, 1),
+            (CGPoint(x: r.minX, y: r.maxY), 1, -1), (CGPoint(x: r.maxX, y: r.maxY), -1, -1)
+        ]
+        for (corner, dx, dy) in corners {
+            p.move(to: CGPoint(x: corner.x, y: corner.y + dy * l))
+            p.addLine(to: corner)
+            p.addLine(to: CGPoint(x: corner.x + dx * l, y: corner.y))
+        }
+        return p
+    }
+}
+
+/// Scam radar's mark: a shield with an exclamation, in calm awareness colours.
+struct AwarenessBadge: View {
+    var size: CGFloat = 48
+
+    var body: some View {
+        ZStack {
+            Circle().fill(Color(hex: 0xFCE9DF))
+            Image(systemName: "exclamationmark.shield.fill")
+                .font(.system(size: size * 0.48, weight: .semibold))
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(.white, Color(hex: 0xD9603B))
+        }
+        .frame(width: size, height: size)
+        .overlay(Circle().strokeBorder(Color(hex: 0xD9603B).opacity(0.25), lineWidth: 1))
         .accessibilityHidden(true)
     }
 }

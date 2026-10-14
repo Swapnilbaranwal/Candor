@@ -22,18 +22,23 @@ struct CheckView: View {
     /// Titles are English keys, shown through `L(…)`.
     private let safetyTools: [Tool] = [
         Tool(route: .scams, title: "Scam radar", subtitle: "Known tricks and what to do", icon: "shield.lefthalf.filled", color: Theme.rose),
-        Tool(route: .interpreter, title: "Interpreter", subtitle: "Speak and show Hindi", icon: "character.bubble.fill", color: Theme.accent),
+        Tool(route: .interpreter, title: "Interpreter", subtitle: "Speak and show Hindi", icon: "character.bubble.fill", color: Theme.sky),
         Tool(route: .converter, title: "Converter", subtitle: "Rupees to your money", icon: "dollarsign.arrow.circlepath", color: Theme.mint),
-        Tool(route: .emergency, title: "Emergency", subtitle: "Police, help and helplines", icon: "sos", color: .red)
+        Tool(route: .emergency, title: "Emergency", subtitle: "Police, help and helplines", icon: "sos", color: Theme.coral)
     ]
 
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    Text(L("Check"))
-                        .font(.heading(.largeTitle))
-                        .padding(.top, 12)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("Check"))
+                            .font(.heading(.largeTitle))
+                        Text(L("Know the fair price before you pay, ride safely, and get help the moment you need it."))
+                            .font(.candor(.subheadline))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 12)
                     mainChecks
                     VStack(alignment: .leading, spacing: 12) {
                         SectionHeader(title: L("Stay safe"))
@@ -66,35 +71,40 @@ struct CheckView: View {
 
     private var mainChecks: some View {
         VStack(spacing: 12) {
-            bigButton(title: L("Scan a price"), subtitle: L("Photograph a price tag, menu or bill"),
-                      icon: "camera.viewfinder", color: Theme.saffron, route: .scan, identifier: "checkScan")
-            bigButton(title: L("Check a ride"), subtitle: L("Fair auto and taxi fares by the official meter"),
-                      icon: "car.fill", color: Theme.teal, route: .ride, identifier: "checkRide")
+            bigButton(title: L("Scan a price"), subtitle: L("Point at a menu, tag or bill and see what it should cost"),
+                      icon: "camera.viewfinder", colors: CardPalette.home, route: .scan, identifier: "checkScan")
+            bigButton(title: L("Check a ride"), subtitle: L("The meter fare for autos and taxis, before you get in"),
+                      icon: "car.fill", colors: CardPalette.transit, route: .ride, identifier: "checkRide")
         }
     }
 
-    private func bigButton(title: String, subtitle: String, icon: String, color: Color, route: CheckRoute, identifier: String) -> some View {
-        Button { path.append(route) } label: {
+    private func bigButton(title: String, subtitle: String, icon: String, colors: [Color], route: CheckRoute, identifier: String) -> some View {
+        let velvet: Velvet = route == .scan ? .burgundy : .emerald
+        return Button { path.append(route) } label: {
             HStack(spacing: 16) {
                 Image(systemName: icon)
-                    .font(.candor(.title2))
-                    .foregroundStyle(.white)
-                    .frame(width: 56, height: 56)
-                    .background(color, in: .rect(cornerRadius: 14))
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundStyle(velvet.sheen)
+                    .frame(width: 58, height: 58)
+                    .background(Color.white.opacity(0.12), in: .rect(cornerRadius: 18, style: .continuous))
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.heading(.title3)).foregroundStyle(.primary)
+                    Text(title).font(.heading(.title3))
                     Text(subtitle)
                         .font(.candor(.subheadline))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(velvet.secondaryForeground)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Color(hex: 0x5C1226))
+                    .frame(width: 34, height: 34)
+                    .background(Color(hex: 0xFFF8EE), in: .circle)
             }
-            .card()
+            .velvetCard(velvet, padding: 18)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
         .accessibilityHint(subtitle)
@@ -105,10 +115,7 @@ struct CheckView: View {
     private func toolTile(_ tool: Tool) -> some View {
         Button { path.append(tool.route) } label: {
             VStack(alignment: .leading, spacing: 10) {
-                Image(systemName: tool.icon)
-                    .font(.candor(.title2))
-                    .foregroundStyle(tool.color)
-                    .frame(height: 28)
+                SoftIcon(symbol: tool.icon, tint: tool.color, size: 44)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L(tool.title))
                         .font(.candor(.headline, .semibold))
@@ -124,9 +131,10 @@ struct CheckView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
-            .background(Theme.surface, in: .rect(cornerRadius: 16))
+            .background(Theme.surface, in: .rect(cornerRadius: Theme.Radius.large, style: .continuous))
+            .shadow(color: Theme.shadow, radius: 12, y: 6)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressable)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L(tool.title))
         .accessibilityHint(L(tool.subtitle))

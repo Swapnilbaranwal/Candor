@@ -145,10 +145,16 @@ struct CityStay: Codable, Equatable, Identifiable {
     }
 }
 
-struct TripDay: Codable, Equatable, Identifiable {
+struct TripDay: Codable, Hashable, Identifiable {
     var id = UUID()
     var title: String?
     var stops: [TripStop] = []
+
+    /// Places on the day already ticked off as visited.
+    var visitedCount: Int { stops.reduce(0) { $0 + ($1.isVisited ? 1 : 0) } }
+
+    /// Every place on the day has been visited: the day is done.
+    var isComplete: Bool { !stops.isEmpty && visitedCount == stops.count }
 
     var displayTitle: String {
         if let title, !title.trimmingCharacters(in: .whitespaces).isEmpty { return title }
@@ -171,6 +177,8 @@ struct TripStop: Codable, Equatable, Hashable, Identifiable {
     var arrivedAt: Date?
     /// When the traveller ticked off visiting this place.
     var visitedAt: Date?
+    /// How the traveller chose to get here (Metro, auto…). Nil until they pick.
+    var travelMode: TravelMode?
 
     var isArrived: Bool { arrivedAt != nil || visitedAt != nil }
     var isVisited: Bool { visitedAt != nil }
@@ -223,7 +231,7 @@ extension DelhiData {
 // MARK: - Getting around
 
 enum TravelMode: String, Codable, CaseIterable, Identifiable {
-    case walk, metro, auto, cab
+    case walk, metro, bus, eRickshaw, auto, bikeTaxi, cab, privateCar
 
     var id: String { rawValue }
 
@@ -231,8 +239,12 @@ enum TravelMode: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .walk: L("Walk")
         case .metro: L("Metro")
+        case .bus: L("Bus")
+        case .eRickshaw: L("E-rickshaw")
         case .auto: L("Auto")
+        case .bikeTaxi: L("Bike taxi")
         case .cab: L("Cab")
+        case .privateCar: L("Candor car")
         }
     }
 
@@ -240,8 +252,12 @@ enum TravelMode: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .walk: "figure.walk"
         case .metro: "tram.fill"
+        case .bus: "bus.fill"
+        case .eRickshaw: "bolt.car.fill"
         case .auto: "car.side.fill"
+        case .bikeTaxi: "scooter"
         case .cab: "car.fill"
+        case .privateCar: "steeringwheel"
         }
     }
 
@@ -249,10 +265,17 @@ enum TravelMode: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .walk: Theme.mint
         case .metro: Theme.indigo
+        case .bus: Color(hex: 0xE5484D)
+        case .eRickshaw: Theme.teal
         case .auto: Theme.saffron
-        case .cab: Theme.teal
+        case .bikeTaxi: Theme.violet
+        case .cab: Theme.sky
+        case .privateCar: Theme.ink
         }
     }
+
+    /// Public transport: shared, timetabled, cheapest.
+    var isPublic: Bool { self == .metro || self == .bus }
 }
 
 /// One way to get from a place to the next.
@@ -280,9 +303,26 @@ struct Leg: Identifiable, Equatable {
     let km: Double
     let options: [LegOption]
     let best: TravelMode
+    /// Both ends, for real routes and live public transport.
+    var fromLatitude: Double = 0
+    var fromLongitude: Double = 0
+    var toLatitude: Double = 0
+    var toLongitude: Double = 0
+
+    var fromCoordinate: CLLocationCoordinate2D { CLLocationCoordinate2D(latitude: fromLatitude, longitude: fromLongitude) }
+    var toCoordinate: CLLocationCoordinate2D { CLLocationCoordinate2D(latitude: toLatitude, longitude: toLongitude) }
+    var hasCoordinates: Bool { fromLatitude != 0 && toLatitude != 0 }
 
     var bestOption: LegOption {
         options.first { $0.mode == best } ?? options[0]
+    }
+
+    /// The same hop with `mode` as the way to go, when it's one of the options.
+    func choosing(_ mode: TravelMode?) -> Leg {
+        guard let mode, mode != best, options.contains(where: { $0.mode == mode }) else { return self }
+        return Leg(from: from, to: to, km: km, options: options, best: mode,
+                   fromLatitude: fromLatitude, fromLongitude: fromLongitude,
+                   toLatitude: toLatitude, toLongitude: toLongitude)
     }
 
     /// Best first, then quickest.

@@ -19,10 +19,20 @@ struct PersonaSetupView: View {
 
         var subtitle: String {
             switch self {
-            case .trip: L("Add each city in the order you'll visit, with your dates and where you're staying.")
-            case .people: L("Candor plans the pace, places and rides around your group.")
-            case .taste: L("Pick what matters. Candor uses it to choose places and get around.")
-            case .you: L("Candor speaks your language and shows prices in your money too.")
+            case .trip: L("Add each city in the order you'll travel. Your dates and hotel let Candor time every day and always guide you home.")
+            case .people: L("Travelling alone or with family? Candor sets the pace, picks the places and suggests rides that fit your group.")
+            case .taste: L("Choose your style, what you love and up to three preferences. Candor uses them to pick places and fair ways to get around.")
+            case .you: L("Your name, the language you read best and the money you think in. Every price shows in rupees and your own currency.")
+            }
+        }
+
+        /// Each step has its own colour, washed softly into the page.
+        var tint: Color {
+            switch self {
+            case .trip: Theme.saffron
+            case .people: Theme.coral
+            case .taste: Theme.ink
+            case .you: Theme.teal
             }
         }
     }
@@ -38,6 +48,10 @@ struct PersonaSetupView: View {
     @State private var isBuilding = false
     @State private var recipe: [RecipeStep] = []
     @State private var recipeDone = 0
+    /// How many ingredients the real work has reached; the ring catches up one at a time.
+    @State private var recipeTarget = 0
+    /// Progress through the current ingredient, so the ring moves while a step is working.
+    @State private var recipePartial = 0.0
     /// After the setup steps: ask whether Candor should plan the days.
     @State private var askToPlan = false
     @State private var isPlanning = false
@@ -46,6 +60,8 @@ struct PersonaSetupView: View {
     /// The finished plan, shown before the trip opens.
     @State private var plannedTrip: Trip?
     @State private var didLoad = false
+    /// "Edit" on the finished plan: change likes and loves, then plan again.
+    @State private var editingTaste = false
     @FocusState private var nameFocused: Bool
 
     private var languages: [String] {
@@ -57,28 +73,48 @@ struct PersonaSetupView: View {
     private var canContinue: Bool {
         switch step {
         case .trip: !stops.isEmpty
-        case .people, .taste: true
+        case .people: party != nil
+        case .taste: !draft.interests.isEmpty && !(draft.tastes ?? []).isEmpty
         case .you: !draft.name.trimmingCharacters(in: .whitespaces).isEmpty
         }
     }
 
+    /// What's still missing on this step, shown above Continue while it's disabled.
+    private var missingHint: String? {
+        guard !canContinue else { return nil }
+        switch step {
+        case .trip: return L("Add at least one city to continue")
+        case .people: return L("Choose who's going to continue")
+        case .taste:
+            if draft.interests.isEmpty { return L("Pick at least one thing you love") }
+            return L("Pick at least one preference")
+        case .you: return L("Add your name to continue")
+        }
+    }
+
+    /// Preferences are capped so each one really counts.
+    private let maxTastes = 3
+
     var body: some View {
         ZStack {
-            AppBackground()
+            StepBackground(tint: step.tint)
+                .animation(.smooth(duration: 0.6), value: step)
 
             VStack(spacing: 0) {
                 progress
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: 10) {
                             Text(step.title)
                                 .font(.heading(.largeTitle))
                                 .fixedSize(horizontal: false, vertical: true)
                             Text(step.subtitle)
-                                .font(.candor(.subheadline))
-                                .foregroundStyle(.secondary)
+                                .font(.candor(.callout))
+                                .lineSpacing(4)
+                                .foregroundStyle(Color.primary.opacity(0.62))
                                 .fixedSize(horizontal: false, vertical: true)
                         }
+                        .padding(.bottom, 4)
                         .reveal(0)
                         switch step {
                         case .trip: tripStep
@@ -155,6 +191,19 @@ struct PersonaSetupView: View {
     }
 
     private var bottomBar: some View {
+        VStack(spacing: 8) {
+            if let missingHint {
+                Label(missingHint, systemImage: "info.circle")
+                    .font(.candor(.caption1, .medium))
+                    .foregroundStyle(.secondary)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+            bottomButtons
+        }
+        .animation(.snappy, value: missingHint)
+    }
+
+    private var bottomButtons: some View {
         HStack(spacing: 12) {
             if step != .trip {
                 Button {
@@ -429,13 +478,19 @@ struct PersonaSetupView: View {
 
     private var tasteStep: some View {
         VStack(alignment: .leading, spacing: 26) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 sectionTitle(L("Travel style"))
                 HStack(spacing: 10) {
                     ForEach(TravelStyle.allCases) { style in
                         styleCard(style)
                     }
                 }
+                .sensoryFeedback(.selection, trigger: draft.travelStyle)
+                Text(draft.travelStyle.detail)
+                    .font(.candor(.caption1))
+                    .foregroundStyle(.secondary)
+                    .contentTransition(.opacity)
+                    .padding(.leading, 6)
             }
             .reveal(1)
 
@@ -450,10 +505,17 @@ struct PersonaSetupView: View {
             .reveal(2)
 
             VStack(alignment: .leading, spacing: 12) {
-                sectionTitle(L("Your preferences"))
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                    ForEach(Persona.tasteOptions, id: \.self) { taste in
-                        tasteTile(taste)
+                HStack(alignment: .firstTextBaseline) {
+                    sectionTitle(L("Your preferences"))
+                    Spacer()
+                    Text(L("%1$@ of %2$@", (draft.tastes ?? []).count, maxTastes))
+                        .font(.candor(.caption1, .medium).monospacedDigit())
+                        .foregroundStyle((draft.tastes ?? []).count >= maxTastes ? Theme.ink : .secondary)
+                        .contentTransition(.numericText())
+                }
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 14) {
+                    ForEach(Array(Persona.tasteOptions.enumerated()), id: \.element) { index, taste in
+                        tasteTile(taste, tint: Self.tasteTints[index % Self.tasteTints.count])
                     }
                 }
             }
@@ -465,64 +527,130 @@ struct PersonaSetupView: View {
         Text(text).font(.heading(.title3))
     }
 
+    /// A travel-style card, each with its own character: Budget is a clean white card,
+    /// Comfort a warm peach, Luxury a premium emerald-to-jade gradient with gold.
     private func styleCard(_ style: TravelStyle) -> some View {
         let selected = draft.travelStyle == style
+        let dark = style == .luxury
         return Button {
             withAnimation(.snappy) { draft.travelStyle = style }
         } label: {
-            VStack(spacing: 8) {
-                StyleArt(style: style, isSelected: selected)
-                Text(style.title).font(.candor(.subheadline, .semibold)).foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 6) {
+                Image(systemName: style.icon)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(dark ? Theme.gold : (style == .comfort ? Color(hex: 0xB4582E) : Theme.ink))
+                    .frame(width: 36, height: 36)
+                    .background(dark ? Color.white.opacity(0.12) : Color.white.opacity(0.7), in: .circle)
+                Spacer(minLength: 0)
+                Text(style.title)
+                    .font(.heading(.headline))
+                    .foregroundStyle(dark ? Color.white : (style == .comfort ? Color(hex: 0x3A2414) : Color.primary))
                 Text(style.priceLevel)
-                    .font(.candor(.caption1, .bold))
-                    .foregroundStyle(style.gradient[1])
-                Text(style.detail)
-                    .font(.candor(.caption2))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(3, reservesSpace: true)
+                    .font(.candor(.caption1, .semibold))
+                    .foregroundStyle(dark ? Theme.gold : (style == .comfort ? Color(hex: 0x8A4B26) : Color.secondary))
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .padding(.horizontal, 8)
-            .background(Theme.surface, in: .rect(cornerRadius: Theme.Radius.medium + 4))
+            .frame(maxWidth: .infinity, minHeight: 112, alignment: .leading)
+            .padding(12)
+            .background {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(styleFill(style))
+                    .overlay {
+                        if style != .budget {
+                            SilkRibbon()
+                                .fill(LinearGradient(colors: [.clear, (dark ? Velvet.emerald.sheen : Color.white).opacity(0.5), .clear],
+                                                     startPoint: .leading, endPoint: .trailing))
+                                .blur(radius: 4)
+                        }
+                    }
+                    .overlay(alignment: .topTrailing) {
+                        if dark {
+                            // A soft sheen across the luxury card.
+                            Circle()
+                                .fill(RadialGradient(colors: [Theme.gold.opacity(0.35), .clear],
+                                                     center: .center, startRadius: 0, endRadius: 60))
+                                .frame(width: 120, height: 120)
+                                .offset(x: 40, y: -40)
+                        }
+                    }
+                    .clipShape(.rect(cornerRadius: 20, style: .continuous))
+            }
             .overlay {
-                RoundedRectangle(cornerRadius: Theme.Radius.medium + 4)
-                    .strokeBorder(selected ? Theme.ink : .clear, lineWidth: 2)
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(selected ? (dark ? Theme.gold : Theme.ink) : Color.primary.opacity(0.06),
+                                  lineWidth: selected ? 2 : 1)
             }
-            .shadow(color: Theme.shadow, radius: 10, y: 5)
+            .overlay(alignment: .topTrailing) {
+                if selected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(dark ? Theme.gold : Theme.ink)
+                        .padding(8)
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .shadow(color: dark ? Color(hex: 0x0E3B2C).opacity(0.25) : Theme.shadow, radius: 12, y: 6)
+            .scaleEffect(selected ? 1 : 0.95)
+            .opacity(selected ? 1 : 0.7)
+            .animation(.spring(response: 0.35, dampingFraction: 0.7), value: selected)
         }
         .buttonStyle(.pressable)
-        .sensoryFeedback(.selection, trigger: selected)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
+    private func styleFill(_ style: TravelStyle) -> AnyShapeStyle {
+        switch style {
+        case .budget: AnyShapeStyle(Theme.surface)
+        case .comfort: AnyShapeStyle(LinearGradient(colors: [Color(hex: 0xFFF4E6), Color(hex: 0xFFD9B0), Color(hex: 0xF7B267)],
+                                                    startPoint: .topLeading, endPoint: .bottomTrailing))
+        case .luxury: AnyShapeStyle(LinearGradient(colors: Velvet.emerald.colors,
+                                                   startPoint: .topLeading, endPoint: .bottomTrailing))
+        }
+    }
+
+    private static let tasteTints: [Color] = [Theme.rose, Color(hex: 0x9B7BD1), Theme.mint, Theme.teal,
+                                              Theme.saffron, Color(hex: 0xC8743A), Theme.sky, Color(hex: 0x6FAF5B)]
+
     private func interestTile(_ interest: String) -> some View {
-        let selected = draft.interests.contains(interest)
-        let tint = InterestArt.tint(interest)
-        return Button {
-            withAnimation(.snappy) {
-                if let index = draft.interests.firstIndex(of: interest) {
-                    draft.interests.remove(at: index)
-                } else {
-                    draft.interests.append(interest)
-                }
+        iconTile(title: L(interest), icon: InterestArt.icon(interest), tint: InterestArt.tint(interest),
+                 selected: draft.interests.contains(interest)) {
+            if let index = draft.interests.firstIndex(of: interest) {
+                draft.interests.remove(at: index)
+            } else {
+                draft.interests.append(interest)
             }
+        }
+    }
+
+    private func tasteTile(_ taste: String, tint: Color) -> some View {
+        let selected = draft.hasTaste(taste)
+        let full = (draft.tastes ?? []).count >= maxTastes
+        return iconTile(title: L(taste), icon: InterestArt.tasteIcon(taste), tint: tint, selected: selected) {
+            var list = draft.tastes ?? []
+            if let index = list.firstIndex(of: taste) {
+                list.remove(at: index)
+            } else if list.count < maxTastes {
+                list.append(taste)
+            }
+            draft.tastes = list
+        }
+        // At three, the others step back so it's clear why they can't be picked.
+        .opacity(full && !selected ? 0.4 : 1)
+        .disabled(full && !selected)
+    }
+
+    /// A soft icon tile with a label under it; filled with its colour when chosen.
+    private func iconTile(title: String, icon: String, tint: Color, selected: Bool,
+                          toggle: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(.snappy) { toggle() }
         } label: {
             VStack(spacing: 6) {
-                Image(systemName: InterestArt.icon(interest))
-                    .font(.system(size: 21, weight: .semibold))
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(selected ? .white : tint)
                     .symbolEffect(.bounce, value: selected)
                     .frame(width: 58, height: 58)
-                    .background {
-                        if selected {
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(LinearGradient(colors: [tint, tint.opacity(0.75)], startPoint: .top, endPoint: .bottom))
-                        } else {
-                            RoundedRectangle(cornerRadius: 18, style: .continuous).fill(tint.opacity(0.12))
-                        }
-                    }
+                    .background(selected ? tint : tint.opacity(0.12), in: .rect(cornerRadius: 18, style: .continuous))
                     .overlay(alignment: .topTrailing) {
                         if selected {
                             Image(systemName: "checkmark.circle.fill")
@@ -532,48 +660,14 @@ struct PersonaSetupView: View {
                                 .transition(.scale)
                         }
                     }
-                    .shadow(color: selected ? tint.opacity(0.4) : .clear, radius: 8, y: 4)
-                Text(L(interest))
-                    .font(.candor(.caption1, selected ? .semibold : .regular))
+                    .shadow(color: selected ? tint.opacity(0.3) : .clear, radius: 8, y: 4)
+                Text(title)
+                    .font(.candor(.caption1, selected ? .medium : .regular))
                     .foregroundStyle(selected ? .primary : .secondary)
-                    .lineLimit(2, reservesSpace: true)
+                    .lineLimit(3, reservesSpace: true)
                     .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.85)
+                    .minimumScaleFactor(0.8)
             }
-        }
-        .buttonStyle(.pressable)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
-
-    private func tasteTile(_ taste: String) -> some View {
-        let selected = draft.hasTaste(taste)
-        return Button {
-            withAnimation(.snappy) {
-                var list = draft.tastes ?? []
-                if let index = list.firstIndex(of: taste) { list.remove(at: index) } else { list.append(taste) }
-                draft.tastes = list
-            }
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: InterestArt.tasteIcon(taste))
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(selected ? Color.white : Color.primary.opacity(0.7))
-                    .frame(width: 34, height: 34)
-                    .background(selected ? AnyShapeStyle(Theme.ink) : AnyShapeStyle(Theme.canvas), in: .circle)
-                Text(L(taste))
-                    .font(.candor(.caption1, .medium))
-                    .foregroundStyle(.primary)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(2, reservesSpace: true)
-                Spacer(minLength: 0)
-            }
-            .padding(10)
-            .background(Theme.surface, in: .rect(cornerRadius: Theme.Radius.medium))
-            .overlay {
-                RoundedRectangle(cornerRadius: Theme.Radius.medium)
-                    .strokeBorder(selected ? Theme.ink : .clear, lineWidth: 1.5)
-            }
-            .shadow(color: Theme.shadow, radius: 8, y: 4)
         }
         .buttonStyle(.pressable)
         .accessibilityAddTraits(selected ? .isSelected : [])
@@ -602,11 +696,10 @@ struct PersonaSetupView: View {
                 Spacer()
                 Image(systemName: "globe.asia.australia.fill")
             }
-            .foregroundStyle(.white.opacity(0.85))
+            .foregroundStyle(Theme.ink)
             .padding(.horizontal, 18)
             .padding(.vertical, 12)
-            .background(LinearGradient(colors: [Color(hex: 0x1C1E48), Color(hex: 0x30286E)],
-                                       startPoint: .leading, endPoint: .trailing))
+            .background(Theme.accentSoft)
 
             HStack(alignment: .center, spacing: 16) {
                 Text(draft.name.trimmingCharacters(in: .whitespaces).isEmpty ? "?" : draft.initials)
@@ -614,8 +707,7 @@ struct PersonaSetupView: View {
                     .foregroundStyle(.white)
                     .contentTransition(.numericText())
                     .frame(width: 66, height: 66)
-                    .background(LinearGradient(colors: [Theme.saffron, Theme.rose],
-                                               startPoint: .topLeading, endPoint: .bottomTrailing), in: .circle)
+                    .background(Theme.ink, in: .circle)
                     .overlay(Circle().stroke(.white, lineWidth: 3))
                     .shadow(color: Theme.rose.opacity(0.3), radius: 8, y: 4)
                     .animation(.snappy, value: draft.initials)
@@ -749,12 +841,7 @@ struct PersonaSetupView: View {
     }
 
     private func iconTile(_ icon: String, tint: Color) -> some View {
-        Image(systemName: icon)
-            .font(.system(size: 20, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 46, height: 46)
-            .background(LinearGradient(colors: [tint, tint.opacity(0.7)], startPoint: .top, endPoint: .bottom),
-                        in: .rect(cornerRadius: 14, style: .continuous))
+        SoftIcon(symbol: icon, tint: tint, size: 46)
     }
 
     private func menuLabel(_ text: String) -> some View {
@@ -787,6 +874,9 @@ struct PersonaSetupView: View {
             if let plannedTrip {
                 planPreview(plannedTrip)
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
+            } else if isPlanning {
+                recipeView
+                    .transition(.opacity)
             } else if askToPlan {
                 ScrollView {
                     planChoice
@@ -794,11 +884,9 @@ struct PersonaSetupView: View {
                 }
                 .scrollBounceBehavior(.basedOnSize)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
-            } else {
-                recipeView
-                    .transition(.opacity)
             }
         }
+        .sheet(isPresented: $editingTaste) { tasteEditor }
     }
 
     /// The setup as a recipe in the making: the ingredients drop into the pot one by one.
@@ -809,14 +897,14 @@ struct PersonaSetupView: View {
             Text(L("Setting up Candor for you"))
                 .font(.heading(.title1))
                 .multilineTextAlignment(.center)
-            RecipeRing(steps: recipe, done: recipeDone)
+            RecipeRing(steps: recipe, done: recipeDone, partial: recipePartial)
                 .frame(maxWidth: 330)
                 .padding(.horizontal, 20)
             VStack(spacing: 6) {
                 if let current {
                     Text(current.title)
                         .font(.candor(.headline, .semibold))
-                    Text(current.detail)
+                    Text(planLog.last ?? current.detail)
                         .font(.candor(.subheadline))
                         .foregroundStyle(.secondary)
                 } else {
@@ -831,7 +919,9 @@ struct PersonaSetupView: View {
             .frame(minHeight: 50)
             .id(recipeDone)
             .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
-            Text(L("Step %1$@ of %2$@", min(recipeDone + 1, max(recipe.count, 1)), max(recipe.count, 1)))
+            Text(L("Step %1$@ of %2$@", min(recipeDone + 1, max(recipe.count, 1)), max(recipe.count, 1))
+                 + " · \(recipePercent)%")
+                .contentTransition(.numericText())
                 .font(.candor(.caption1, .semibold).monospacedDigit())
                 .foregroundStyle(.tertiary)
             Spacer(minLength: 0)
@@ -858,10 +948,7 @@ struct PersonaSetupView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            if isPlanning {
-                planningCard
-                    .transition(.opacity.combined(with: .scale(scale: 0.97)))
-            } else {
+            Group {
                 planOption(title: L("Plan it for me"),
                            subtitle: app.hasGemini
                                ? L("Gemini searches the web for your dates: what's on, where to eat, markets and the best places for you.")
@@ -945,14 +1032,14 @@ struct PersonaSetupView: View {
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .foregroundStyle(prominent ? Theme.surface : Color.primary)
+                .foregroundStyle(prominent ? Color.white : Color.primary)
                 Spacer(minLength: 0)
                 Image(systemName: "arrow.right")
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(prominent ? Theme.surface : Color.secondary)
+                    .foregroundStyle(prominent ? Color.white : Color.secondary)
             }
             .padding(16)
-            .background(prominent ? AnyShapeStyle(Theme.ink) : AnyShapeStyle(Theme.surface),
+            .background(prominent ? AnyShapeStyle(Theme.brandFill) : AnyShapeStyle(Theme.surface),
                         in: .rect(cornerRadius: Theme.Radius.large))
             .shadow(color: Theme.shadow, radius: 12, y: 6)
         }
@@ -971,8 +1058,23 @@ struct PersonaSetupView: View {
                             .font(.system(size: 26, weight: .semibold))
                             .foregroundStyle(Theme.saffron)
                             .symbolEffect(.breathe, options: .repeating)
-                        Text(L("Your plan is ready"))
-                            .font(.heading(.largeTitle))
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(L("Your plan is ready"))
+                                .font(.heading(.largeTitle))
+                            Spacer()
+                            Button {
+                                editingTaste = true
+                            } label: {
+                                Label(L("Edit"), systemImage: "slider.horizontal.3")
+                                    .font(.candor(.subheadline, .semibold))
+                                    .foregroundStyle(Theme.ink)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(Theme.accentSoft, in: .capsule)
+                            }
+                            .buttonStyle(.pressable)
+                            .accessibilityHint(L("Change what you like and love, then plan again"))
+                        }
                         Text(planSummary)
                             .font(.candor(.subheadline))
                             .foregroundStyle(.secondary)
@@ -1056,7 +1158,7 @@ struct PersonaSetupView: View {
                     Text(date.formatted(.dateTime.day().locale(Localizer.shared.locale)))
                         .font(.display(size: 22, .bold))
                 }
-                .foregroundStyle(Theme.surface)
+                .foregroundStyle(.white)
                 .frame(width: 52, height: 52)
                 .background(Theme.ink, in: .rect(cornerRadius: 14, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
@@ -1099,25 +1201,150 @@ struct PersonaSetupView: View {
 
     // MARK: Actions
 
+    /// Plans the days, shown as the setup "recipe". The ring follows the real work: the setup
+    /// ingredients, then the planner's own milestones (places picked, finds collected). It never
+    /// jumps ahead: each ingredient drops in at least a moment after the last, and while a step is
+    /// still working the ring keeps creeping forward so it never looks stuck.
     private func planForMe() {
         guard let trip = app.trip else { return finish(openTrip: true) }
         planLog = []
+        recipe = planningSteps(for: app.persona)
+        recipeDone = 0
+        recipeTarget = 0
+        recipePartial = 0
         withAnimation(.smooth) { isPlanning = true }
+        let driver = Task { await driveRecipe() }
         Task {
+            let planningSteps = 4
+            let setupCount = recipe.count - planningSteps
+            await app.currency.refresh()
+            recipeTarget = setupCount
             let planned: Trip
             if app.hasGemini {
-                planned = await TripPlanner.suggestWithGemini(app: app, trip: trip) { line in
+                planned = await TripPlanner.suggestWithGemini(app: app, trip: trip, progress: { line in
                     withAnimation(.snappy) { planLog.append(line) }
-                }
+                }, milestone: { fraction in
+                    // The last ingredient (food, markets, tips) only lands when everything is in.
+                    let reached = setupCount + min(Int(fraction * Double(planningSteps)), planningSteps - 1)
+                    recipeTarget = max(recipeTarget, reached)
+                })
             } else {
                 withAnimation(.snappy) { planLog.append(L("Picking places for your interests")) }
-                try? await Task.sleep(for: .milliseconds(700))
+                recipeTarget = setupCount + 2
+                try? await Task.sleep(for: .milliseconds(900))
                 planned = TripPlanner.suggest(persona: app.persona, trip: trip)
+                withAnimation(.snappy) { planLog.append(L("Timing your days and fair fares")) }
+                recipeTarget = setupCount + 3
             }
             app.trip = planned
+            recipeTarget = recipe.count
+            await driver.value
+            try? await Task.sleep(for: .milliseconds(700))
             withAnimation(.smooth) {
                 isPlanning = false
                 plannedTrip = planned
+            }
+        }
+    }
+
+    /// Overall progress through the recipe, for the label under the ring.
+    private var recipePercent: Int {
+        guard !recipe.isEmpty else { return 0 }
+        return min(Int((Double(recipeDone) + recipePartial) / Double(recipe.count) * 100), 100)
+    }
+
+    /// Moves the ring towards `recipeTarget` one ingredient at a time, and creeps through the
+    /// current one while the work behind it is still running.
+    private func driveRecipe() async {
+        while recipeDone < recipe.count, !Task.isCancelled {
+            if recipeDone < recipeTarget {
+                // Let the creep finish its arc, then drop the ingredient in.
+                withAnimation(.easeOut(duration: 0.35)) { recipePartial = 1 }
+                try? await Task.sleep(for: .milliseconds(450))
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                    recipeDone += 1
+                    recipePartial = 0
+                }
+                try? await Task.sleep(for: .milliseconds(350))
+            } else {
+                try? await Task.sleep(for: .milliseconds(300))
+                // Eases towards 90% of the step and never past it, however long the step takes.
+                withAnimation(.linear(duration: 0.3)) { recipePartial += (0.9 - recipePartial) * 0.05 }
+            }
+        }
+    }
+
+    /// What goes into the plan: the setup first, then the planning steps.
+    private func planningSteps(for persona: Persona) -> [RecipeStep] {
+        var steps = [
+            RecipeStep(icon: "character.bubble.fill", tint: Theme.teal,
+                       title: L("Speaking %@", persona.languageName),
+                       detail: L("The app and the agent use your language")),
+            RecipeStep(icon: "dollarsign.arrow.circlepath", tint: Theme.mint,
+                       title: L("Linking %@", persona.homeCurrency),
+                       detail: L("Fetching today's exchange rates"))
+        ]
+        for stop in stops.prefix(2) {
+            steps.append(RecipeStep(icon: "map.fill", tint: Theme.saffron,
+                                    title: stop.city.pack != nil ? L("Loading the %@ guide", L(stop.city.name))
+                                                                 : L("Setting up %@", L(stop.city.name)),
+                                    detail: L("Fair fares, prices and known scams")))
+        }
+        steps += [
+            RecipeStep(icon: "sparkle.magnifyingglass", tint: Theme.violet,
+                       title: L("Searching what's on for your dates"),
+                       detail: L("Festivals, events and closures")),
+            RecipeStep(icon: "mappin.and.ellipse", tint: Theme.rose,
+                       title: L("Picking places you'll love"),
+                       detail: persona.interests.isEmpty ? L("All interests")
+                           : persona.interests.map { L($0) }.joined(separator: ", ")),
+            RecipeStep(icon: "tram.fill", tint: Theme.indigo,
+                       title: L("Timing your days and fair fares"),
+                       detail: L("Metro, buses, autos and cabs")),
+            RecipeStep(icon: "fork.knife", tint: Color(hex: 0xC8743A),
+                       title: L("Food, markets and tips"),
+                       detail: L("Where to eat and what to know"))
+        ]
+        return steps
+    }
+
+    /// Change what you like and love, then plan again.
+    private var tasteEditor: some View {
+        NavigationStack {
+            ScrollView {
+                tasteStep
+                    .padding(20)
+            }
+            .background(AppBackground())
+            .navigationTitle(L("Your choices"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L("Cancel")) {
+                        draft.travelStyle = app.persona.travelStyle
+                        draft.interests = app.persona.interests
+                        draft.tastes = app.persona.tastes
+                        editingTaste = false
+                    }
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                    var persona = app.persona
+                    persona.travelStyle = draft.travelStyle
+                    persona.interests = draft.interests
+                    persona.tastes = draft.tastes
+                    app.persona = persona
+                    editingTaste = false
+                    withAnimation(.smooth) { plannedTrip = nil }
+                    planForMe()
+                } label: {
+                    Label(L("Plan again with these"), systemImage: "sparkles")
+                }
+                .buttonStyle(.pill)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+                .background(.bar)
             }
         }
     }
@@ -1204,26 +1431,15 @@ struct PersonaSetupView: View {
         saveTrip()
         persona.tripDays = app.trip?.plannedDayCount ?? persona.tripDays
         app.persona = persona
-        recipe = recipeSteps(for: persona)
-        recipeDone = 0
-        withAnimation(.smooth) { isBuilding = true }
-
-        Task {
-            try? await Task.sleep(for: .milliseconds(500))
-            for item in recipe {
-                if item.icon == "dollarsign.arrow.circlepath" {
-                    await app.currency.refresh()
-                }
-                try? await Task.sleep(for: .milliseconds(550))
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) { recipeDone += 1 }
-            }
-            try? await Task.sleep(for: .milliseconds(900))
-            // Someone whose days are already planned (set up before) goes straight in.
-            if app.trip?.days.isEmpty == false {
-                app.completeOnboarding()
-            } else {
-                withAnimation(.smooth) { askToPlan = true }
-            }
+        Task { await app.currency.refresh() }
+        // Someone whose days are already planned (set up before) goes straight in.
+        if app.trip?.days.isEmpty == false {
+            app.completeOnboarding()
+            return
+        }
+        withAnimation(.smooth) {
+            askToPlan = true
+            isBuilding = true
         }
     }
 }

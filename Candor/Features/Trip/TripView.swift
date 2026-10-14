@@ -10,10 +10,15 @@ struct TripView: View {
     @State private var dayIndex = 0
     @State private var expandedStop: UUID?
     @State private var legSheet: Leg?
+    /// The stop the open journey leads to, so "Go this way" can save the choice on it.
+    @State private var legStopID: UUID?
     @State private var showAddPlace = false
     @State private var showEditDay = false
     @State private var confirmStartOver = false
     @State private var mapPosition: MapCameraPosition = .automatic
+    /// The day's hops on real roads and rails, loaded for the map.
+    @State private var dayRoutes: [DayRoute] = []
+    @State private var show3D = false
 
     var body: some View {
         NavigationStack {
@@ -32,7 +37,9 @@ struct TripView: View {
                 }
             }
             .sheet(item: $legSheet) { leg in
-                LegDetailSheet(leg: leg)
+                JourneyView(leg: leg) { mode in
+                    if let id = legStopID { choose(mode, for: id) }
+                }
             }
             .sheet(isPresented: $showAddPlace) {
                 AddPlaceSheet(dayIndex: currentIndex)
@@ -53,6 +60,7 @@ struct TripView: View {
                 dayIndex = app.trip?.todayIndex ?? 0
             }
             .onChange(of: dayIndex) { _, _ in
+                dayRoutes = []
                 expandedStop = nil
                 mapPosition = .automatic
             }
@@ -107,40 +115,46 @@ struct TripView: View {
     // MARK: Trip
 
     private func tripContent(_ trip: Trip) -> some View {
-        let index = currentIndex
-        let day = trip.days[index]
-        let date = trip.date(ofDay: index)
-        let start = location.dayStart(trip: trip, day: index)
-        let plan = TripPlanner.dayPlan(day, date: date, origin: start.coordinate, originName: start.name,
-                                       style: app.persona.travelStyle, city: trip.cityStay(ofDay: index)?.city,
-                                           likesWalking: app.persona.hasTaste("Happy to walk"))
+        // The view model works out the day (plan, numbers, done or not); this view lays it out.
+        let model = TripDayViewModel(trip: trip, dayIndex: currentIndex, persona: app.persona, location: location)
         return ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                dayChips(trip)
-                dayHeader(day: day, date: date, plan: plan)
-                let finds = trip.insights.filter { $0.city == trip.cityStay(ofDay: index)?.city.name }
-                if !finds.isEmpty {
-                    TripInsightsSection(insights: finds)
+                dayChips(model.chips)
+                dayHeader(model)
+                if model.isComplete {
+                    dayCompleteCard(model)
+                        .transition(.asymmetric(insertion: .scale(scale: 0.92).combined(with: .opacity),
+                                                removal: .opacity))
                 }
-                if !plan.entries.isEmpty {
-                    dayMap(plan)
+                TravelStyleSwitcher(compact: true)
+                TravelCompanionPicker()
+                if !model.insights.isEmpty {
+                    TripInsightsSection(insights: model.insights)
                 }
-                timeline(plan, date: date)
+                if model.hasStops {
+                    dayMap(model)
+                }
+                timeline(model.plan, date: model.date)
                 dayButtons
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 30)
             .animation(.snappy, value: expandedStop)
+            .animation(.spring(response: 0.5, dampingFraction: 0.8), value: model.isComplete)
         }
+        .scrollIndicators(.hidden)
     }
 
-    private func dayChips(_ trip: Trip) -> some View {
+    private func dayChips(_ chips: [TripDayViewModel.DayChip]) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(trip.days.indices, id: \.self) { index in
-                    Chip(title: L("Day %@", index + 1), isSelected: index == currentIndex, tint: Theme.accent) {
-                        withAnimation(.snappy) { dayIndex = index }
+                ForEach(chips) { chip in
+                    Chip(title: chip.title, icon: chip.isComplete ? "checkmark.seal.fill" : nil,
+                         isSelected: chip.index == currentIndex,
+                         tint: chip.isComplete ? Theme.emerald : Theme.accent) {
+                        withAnimation(.snappy) { dayIndex = chip.index }
                     }
+                    .accessibilityValue(chip.isComplete ? L("Done") : "")
                 }
                 Chip(title: L("Add day"), icon: "plus", tint: Theme.accent) {
                     withAnimation(.snappy) { addDay() }
@@ -151,49 +165,191 @@ struct TripView: View {
         .scrollClipDisabled()
     }
 
-    private func dayHeader(day: TripDay, date: Date, plan: DayPlan) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Localizer.shared.locale)))
-                .font(.candor(.subheadline, .semibold))
-                .foregroundStyle(Theme.accent)
-            Text(day.displayTitle)
-                .font(.heading(.title2))
+    /// The day as a hero card: the date, the title, the day's numbers and how much of it is done.
+    private func dayHeader(_ model: TripDayViewModel) -> some View {
+        let plan = model.plan
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "calendar")
+                Text(model.dateLine)
+                if let city = model.cityName {
+                    Text("· " + L(city))
+                }
+                Spacer(minLength: 0)
+                if model.isComplete {
+                    Label(L("Done"), systemImage: "checkmark.seal.fill")
+                        .font(.candor(.caption1, .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Theme.emerald, in: .capsule)
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .font(.candor(.subheadline, .semibold))
+            .foregroundStyle(Theme.ink)
+            Text(model.day.displayTitle)
+                .font(.heading(.title1))
+                .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
             if !plan.entries.isEmpty {
-                Text(L("%1$@ stops · %2$@ travel · %3$@", plan.entries.count, durationText(plan.travelMinutes), plan.fareText))
-                    .font(.candor(.subheadline))
-                    .foregroundStyle(.secondary)
-                let visited = plan.entries.filter(\.stop.isVisited).count
-                if visited > 0 {
-                    Label(visited == plan.entries.count ? L("Day done") : L("%1$@ of %2$@ visited", visited, plan.entries.count),
-                          systemImage: "checkmark.circle.fill")
-                        .font(.candor(.subheadline, .semibold))
-                        .foregroundStyle(Theme.mint)
-                        .padding(.top, 2)
+                HStack(spacing: 8) {
+                    headerStat(icon: "mappin.and.ellipse", text: L("%@ stops", plan.entries.count))
+                    headerStat(icon: "clock.fill", text: durationText(plan.travelMinutes))
+                    headerStat(icon: "indianrupeesign", text: plan.fareText)
+                }
+                if model.visitedCount > 0 {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label(model.isComplete ? L("Day done") : L("%1$@ of %2$@ visited", model.visitedCount, plan.entries.count),
+                              systemImage: "checkmark.circle.fill")
+                            .font(.candor(.subheadline, .semibold))
+                            .foregroundStyle(Theme.emerald)
+                            .contentTransition(.numericText())
+                        ProgressView(value: model.progress)
+                            .tint(Theme.emerald)
+                            .animation(.smooth, value: model.progress)
+                    }
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .velvetCard(.pearl, padding: 18)
     }
 
-    private func dayMap(_ plan: DayPlan) -> some View {
-        let origin = location.dayStart(trip: app.trip, day: currentIndex).coordinate
-        let coordinates = [origin] + plan.entries.map(\.stop.coordinate)
-        return Group {
-            if GoogleMapsSetup.isReady {
-                GoogleTripMap(pins: [GoogleTripMap.Pin(latitude: origin.latitude, longitude: origin.longitude,
-                                                       title: plan.startName, number: nil)]
-                    + plan.entries.enumerated().map { number, entry in
-                        GoogleTripMap.Pin(latitude: entry.stop.latitude, longitude: entry.stop.longitude,
-                                          title: L(entry.stop.name), number: number + 1,
-                                          visited: entry.stop.isVisited)
-                    })
+    /// Shown once every place on the day is ticked off: the day is complete.
+    private func dayCompleteCard(_ model: TripDayViewModel) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(Velvet.emerald.sheen)
+                    .frame(width: 52, height: 52)
+                    .background(Color.white.opacity(0.14), in: .circle)
+                    .symbolEffect(.bounce, value: model.isComplete)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L("Day %@ complete", model.index + 1))
+                        .font(.heading(.title2))
+                    Text(L("You saw all %1$@ places and travelled for %2$@. Rest your feet, you earned it.",
+                           model.plan.entries.count, durationText(model.plan.travelMinutes)))
+                        .font(.candor(.subheadline))
+                        .foregroundStyle(Velvet.emerald.secondaryForeground)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            if let next = model.nextOpenDay {
+                Button {
+                    withAnimation(.snappy) { dayIndex = next }
+                } label: {
+                    Label(L("Go to Day %@", next + 1), systemImage: "arrow.right")
+                }
+                .buttonStyle(PillButtonStyle(kind: .cream, height: 46))
             } else {
-                appleMap(plan, origin: origin, coordinates: coordinates)
+                Label(L("Every day of your trip is done. What a journey!"), systemImage: "sparkles")
+                    .font(.candor(.subheadline, .semibold))
             }
         }
-        .frame(height: 210)
-        .clipShape(.rect(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Theme.hairline, lineWidth: 1))
+        .foregroundStyle(Velvet.emerald.foreground)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .velvetCard(.emerald, radius: 26, padding: 18)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func headerStat(icon: String, text: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon).font(.system(size: 11, weight: .bold))
+            Text(text).lineLimit(1)
+        }
+        .font(.candor(.caption1, .semibold).monospacedDigit())
+        .foregroundStyle(Theme.ink)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Theme.accentSoft, in: .capsule)
+    }
+
+    private func dayMap(_ model: TripDayViewModel) -> some View {
+        let plan = model.plan
+        let origin = model.origin
+        let coordinates = [origin] + plan.entries.map(\.stop.coordinate)
+        return Button { show3D = true } label: {
+            Group {
+                if GoogleMapsSetup.isReady {
+                    GoogleTripMap(pins: googlePins(plan, origin: origin), lines: googleLines)
+                } else {
+                    appleMap(plan, origin: origin, coordinates: coordinates)
+                }
+            }
+            .allowsHitTesting(false)
+            .frame(height: 230)
+            .clipShape(.rect(cornerRadius: Theme.Radius.large, style: .continuous))
+            .overlay(alignment: .bottomTrailing) {
+                Label(L("Explore in 3D"), systemImage: "cube.transparent.fill")
+                    .font(.candor(.subheadline, .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+                    .background(Theme.brandFill, in: .capsule)
+                    .shadow(color: Theme.ink.opacity(0.35), radius: 10, y: 5)
+                    .padding(12)
+            }
+            .overlay(alignment: .topLeading) {
+                HStack(spacing: 6) {
+                    ForEach(Array(Set(plan.entries.map(\.leg.best))).sorted { $0.rawValue < $1.rawValue }) { mode in
+                        Image(systemName: mode.icon)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 24, height: 24)
+                            .background(mode.color, in: .circle)
+                    }
+                }
+                .padding(6)
+                .background(.ultraThinMaterial, in: .capsule)
+                .padding(12)
+            }
+            .shadow(color: Theme.shadow, radius: 14, y: 8)
+        }
+        .buttonStyle(.pressable)
+        .accessibilityLabel(L("Explore the day in 3D"))
+        .task(id: model.routeKey) { await loadRoutes(plan, origin: origin) }
+        .fullScreenCover(isPresented: $show3D) {
+            Trip3DMapView(title: model.day.displayTitle,
+                          stops: [DayMapStop(id: UUID(), number: nil, name: plan.startName, coordinate: origin)]
+                            + plan.entries.enumerated().map { number, entry in
+                                DayMapStop(id: entry.stop.id, number: number + 1, name: L(entry.stop.name),
+                                           coordinate: entry.stop.coordinate, visited: entry.stop.isVisited)
+                            },
+                          routes: dayRoutes)
+        }
+    }
+
+    private func googlePins(_ plan: DayPlan, origin: CLLocationCoordinate2D) -> [GoogleTripMap.Pin] {
+        let start = GoogleTripMap.Pin(latitude: origin.latitude, longitude: origin.longitude,
+                                      title: plan.startName, number: nil)
+        let stops: [GoogleTripMap.Pin] = plan.entries.enumerated().map { number, entry in
+            GoogleTripMap.Pin(latitude: entry.stop.latitude, longitude: entry.stop.longitude,
+                              title: L(entry.stop.name), number: number + 1, visited: entry.stop.isVisited)
+        }
+        return [start] + stops
+    }
+
+    private var googleLines: [GoogleTripMap.Line] {
+        dayRoutes.map { route in
+            GoogleTripMap.Line(latitudes: route.coordinates.map(\.latitude),
+                               longitudes: route.coordinates.map(\.longitude),
+                               color: UIColor(route.mode.color))
+        }
+    }
+
+    /// Each hop of the day on real roads (or rails, for Metro and bus), in its travel colour.
+    private func loadRoutes(_ plan: DayPlan, origin: CLLocationCoordinate2D) async {
+        var from = origin
+        var loaded: [DayRoute] = []
+        for entry in plan.entries {
+            let path = await RouteService.path(from: from, to: entry.stop.coordinate, mode: entry.leg.best)
+            guard !Task.isCancelled else { return }
+            loaded.append(DayRoute(id: entry.stop.id, mode: entry.leg.best, coordinates: path))
+            from = entry.stop.coordinate
+        }
+        withAnimation(.smooth) { dayRoutes = loaded }
     }
 
     /// Apple Maps, when the Google Maps SDK has no key.
@@ -208,8 +364,15 @@ struct TripView: View {
                     .overlay(Circle().stroke(.white, lineWidth: 2))
             }
             .annotationTitles(.hidden)
-            MapPolyline(coordinates: coordinates)
-                .stroke(Theme.accent, style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [6, 5]))
+            if dayRoutes.isEmpty {
+                MapPolyline(coordinates: coordinates)
+                    .stroke(Theme.accent, style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [6, 5]))
+            } else {
+                ForEach(dayRoutes) { route in
+                    MapPolyline(coordinates: route.coordinates)
+                        .stroke(route.mode.color, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                }
+            }
             ForEach(Array(plan.entries.enumerated()), id: \.element.id) { number, entry in
                 Annotation(L(entry.stop.name), coordinate: entry.stop.coordinate) {
                     Text("\(number + 1)")
@@ -246,6 +409,23 @@ struct TripView: View {
             }
             .card(cornerRadius: 16, padding: 12)
 
+            if !plan.entries.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle")
+                        .foregroundStyle(Theme.mint)
+                    Text(L("Tick each place when you get there"))
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                    Button { showEditDay = true } label: {
+                        Label(L("Rearrange"), systemImage: "arrow.up.arrow.down")
+                            .foregroundStyle(Theme.ink)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .font(.candor(.caption1, .medium))
+                .padding(.horizontal, 4)
+            }
+
             if plan.entries.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "mappin.and.ellipse")
@@ -268,7 +448,74 @@ struct TripView: View {
         }
     }
 
+    /// The hop to a stop. Until the traveller picks how to go, every way is offered as a chip
+    /// with its fare; after that only their choice shows, with a button to change it.
+    @ViewBuilder
     private func legRow(_ leg: Leg, stop: TripStop) -> some View {
+        if (stop.travelMode == nil || stop.travelMode != leg.best) && !stop.isArrived && leg.options.count > 1 {
+            modeChooser(leg, stop: stop)
+        } else {
+            chosenLeg(leg, stop: stop)
+        }
+    }
+
+    private func modeChooser(_ leg: Leg, stop: TripStop) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "point.topleft.down.to.point.bottomright.curvepath.fill")
+                    .foregroundStyle(Theme.ink)
+                Text(L("How will you get to %@?", L(stop.name)))
+                    .font(.candor(.subheadline, .medium))
+                    .lineLimit(2)
+                Spacer(minLength: 0)
+                Button(L("Compare")) {
+                    legStopID = stop.id
+                    legSheet = leg
+                }
+                .font(.candor(.caption1, .semibold))
+                .foregroundStyle(Theme.ink)
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(leg.sortedOptions) { option in
+                        Button { choose(option.mode, for: stop.id) } label: {
+                            VStack(spacing: 3) {
+                                Image(systemName: option.mode.icon)
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundStyle(option.mode.color)
+                                    .frame(width: 34, height: 34)
+                                    .background(option.mode.color.opacity(0.12), in: .circle)
+                                Text(option.mode.title).font(.candor(.caption2, .medium)).foregroundStyle(.primary)
+                                Text(option.fareText).font(.candor(.caption2).monospacedDigit()).foregroundStyle(.secondary)
+                                Text(durationText(option.minutes)).font(.candor(.caption2).monospacedDigit()).foregroundStyle(.tertiary)
+                            }
+                            .frame(width: 70)
+                            .padding(.vertical, 8)
+                            .background(Theme.surface, in: .rect(cornerRadius: 14, style: .continuous))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .strokeBorder(option.mode == leg.best ? Theme.mint.opacity(0.6) : Color.primary.opacity(0.06),
+                                                  lineWidth: 1)
+                            }
+                        }
+                        .buttonStyle(.pressable)
+                        .accessibilityLabel("\(option.mode.title), \(option.fareText), \(durationText(option.minutes))")
+                    }
+                }
+                .padding(.vertical, 2)
+                .padding(.horizontal, 12)
+            }
+            .padding(.horizontal, -12)
+            .clipShape(.rect(cornerRadius: 12))
+        }
+        .padding(12)
+        .background(Theme.canvas, in: .rect(cornerRadius: 16, style: .continuous))
+        .clipShape(.rect(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.primary.opacity(0.06), lineWidth: 1))
+        .accessibilityIdentifier("tripLegChooser")
+    }
+
+    private func chosenLeg(_ leg: Leg, stop: TripStop) -> some View {
         let option = leg.bestOption
         let done = stop.isArrived
         return HStack(spacing: 0) {
@@ -287,38 +534,47 @@ struct TripView: View {
             .padding(.leading, 12)
             .accessibilityLabel(done ? L("Undo: got to %@", L(stop.name)) : L("Mark as reached: %@", L(stop.name)))
 
-            Button { legSheet = leg } label: {
+            Button {
+                legStopID = stop.id
+                legSheet = leg
+            } label: {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(option.mode.title) · \(durationText(option.minutes)) · \(option.fareText)")
-                            .font(.candor(.subheadline, .semibold))
+                            .font(.candor(.subheadline, .medium))
                             .foregroundStyle(done ? .secondary : .primary)
                             .strikethrough(done, color: .secondary)
-                        Text(done ? L("Done") : option.summary)
+                        Text(done ? L("Done") : L("See the journey"))
                             .font(.candor(.caption1))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
                     Spacer(minLength: 0)
-                    if leg.options.count > 1 && !done {
-                        Text(L("%@ ways", leg.options.count))
-                            .font(.candor(.caption1, .semibold))
-                            .foregroundStyle(option.mode.color)
-                    }
-                    Image(systemName: "chevron.right")
-                        .font(.candor(.caption1))
-                        .foregroundStyle(.tertiary)
                 }
                 .padding(.leading, 12)
-                .padding(.trailing, 12)
                 .padding(.vertical, 8)
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .accessibilityHint(L("Shows every way to get there"))
             .accessibilityIdentifier("tripLeg")
+
+            if !done && leg.options.count > 1 {
+                Button {
+                    updateStop(stop.id) { $0.travelMode = nil }
+                } label: {
+                    Label(L("Change"), systemImage: "pencil")
+                        .font(.candor(.caption1, .medium))
+                        .foregroundStyle(Theme.ink)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Theme.accentSoft, in: .capsule)
+                }
+                .buttonStyle(.pressable)
+                .padding(.trailing, 10)
+                .accessibilityLabel(L("Change how to get to %@", L(stop.name)))
+            }
         }
-        .background((done ? Theme.mint : option.mode.color).opacity(0.10), in: .rect(cornerRadius: 14))
+        .background((done ? Theme.mint : option.mode.color).opacity(0.08), in: .rect(cornerRadius: 14))
         .overlay(alignment: .leading) {
             Rectangle()
                 .fill((done ? Theme.mint : option.mode.color).opacity(0.5))
@@ -327,6 +583,11 @@ struct TripView: View {
                 .offset(x: 28)
                 .allowsHitTesting(false)
         }
+    }
+
+    /// Saves how the traveller will get to a stop.
+    private func choose(_ mode: TravelMode, for id: UUID) {
+        updateStop(id) { $0.travelMode = mode }
     }
 
     // MARK: Ticking off
@@ -399,22 +660,28 @@ struct TripView: View {
             .buttonStyle(.plain)
             .overlay(alignment: .topLeading) {
                 Button { toggleVisited(stop) } label: {
+                    // A checkpoint: a faded, dashed circle with the stop number until the
+                    // traveller ticks it on arrival, then a solid green tick.
                     ZStack {
                         if stop.isVisited {
                             Image(systemName: "checkmark")
-                                .font(.candor(.subheadline, .bold))
+                                .font(.system(size: 15, weight: .bold))
                                 .foregroundStyle(.white)
                                 .frame(width: 34, height: 34)
                                 .background(Theme.mint, in: .circle)
+                                .transition(.scale.combined(with: .opacity))
                         } else {
                             Text("\(number)")
-                                .font(.candor(.subheadline, .bold))
-                                .foregroundStyle(.white)
+                                .font(.candor(.subheadline, .medium).monospacedDigit())
+                                .foregroundStyle(Theme.ink.opacity(0.55))
                                 .frame(width: 34, height: 34)
-                                .background(Theme.accent, in: .circle)
+                                .background(Theme.surface, in: .circle)
+                                .overlay(Circle().strokeBorder(Theme.ink.opacity(0.35),
+                                                               style: StrokeStyle(lineWidth: 1.5, dash: [3, 3])))
                         }
                     }
                     .contentShape(.circle)
+                    .sensoryFeedback(.success, trigger: stop.isVisited) { _, now in now }
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(stop.isVisited ? L("Undo visited: %@", L(stop.name)) : L("Mark as visited: %@", L(stop.name)))
@@ -457,23 +724,15 @@ struct TripView: View {
     }
 
     private var dayButtons: some View {
-        Group {
-            HStack(spacing: 10) {
-                Button { showAddPlace = true } label: {
-                    Label(L("Add a place"), systemImage: "plus")
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 30)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(Theme.accent)
-                Button { showEditDay = true } label: {
-                    Label(L("Edit day"), systemImage: "pencil")
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 30)
-                }
-                .buttonStyle(.bordered)
+        HStack(spacing: 10) {
+            Button { showAddPlace = true } label: {
+                Label(L("Add a place"), systemImage: "plus")
             }
-            .font(.candor(.subheadline, .semibold))
+            .buttonStyle(PillButtonStyle(kind: .filled, height: 50))
+            Button { showEditDay = true } label: {
+                Label(L("Edit day"), systemImage: "pencil")
+            }
+            .buttonStyle(PillButtonStyle(kind: .outline, height: 50))
         }
     }
 }
@@ -628,8 +887,12 @@ struct LegDetailSheet: View {
                             .font(.candor(.subheadline))
                             .foregroundStyle(.secondary)
                     }
+                    modeStrip
                     ForEach(leg.sortedOptions) { option in
                         optionCard(option)
+                    }
+                    if leg.hasCoordinates && leg.km >= 1.5 {
+                        LiveTransitSection(from: leg.fromCoordinate, to: leg.toCoordinate)
                     }
                     Text(L("Times and fares are estimates from the official fare chart and DMRC fare slabs."))
                         .font(.candor(.caption1))
@@ -646,6 +909,37 @@ struct LegDetailSheet: View {
                 }
             }
         }
+    }
+
+    /// Every way at a glance: mode, time, fare.
+    private var modeStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(leg.sortedOptions) { option in
+                    VStack(spacing: 4) {
+                        Image(systemName: option.mode.icon)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(option.mode.color.gradient, in: .circle)
+                        Text(option.mode.title).font(.candor(.caption1, .semibold))
+                        Text(durationText(option.minutes)).font(.candor(.caption2)).foregroundStyle(.secondary)
+                        Text(option.fareText).font(.candor(.caption2, .bold).monospacedDigit()).foregroundStyle(option.mode.color)
+                    }
+                    .frame(width: 78)
+                    .padding(.vertical, 10)
+                    .background(Theme.surface, in: .rect(cornerRadius: Theme.Radius.medium, style: .continuous))
+                    .overlay {
+                        if option.mode == leg.best {
+                            RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
+                                .strokeBorder(option.mode.color, lineWidth: 1.5)
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .scrollClipDisabled()
     }
 
     private func optionCard(_ option: LegOption) -> some View {
@@ -706,7 +1000,7 @@ struct LegDetailSheet: View {
                 }
             }
 
-            if option.mode == .auto || option.mode == .cab {
+            if option.mode == .auto || option.mode == .cab || option.mode == .bikeTaxi {
                 NavigationLink {
                     RideCheckView(initialDestination: leg.to)
                 } label: {

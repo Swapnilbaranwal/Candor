@@ -135,7 +135,15 @@ final class AgentEngine {
     private static func reason(for error: Error) -> String {
         switch error {
         case GeminiError.http(429, _): L("Gemini's usage limit is reached.")
-        case is URLError: L("Couldn't reach Gemini.")
+        case GeminiError.http(503, _), GeminiError.http(500, _):
+            L("Gemini is busy right now. Try again in a minute.")
+        case GeminiError.http(400, let message) where message.lowercased().contains("api key"):
+            L("Gemini says the API key isn't valid. Check it in Me.")
+        case GeminiError.http(401, _), GeminiError.http(403, _):
+            L("Gemini rejected the API key (it may be restricted or not enabled for the Gemini API). Check it in Me.")
+        case GeminiError.http(404, _): L("No Gemini model is available to this key.")
+        case GeminiError.http(let code, _): L("Gemini returned error %@.", code)
+        case is URLError: L("Couldn't reach Gemini. Check the internet connection.")
         default: L("Gemini couldn't answer.")
         }
     }

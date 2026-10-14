@@ -16,6 +16,16 @@ final class AppState {
     }
     var records: [PriceCheckRecord] { didSet { persist() } }
     var trip: Trip? { didSet { persistTrip() } }
+    /// A booked tour with a local guide (Travel with a guide).
+    var guideBooking: GuideBooking? {
+        didSet {
+            if let guideBooking, let data = try? JSONEncoder().encode(guideBooking) {
+                defaults.set(data, forKey: Keys.guideBooking)
+            } else {
+                defaults.removeObject(forKey: Keys.guideBooking)
+            }
+        }
+    }
     var geminiKey: String { didSet { defaults.set(geminiKey, forKey: Keys.geminiKey) } }
     var geminiModel: String { didSet { defaults.set(geminiModel, forKey: Keys.geminiModel) } }
 
@@ -30,6 +40,7 @@ final class AppState {
         static let persona = "candor.persona"
         static let records = "candor.records"
         static let trip = "candor.trip"
+        static let guideBooking = "candor.guideBooking"
         static let signedIn = "candor.signedIn"
         static let geminiKey = "candor.geminiKey"
         static let geminiModel = "candor.geminiModel"
@@ -41,6 +52,7 @@ final class AppState {
         persona = d.data(forKey: Keys.persona).flatMap { try? decoder.decode(Persona.self, from: $0) } ?? Persona()
         records = d.data(forKey: Keys.records).flatMap { try? decoder.decode([PriceCheckRecord].self, from: $0) } ?? []
         trip = d.data(forKey: Keys.trip).flatMap { try? decoder.decode(Trip.self, from: $0) }
+        guideBooking = d.data(forKey: Keys.guideBooking).flatMap { try? decoder.decode(GuideBooking.self, from: $0) }
         let savedKey = d.string(forKey: Keys.geminiKey) ?? ""
         // With the Cloud Run proxy set up, the app needs no key of its own.
         geminiKey = savedKey.isEmpty && Backend.geminiProxy == nil ? Backend.bundledGeminiKey : savedKey
@@ -82,6 +94,7 @@ final class AppState {
     }
 
     func completeOnboarding() {
+        defaults.set(Date.now, forKey: "candor.onboardedAt")
         persona.isComplete = true
         phase = .main
     }

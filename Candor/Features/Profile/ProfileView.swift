@@ -22,6 +22,10 @@ struct ProfileView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     personaHeader
+                    // How you like to travel: changes the best way around and the fares everywhere.
+                    TravelStyleSwitcher()
+                        .glossCard(Theme.saffron, padding: 16)
+                    TravelCompanionPicker()
                     preferencesCard(app: $app.persona)
                     aiCard(key: $app.geminiKey, model: $app.geminiModel)
                     accountCard
@@ -45,10 +49,12 @@ struct ProfileView: View {
     private var personaHeader: some View {
         VStack(spacing: 12) {
             Text(app.persona.initials)
-                .font(.candor(size: 34, .bold))
+                .font(.display(size: 34, .bold))
                 .foregroundStyle(.white)
                 .frame(width: 92, height: 92)
-                .background(Theme.accent, in: .circle)
+                .background(Theme.ink, in: .circle)
+                .overlay(Circle().stroke(.white, lineWidth: 4))
+                .shadow(color: Theme.ink.opacity(0.25), radius: 10, y: 5)
             Text(app.persona.name.isEmpty ? L("Traveller") : app.persona.name)
                 .font(.heading(.title2))
             Text(app.persona.accountLabel)
@@ -59,6 +65,11 @@ struct ProfileView: View {
                 tag(L("Days: %@", app.persona.tripDays), "calendar")
                 tag(app.persona.homeCurrency, "banknote")
             }
+            HStack(spacing: 10) {
+                stat("\(app.records.count)", L("checks"))
+                stat("\(app.overchargesCaught)", L("overcharges caught"))
+                stat(inr(app.totalFlaggedINR), L("flagged"))
+            }
             if !app.persona.interests.isEmpty {
                 Text(app.persona.interests.map { L($0) }.joined(separator: " · "))
                     .font(.candor(.caption1))
@@ -67,7 +78,18 @@ struct ProfileView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .card(cornerRadius: 16, padding: 22)
+        .velvetCard(.pearl, radius: 30, padding: 22)
+    }
+
+    private func stat(_ value: String, _ label: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value).font(.candor(.headline, .bold).monospacedDigit()).foregroundStyle(Theme.ink)
+                .lineLimit(1).minimumScaleFactor(0.7)
+            Text(label).font(.candor(.caption2)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(Theme.surface.opacity(0.8), in: .rect(cornerRadius: 14, style: .continuous))
     }
 
     private func tag(_ title: String, _ icon: String) -> some View {
@@ -75,7 +97,8 @@ struct ProfileView: View {
             .font(.candor(.caption1, .semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(Theme.field, in: .capsule)
+            .foregroundStyle(Theme.ink)
+            .background(Theme.accentSoft, in: .capsule)
     }
 
     private func preferencesCard(app persona: Binding<Persona>) -> some View {
@@ -103,16 +126,6 @@ struct ProfileView: View {
                 Picker(L("Home currency"), selection: persona.homeCurrency) {
                     ForEach(CurrencyOption.all) { option in
                         Text("\(option.flag) \(option.code)").tag(option.code)
-                    }
-                }
-            }
-            Divider()
-            HStack {
-                Text(L("Travel style"))
-                Spacer()
-                Picker(L("Travel style"), selection: persona.travelStyle) {
-                    ForEach(TravelStyle.allCases) { style in
-                        Text(style.title).tag(style)
                     }
                 }
             }
