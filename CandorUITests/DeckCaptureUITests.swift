@@ -402,7 +402,9 @@ final class DeckCaptureUITests: XCTestCase {
             shot("12-scan")
             goBack(app)
         }
-        tab(app, "Me")
+        tab(app, "Home")
+        let avatar = app.buttons["homeProfile"]
+        if avatar.waitForExistence(timeout: 5) { avatar.tap() }
         pause(1.5)
         shot("13-me")
 

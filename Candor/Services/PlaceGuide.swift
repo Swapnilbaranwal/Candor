@@ -22,6 +22,9 @@ struct PlaceGuideInfo: Equatable {
 enum PlaceGuide {
     private static var cache: [UUID: PlaceGuideInfo] = [:]
 
+    /// Cached guide, if it's already been looked up: lets an opened stop show it on the first frame.
+    static func cached(_ stop: TripStop) -> PlaceGuideInfo? { cache[stop.id] }
+
     static func info(for stop: TripStop, app: AppState) async -> PlaceGuideInfo {
         if let cached = cache[stop.id] { return cached }
         let details = try? await GooglePlaces.details(stop.name, near: stop.coordinate)

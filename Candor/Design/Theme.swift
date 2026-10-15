@@ -600,3 +600,19 @@ struct StatusBarScrim: ViewModifier {
 extension View {
     func statusBarScrim() -> some View { modifier(StatusBarScrim()) }
 }
+
+// MARK: - Opening and closing
+
+extension Animation {
+    /// Every card, row or picker that opens in place: one calm, non-bouncy curve.
+    static let candorExpand = Animation.smooth(duration: 0.3)
+}
+
+extension AnyTransition {
+    /// Content that appears inside a growing card. It fades in once the card has started to
+    /// open, instead of sliding down over the header, and fades out quickly when it closes.
+    static let candorReveal = AnyTransition.asymmetric(
+        insertion: .opacity.animation(.smooth(duration: 0.25).delay(0.08)),
+        removal: .opacity.animation(.smooth(duration: 0.2))
+    )
+}

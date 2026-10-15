@@ -455,7 +455,9 @@ struct JourneyView: View {
         let count = step.stopCount ?? (step.stops.isEmpty ? nil : step.stops.count + 1)
         if let count {
             Button {
-                expandedStops = expandedStops == step.id ? nil : step.id
+                withAnimation(.candorExpand) {
+                    expandedStops = expandedStops == step.id ? nil : step.id
+                }
             } label: {
                 HStack(spacing: 4) {
                     Text(L("%1$@ stops · %2$@", count, durationText(step.minutes)))
@@ -479,7 +481,7 @@ struct JourneyView: View {
                     }
                 }
                 .padding(.leading, 2)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .transition(.candorReveal)
             }
         }
         if let to = step.to {

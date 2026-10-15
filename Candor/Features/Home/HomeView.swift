@@ -8,6 +8,8 @@ struct HomeView: View {
     @Environment(LocationService.self) private var location
     @Environment(CandorAgent.self) private var agent
     @Environment(AskCandorRouter.self) private var askCandor
+    /// Me, pushed as a full page from the avatar.
+    @State private var showProfile = false
     @State private var journey: JourneyRequest?
 
     /// Opens the demo: one tap from Home to the agent's trail and a verdict card.
@@ -40,6 +42,15 @@ struct HomeView: View {
             .background(AppBackground())
             .toolbar(.hidden, for: .navigationBar)
             .statusBarScrim()
+            .navigationDestination(isPresented: $showProfile) {
+                ProfileView()
+            }
+            .onChange(of: askCandor.isProfileOpen) { _, open in
+                // Launch argument `-candor.tab profile` asks for Me through the router.
+                guard open else { return }
+                showProfile = true
+                askCandor.isProfileOpen = false
+            }
             .sheet(item: $journey) { request in
                 JourneyView(leg: request.leg, mode: request.mode)
             }
@@ -73,6 +84,7 @@ struct HomeView: View {
                 .font(.candor(.subheadline))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.85)
 
                 Text(L("Namaste, %@", model.displayName))
                     .font(.heading(.largeTitle))
@@ -99,7 +111,7 @@ struct HomeView: View {
             .buttonStyle(.pressable)
             .accessibilityLabel(L("Ask Candor anything…"))
             .accessibilityIdentifier("homeAsk")
-            Button { tab = .profile } label: {
+            Button { showProfile = true } label: {
                 Text(app.persona.initials)
                     .font(.heading(.headline))
                     .foregroundStyle(.white)
@@ -112,6 +124,8 @@ struct HomeView: View {
                     }
             }
             .buttonStyle(.pressable)
+            .accessibilityLabel(L("Me"))
+            .accessibilityIdentifier("homeProfile")
         }
         .padding(.top, 12)
     }

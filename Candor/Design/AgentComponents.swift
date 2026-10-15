@@ -9,7 +9,7 @@ struct AgentTrailView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Button {
-                withAnimation(.snappy) { expanded.toggle() }
+                withAnimation(.candorExpand) { expanded.toggle() }
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: isWorking ? "ellipsis" : "checklist")
@@ -27,14 +27,14 @@ struct AgentTrailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(steps) { step in
                         StepRow(step: step)
-                            .transition(.move(edge: .top).combined(with: .opacity))
+                            .transition(.candorReveal)
                     }
                 }
             }
         }
         .onChange(of: isWorking) { _, working in
             if !working {
-                withAnimation(.snappy.delay(0.9)) { expanded = false }
+                withAnimation(.candorExpand.delay(0.9)) { expanded = false }
             }
         }
     }
@@ -113,7 +113,11 @@ struct VerdictCardView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L("Fair price")).font(.candor(.caption1)).foregroundStyle(.secondary)
                     Text(verdict.rangeText).font(.candor(.title2, .bold).monospacedDigit())
-                    Text(app.homeAmount(verdict.fairHighINR)).font(.candor(.caption1)).foregroundStyle(.secondary)
+                    // The whole range in the traveller's money, so it matches the ₹ range above it.
+                    Text(verdict.fairLowINR == verdict.fairHighINR
+                         ? app.homeAmount(verdict.fairHighINR)
+                         : "\(app.homeAmount(verdict.fairLowINR))–\(app.homeAmount(verdict.fairHighINR))")
+                        .font(.candor(.caption1)).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if let asked = verdict.askedINR {

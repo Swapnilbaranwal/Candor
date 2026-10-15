@@ -6,18 +6,25 @@ import SwiftUI
 struct GuideAvatar: View {
     let guide: Guide
     var size: CGFloat = 52
+    /// Off in overlapping stacks, where the ticks crowd the next face.
+    var showsBadge = true
 
     var body: some View {
         Text(guide.initials)
-            .font(.display(size: size * 0.38, .bold))
+            .font(Font(CandorType.lato(.bold, size: size * 0.36)))
+            .minimumScaleFactor(0.6)
+            .lineLimit(1)
+            .padding(.horizontal, size * 0.12)
             .foregroundStyle(.white)
             .frame(width: size, height: size)
             .background(guide.color, in: .circle)
             .overlay(alignment: .bottomTrailing) {
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: size * 0.3))
-                    .foregroundStyle(.white, Theme.mint)
-                    .offset(x: 3, y: 3)
+                if showsBadge {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: size * 0.3))
+                        .foregroundStyle(.white, Theme.mint)
+                        .offset(x: 3, y: 3)
+                }
             }
             .accessibilityHidden(true)
     }
@@ -56,18 +63,27 @@ struct GuideArt: View {
 
 /// The choice on the Trip tab and Home: explore on your own with Candor, or with a verified guide.
 struct TravelCompanionPicker: View {
+    /// On the Trip tab, the day being shown: a booking only shows on its own day, and a new one
+    /// starts on that day. Nil on Home and Me, where any upcoming booking shows.
+    var day: Date?
     @Environment(AppState.self) private var app
     @State private var showBooking = false
 
+    private var booking: GuideBooking? {
+        guard let booking = app.guideBooking, booking.status() != .done else { return nil }
+        if let day, !Calendar.current.isDate(booking.start, inSameDayAs: day) { return nil }
+        return booking
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if let booking = app.guideBooking, booking.status() != .done {
+            if let booking {
                 GuideStatusCard(booking: booking)
             } else {
                 guideInvite
             }
         }
-        .sheet(isPresented: $showBooking) { GuideBookingView() }
+        .sheet(isPresented: $showBooking) { GuideBookingView(day: day) }
     }
 
     /// You're already travelling with the app; this offers a local by your side: a guide
@@ -161,9 +177,9 @@ struct GuideStatusCard: View {
                             .font(.candor(.subheadline))
                             .foregroundStyle(.secondary)
                     }
-                    HStack(spacing: -10) {
+                    HStack(spacing: -8) {
                         ForEach(booking.shortlist) { guide in
-                            GuideAvatar(guide: guide, size: 38)
+                            GuideAvatar(guide: guide, size: 38, showsBadge: false)
                                 .overlay(Circle().stroke(.white, lineWidth: 2))
                         }
                     }
@@ -214,6 +230,8 @@ struct GuideStatusCard: View {
 /// Candor shortlists guides now and locks in the best one an hour before the start.
 /// Prototype: no payment is taken and no guide is contacted.
 struct GuideBookingView: View {
+    /// The trip day the booking is for, when opened from that day on the Trip tab.
+    var day: Date?
     @Environment(AppState.self) private var app
     @Environment(LocationService.self) private var location
     @Environment(\.dismiss) private var dismiss
@@ -246,6 +264,7 @@ struct GuideBookingView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     hero.reveal(0)
@@ -255,11 +274,18 @@ struct GuideBookingView: View {
                     preferences.reveal(4)
                     if !shortlist.isEmpty {
                         shortlistSection
+                            .id("shortlist")
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
                 .padding(20)
                 .padding(.bottom, 90)
+            }
+            .onChange(of: shortlist.isEmpty) { _, empty in
+                // "Find my guide" fills the shortlist below the fold: bring it into view.
+                guard !empty else { return }
+                withAnimation(.smooth(duration: 0.45)) { proxy.scrollTo("shortlist", anchor: .top) }
+            }
             }
             .background(AppBackground())
             .safeAreaInset(edge: .bottom) { bottomBar }
@@ -283,7 +309,11 @@ struct GuideBookingView: View {
         didLoad = true
         language = DelhiData.languages.contains(app.persona.languageCode) ? app.persona.languageCode : "en"
         interests = Array(app.persona.interests.prefix(3))
-        if let trip = app.trip, let first = trip.cities.first, first.arrival > start {
+        if let day, !Calendar.current.isDateInToday(day),
+           let morning = Calendar.current.date(bySettingHour: 10, minute: 0, second: 0, of: day) {
+            // Booking from a later day on the Trip tab: start that morning.
+            start = max(morning, GuideDesk.earliestStart)
+        } else if let trip = app.trip, let first = trip.cities.first, first.arrival > start {
             start = Calendar.current.date(bySettingHour: 10, minute: 0, second: 0, of: first.arrival) ?? start
         }
     }

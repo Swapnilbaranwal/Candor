@@ -361,7 +361,7 @@ struct PersonaSetupView: View {
             }
             if let party, party.fixedCount == nil {
                 travellersCounter(for: party)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(.candorReveal)
             }
         }
     }
@@ -378,7 +378,7 @@ struct PersonaSetupView: View {
     private func partyCard(_ option: TravelParty) -> some View {
         let selected = party == option
         return Button {
-            withAnimation(.snappy) {
+            withAnimation(.candorExpand) {
                 party = selected ? nil : option
                 if option.fixedCount == nil, travellers == nil {
                     travellers = option == .family ? 3 : 4

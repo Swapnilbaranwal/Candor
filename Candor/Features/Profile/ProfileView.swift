@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProfileView: View {
     @Environment(AppState.self) private var app
+    @Environment(AskCandorRouter.self) private var router
     @State private var showKey = false
     @State private var confirmReset = false
     @State private var testState: TestState = .idle
@@ -18,14 +19,14 @@ struct ProfileView: View {
 
     var body: some View {
         @Bindable var app = app
-        NavigationStack {
+        // Pushed from the avatar on Home, inside Home's navigation: a back arrow, no big title.
             ScrollView {
                 VStack(spacing: 16) {
                     personaHeader
                     // How you like to travel: changes the best way around and the fares everywhere.
                     TravelStyleSwitcher()
                         .glossCard(Theme.saffron, padding: 16)
-                    TravelCompanionPicker()
+                    tastesCard(app: $app.persona)
                     preferencesCard(app: $app.persona)
                     aiCard(key: $app.geminiKey, model: $app.geminiModel)
                     accountCard
@@ -39,11 +40,16 @@ struct ProfileView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(AppBackground())
-            .navigationTitle(L("Me"))
+            // The avatar and name at the top say whose page this is: no "Me" title above them.
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.visible, for: .navigationBar)
+            // A sub-page of Home: no tabs, so Back is the one way out and Home always opens on Home.
+            .toolbar(.hidden, for: .tabBar)
+            .onAppear { router.isProfileShowing = true }
+            .onDisappear { router.isProfileShowing = false }
             .confirmationDialog(L("Clear all saved checks?"), isPresented: $confirmReset, titleVisibility: .visible) {
                 Button(L("Clear checks"), role: .destructive) { app.resetStats() }
             }
-        }
     }
 
     private var personaHeader: some View {
@@ -66,8 +72,8 @@ struct ProfileView: View {
                 tag(app.persona.homeCurrency, "banknote")
             }
             HStack(spacing: 10) {
-                stat("\(app.records.count)", L("checks"))
-                stat("\(app.overchargesCaught)", L("overcharges caught"))
+                stat("\(app.records.count)", app.records.count == 1 ? L("check") : L("checks"))
+                stat("\(app.overchargesCaught)", app.overchargesCaught == 1 ? L("overcharge caught") : L("overcharges caught"))
                 stat(inr(app.totalFlaggedINR), L("flagged"))
             }
             if !app.persona.interests.isEmpty {
@@ -99,6 +105,40 @@ struct ProfileView: View {
             .padding(.vertical, 6)
             .foregroundStyle(Theme.ink)
             .background(Theme.accentSoft, in: .capsule)
+    }
+
+    /// What you love and how you like to travel: the persona Candor plans around. Changing it
+    /// here changes the suggestions everywhere (new day plans, "What to do there", Ask Candor).
+    private func tastesCard(app persona: Binding<Persona>) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label(L("What you love"), systemImage: "heart.text.square").font(.candor(.headline, .semibold))
+            FlowLayout(spacing: 8) {
+                ForEach(DelhiData.interests, id: \.self) { interest in
+                    let on = persona.wrappedValue.interests.contains(interest)
+                    Chip(title: L(interest), isSelected: on, tint: Theme.accent) {
+                        withAnimation(.snappy) {
+                            if on { persona.wrappedValue.interests.removeAll { $0 == interest } }
+                            else { persona.wrappedValue.interests.append(interest) }
+                        }
+                    }
+                }
+            }
+            Divider()
+            Text(L("How you like it")).font(.candor(.subheadline, .semibold))
+            FlowLayout(spacing: 8) {
+                ForEach(Persona.tasteOptions, id: \.self) { taste in
+                    let on = persona.wrappedValue.hasTaste(taste)
+                    Chip(title: L(taste), isSelected: on, tint: Theme.teal) {
+                        withAnimation(.snappy) {
+                            var list = persona.wrappedValue.tastes ?? []
+                            if on { list.removeAll { $0 == taste } } else { list.append(taste) }
+                            persona.wrappedValue.tastes = list
+                        }
+                    }
+                }
+            }
+        }
+        .card()
     }
 
     private func preferencesCard(app persona: Binding<Persona>) -> some View {

@@ -8,6 +8,8 @@ struct TripView: View {
     @Environment(AppState.self) private var app
     @Environment(LocationService.self) private var location
     @State private var dayIndex = 0
+    /// The day last shown, so switching tabs and back doesn't jump to today. -1 until chosen.
+    @SceneStorage("candor.tripDay") private var savedDay = -1
     @State private var expandedStop: UUID?
     @State private var legSheet: Leg?
     /// The stop the open journey leads to, so "Go this way" can save the choice on it.
@@ -29,7 +31,9 @@ struct TripView: View {
                 }
             }
             .background(AppBackground())
+            // A small title in the bar, next to the buttons: no big title and empty gap above the days.
             .navigationTitle(L("Trip"))
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { askCandor.open() } label: {
@@ -63,10 +67,15 @@ struct TripView: View {
             } message: {
                 Text(L("This removes every day and place in your trip."))
             }
-            .onChange(of: app.trip?.startDate, initial: true) { _, _ in
+            .onAppear {
+                dayIndex = savedDay >= 0 ? savedDay : (app.trip?.todayIndex ?? 0)
+            }
+            .onChange(of: app.trip?.startDate) { _, _ in
+                // New dates: start from today again.
                 dayIndex = app.trip?.todayIndex ?? 0
             }
-            .onChange(of: dayIndex) { _, _ in
+            .onChange(of: dayIndex) { _, day in
+                savedDay = day
                 dayRoutes = []
                 expandedStop = nil
             }
@@ -124,7 +133,7 @@ struct TripView: View {
                                                 removal: .opacity))
                 }
                 TravelStyleSwitcher(compact: true)
-                TravelCompanionPicker()
+                TravelCompanionPicker(day: model.date)
                 if !model.insights.isEmpty {
                     TripInsightsSection(insights: model.insights)
                 }
@@ -136,7 +145,7 @@ struct TripView: View {
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 30)
-            .animation(.snappy, value: expandedStop)
+            .animation(.candorExpand, value: expandedStop)
             .animation(.spring(response: 0.5, dampingFraction: 0.8), value: model.isComplete)
         }
         .scrollIndicators(.hidden)
@@ -300,6 +309,9 @@ struct TripView: View {
         .buttonStyle(.pressable)
         .accessibilityLabel(L("Explore the day in 3D"))
         .task(id: model.routeKey) { await loadRoutes(plan, origin: origin) }
+        .task(id: model.routeKey) {
+            for entry in plan.entries { _ = await PlaceGuide.info(for: entry.stop, app: app) }
+        }
         .fullScreenCover(isPresented: $show3D) {
             Trip3DMapView(title: model.day.displayTitle,
                           stops: [DayMapStop(id: UUID(), number: nil, name: plan.startName, coordinate: origin)]
@@ -666,7 +678,7 @@ struct TripView: View {
                     .tint(Theme.mint)
                     PlaceGuideSection(stop: stop, leg: entry.leg)
                 }
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .transition(.candorReveal)
             }
         }
         .card(cornerRadius: 16, padding: 14)
@@ -976,6 +988,7 @@ struct AddPlaceSheet: View {
     @State private var query = ""
     @State private var results: [GooglePlace] = []
     @State private var isSearching = false
+    @FocusState private var searchFocused: Bool
 
     private var stops: [TripStop] {
         guard let trip = app.trip, trip.days.indices.contains(dayIndex) else { return [] }
@@ -1050,6 +1063,12 @@ struct AddPlaceSheet: View {
             .scrollContentBackground(.hidden)
             .background(AppBackground())
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: L("Search places in Delhi"))
+            .searchFocused($searchFocused)
+            .task {
+                // Ready to type the moment the sheet is up.
+                try? await Task.sleep(for: .milliseconds(450))
+                searchFocused = true
+            }
             .navigationTitle(L("Add a place"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

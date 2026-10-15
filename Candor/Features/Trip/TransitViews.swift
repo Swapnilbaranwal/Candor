@@ -46,7 +46,7 @@ struct LiveTransitSection: View {
         }
         .card(padding: 16)
         .task { await fetch() }
-        .animation(.snappy, value: expanded)
+        .animation(.candorExpand, value: expanded)
     }
 
     private func fetch() async {
@@ -104,7 +104,7 @@ struct LiveTransitSection: View {
                         stepRow(step)
                     }
                 }
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .transition(.candorReveal)
             }
         }
         .padding(12)

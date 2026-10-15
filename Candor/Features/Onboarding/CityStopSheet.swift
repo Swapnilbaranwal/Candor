@@ -282,14 +282,15 @@ struct CityStopSheet: View {
                 }
                 .datePickerStyle(.graphical)
                 .tint(Theme.saffron)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .id(editingDate)
+                .transition(.candorReveal)
             }
         }
         .card(padding: 16)
         .onChange(of: arrival) { _, value in
             if departure < value { departure = value }
         }
-        .animation(.snappy, value: editingDate)
+        .animation(.candorExpand, value: editingDate)
         .animation(.snappy, value: dayCount)
     }
 

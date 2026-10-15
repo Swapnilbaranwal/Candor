@@ -23,7 +23,7 @@ struct ScamRadarView: View {
                         tipCard(tip)
                     }
                 }
-                .animation(.snappy, value: expanded)
+                .animation(.candorExpand, value: expanded)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 30)
@@ -65,7 +65,7 @@ struct ScamRadarView: View {
                         .font(.candor(.subheadline, .medium))
                 }
                 .padding(.leading, 48)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .transition(.candorReveal)
             }
         }
         .card(cornerRadius: 16, padding: 14)

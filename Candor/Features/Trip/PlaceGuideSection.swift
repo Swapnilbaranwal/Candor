@@ -22,7 +22,12 @@ struct PlaceGuideSection: View {
             thingsToDo
             askBox
         }
-        .task(id: stop.id) { info = await PlaceGuide.info(for: stop, app: app) }
+        .onAppear { if info == nil { info = PlaceGuide.cached(stop) } }
+        .task(id: stop.id) {
+            guard info == nil else { return }
+            let loaded = await PlaceGuide.info(for: stop, app: app)
+            withAnimation(.smooth(duration: 0.25)) { info = loaded }
+        }
     }
 
     // MARK: Things to do

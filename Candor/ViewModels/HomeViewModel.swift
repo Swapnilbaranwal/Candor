@@ -42,7 +42,8 @@ struct HomeViewModel {
         case 12..<17: greeting = L("Good afternoon")
         default: greeting = L("Good evening")
         }
-        today = now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Localizer.shared.locale))
+        // Short, so the greeting line fits: "Thu, 15 Oct".
+        today = now.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(Localizer.shared.locale))
 
         let fullName = app.persona.name.trimmingCharacters(in: .whitespaces)
         displayName = fullName.isEmpty ? app.persona.firstName : fullName
