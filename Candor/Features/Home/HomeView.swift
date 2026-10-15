@@ -32,7 +32,6 @@ struct HomeView: View {
                                  subtitle: L("Every honest way to your next stop, from Metro to cab, with the fare a local would pay."))
                     gettingAround(model.nextLeg)
                     checkCard
-                    scamOfTheDay
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 30)
@@ -392,51 +391,6 @@ struct HomeView: View {
             }
         }
         .velvetCard(.saffron, radius: 30, padding: 20)
-    }
-
-    // MARK: Scam of the day
-
-    /// One line a day about a trick worth knowing. Opens Scam radar on the Check tab.
-    private var scamOfTheDay: some View {
-        let scams = DelhiData.scams
-        let day = Calendar.current.ordinality(of: .day, in: .year, for: .now) ?? 0
-        let scam = scams[day % scams.count]
-        // An awareness note, not a highlight: calm cream card, a soft coral shield, plain words.
-        return Button { openCheck(.scams) } label: {
-            HStack(spacing: 14) {
-                AwarenessBadge(size: 48)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(L("Good to know today"))
-                        .font(.candor(.caption1, .semibold))
-                        .foregroundStyle(Color(hex: 0xC2512E))
-                    Text(L(scam.title))
-                        .font(.heading(.headline))
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    Text(L("How the trick works and what to say"))
-                        .font(.candor(.caption1))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.candor(.footnote, .semibold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(16)
-            .background(Theme.surface, in: .rect(cornerRadius: 24, style: .continuous))
-            .overlay(alignment: .leading) {
-                UnevenRoundedRectangle(topLeadingRadius: 24, bottomLeadingRadius: 24)
-                    .fill(Color(hex: 0xE07A55))
-                    .frame(width: 5)
-            }
-            .clipShape(.rect(cornerRadius: 24, style: .continuous))
-            .background(RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Theme.surface)
-                .shadow(color: Color(hex: 0x5A4A3A).opacity(0.08), radius: 12, y: 6))
-        }
-        .buttonStyle(.pressable)
     }
 }
 

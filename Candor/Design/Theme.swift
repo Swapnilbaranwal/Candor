@@ -395,8 +395,9 @@ struct MarkdownText: View {
 
 // MARK: - Type
 
-/// Candor's type (see DESIGN.md): SF Pro for reading, the system serif (New York) for headings.
-/// Both cover every language the app speaks and scale with the reader's text size.
+/// Candor's type: Lato (2.0, SIL Open Font License, bundled in Design/Fonts) for everything,
+/// headings included. Size and weight make the hierarchy. Scripts Lato doesn't cover
+/// (Devanagari, CJK, Arabic…) fall back to the system font. Scales with the reader's text size.
 enum CandorType {
     /// Every font is built once and reused. Building one (finding the face, scaling it for the
     /// reader's text size) on every redraw, for every label, was a big part of the lag.
@@ -424,9 +425,22 @@ enum CandorType {
     }
 
     private static func makeFont(_ style: UIFont.TextStyle, weight: UIFont.Weight, size: CGFloat?) -> UIFont {
-        let base = UIFont.systemFont(ofSize: size ?? scale(style), weight: weight)
+        let base = lato(weight, size: size ?? scale(style))
         if size != nil { return base }
         return UIFontMetrics(forTextStyle: style).scaledFont(for: base)
+    }
+
+    /// Lato at `weight`, or SF Pro if the bundled file is missing.
+    static func lato(_ weight: UIFont.Weight, size: CGFloat) -> UIFont {
+        _ = registerFonts
+        let name: String = switch weight {
+        case .black, .heavy: "Lato-Heavy"
+        case .bold: "Lato-Bold"
+        case .semibold: "Lato-Semibold"
+        case .medium: "Lato-Medium"
+        default: "Lato-Regular"
+        }
+        return UIFont(name: name, size: size) ?? UIFont.systemFont(ofSize: size, weight: weight)
     }
 
     /// Candor's type scale, one size per role, used everywhere so screens share one rhythm.
@@ -474,49 +488,29 @@ enum CandorType {
         }
     }
 
-    /// Titles in PT Serif (Google Fonts, SIL Open Font License, bundled in Design/Fonts): a warm,
-    /// readable book serif. Bold for small card headings so they hold their own; regular for
-    /// screen titles, where size gives the presence.
+    /// Headings: Lato bold for screen titles, semibold for card headings.
     static func heading(_ style: UIFont.TextStyle, weight: UIFont.Weight = .medium) -> UIFont {
-        cached("h|\(style.rawValue)|\(weight.rawValue)") { makeHeading(style, weight: weight) }
+        cached("h|\(style.rawValue)|\(weight.rawValue)") { makeHeading(style) }
     }
 
-    private static func makeHeading(_ style: UIFont.TextStyle, weight: UIFont.Weight) -> UIFont {
-        let size = headingSize(style)
-        let bold = style == .headline || style == .title3
-        guard let face = titleFace(size: size, bold: bold) else { return serif(font(style, weight: weight)) }
+    private static func makeHeading(_ style: UIFont.TextStyle) -> UIFont {
+        let big = style == .largeTitle || style == .title1 || style == .title2
+        let face = lato(big ? .bold : .semibold, size: headingSize(style))
         return UIFontMetrics(forTextStyle: style).scaledFont(for: face)
     }
 
     /// Large display type (wordmark, hero titles, big numbers).
     static func display(size: CGFloat, weight: UIFont.Weight = .semibold) -> UIFont {
-        cached("d|\(size)|\(weight.rawValue)") { makeDisplay(size: size, weight: weight) }
+        cached("d|\(size)|\(weight.rawValue)") { lato(weight == .regular ? .regular : .bold, size: displayStep(size)) }
     }
 
-    private static func makeDisplay(size: CGFloat, weight: UIFont.Weight) -> UIFont {
-        let step = displayStep(size)
-        return titleFace(size: step, bold: weight.rawValue >= UIFont.Weight.semibold.rawValue && step <= 28)
-            ?? serif(UIFont.systemFont(ofSize: step, weight: weight))
-    }
-
-    /// PT Serif Italic at a heading size, scaled and cached.
+    /// Kept for `Font.headingItalic`: now the plain heading, since Candor uses one upright face.
     static func headingItalicFace(_ style: UIFont.TextStyle) -> UIFont? {
-        guard titleFace(size: 12, italic: true) != nil else { return nil }
-        return cached("i|\(style.rawValue)") {
-            let face = titleFace(size: headingSize(style), italic: true) ?? UIFont.italicSystemFont(ofSize: headingSize(style))
-            return UIFontMetrics(forTextStyle: style).scaledFont(for: face)
-        }
-    }
-
-    /// PT Serif at `size`, registered from the app bundle on first use.
-    static func titleFace(size: CGFloat, italic: Bool = false, bold: Bool = false) -> UIFont? {
-        _ = registerFonts
-        let name = italic ? "PTSerif-Italic" : (bold ? "PTSerif-Bold" : "PTSerif-Regular")
-        return UIFont(name: name, size: size)
+        heading(style)
     }
 
     private static let registerFonts: Bool = {
-        for name in ["PTSerif-Regular", "PTSerif-Bold", "PTSerif-Italic"] {
+        for name in ["Lato-Regular", "Lato-Medium", "Lato-Semibold", "Lato-Bold", "Lato-Heavy"] {
             guard let url = Bundle.main.url(forResource: name, withExtension: "ttf") else { continue }
             CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
         }
@@ -533,10 +527,6 @@ enum CandorType {
         }
     }
 
-    private static func serif(_ base: UIFont) -> UIFont {
-        guard let descriptor = base.fontDescriptor.withDesign(.serif) else { return base }
-        return UIFont(descriptor: descriptor, size: base.pointSize)
-    }
 }
 
 extension Font {
@@ -550,7 +540,7 @@ extension Font {
         Font(CandorType.font(.body, weight: CandorType.soft(weight), size: size))
     }
 
-    /// Screen titles and card headings: serif.
+    /// Screen titles and card headings.
     static func heading(_ style: UIFont.TextStyle) -> Font {
         Font(CandorType.heading(style))
     }
@@ -561,13 +551,14 @@ extension Font {
         return heading(style).italic()
     }
 
-    /// Serif display type at a fixed size (wordmark, hero titles).
+    /// Display type at a fixed size (wordmark, hero titles).
     static func display(size: CGFloat, _ weight: UIFont.Weight = .semibold) -> Font {
         Font(CandorType.display(size: size, weight: CandorType.soft(weight)))
     }
 
-    /// Hindi (Devanagari) text: the same system font, which includes Devanagari.
+    /// Hindi (Devanagari) text: the system font, which includes Devanagari.
     static func hindi(_ style: UIFont.TextStyle, semibold: Bool = false, size: CGFloat? = nil) -> Font {
-        Font(CandorType.font(style, weight: semibold ? .semibold : .regular, size: size))
+        let base = UIFont.systemFont(ofSize: size ?? CandorType.scale(style), weight: semibold ? .semibold : .regular)
+        return Font(size == nil ? UIFontMetrics(forTextStyle: style).scaledFont(for: base) : base)
     }
 }

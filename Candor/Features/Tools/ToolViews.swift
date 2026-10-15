@@ -1,25 +1,26 @@
 import SwiftUI
 
-// MARK: - Scam radar
+// MARK: - Travel smart
 
 struct ScamRadarView: View {
     @Binding var tab: AppTab
-    @Environment(CandorAgent.self) private var agent
     @State private var expanded: String?
-    @State private var situation = ""
-    @State private var steps: [AgentStep] = []
-    @State private var answer: String?
-    @State private var isRunning = false
-    @FocusState private var focused: Bool
+
+    /// The few that matter most to a first-time visitor. The agent still knows all of them.
+    private static let shown = ["hotel", "meter", "monument", "office", "detour"]
+    private var tips: [Scam] {
+        Self.shown.compactMap { id in DelhiData.scams.first { $0.id == id } }
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                checkCard
-                SectionHeader(title: L("Known patterns in Delhi"), subtitle: L("Most people are honest. These are the few tricks worth knowing."))
+                Text(L("Most people you'll meet are honest and helpful. These few tips help you travel with confidence."))
+                    .font(.candor(.subheadline))
+                    .foregroundStyle(.secondary)
                 VStack(spacing: 10) {
-                    ForEach(DelhiData.scams) { scam in
-                        scamCard(scam)
+                    ForEach(tips) { tip in
+                        tipCard(tip)
                     }
                 }
                 .animation(.snappy, value: expanded)
@@ -27,59 +28,26 @@ struct ScamRadarView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 30)
         }
-        .scrollDismissesKeyboard(.interactively)
         .background(AppBackground())
-        .navigationTitle(L("Scam radar"))
+        .navigationTitle(L("Travel smart"))
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var checkCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label(L("Something feels off?"), systemImage: "shield.lefthalf.filled")
-                .font(.candor(.headline, .semibold))
-            TextField(L("Describe what's happening, e.g. \"the driver says my hotel is closed\""), text: $situation, axis: .vertical)
-                .lineLimit(2...4)
-                .focused($focused)
-                .padding(14)
-                .background(Theme.surface, in: .rect(cornerRadius: 16))
+    private func tipCard(_ tip: Scam) -> some View {
+        let isOpen = expanded == tip.id
+        return VStack(alignment: .leading, spacing: 10) {
             Button {
-                Task { await check() }
-            } label: {
-                HStack {
-                    if isRunning { ProgressView().tint(.white) } else { Image(systemName: "magnifyingglass") }
-                    Text(L("Check with Candor"))
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 30)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme.rose)
-            .disabled(situation.trimmingCharacters(in: .whitespaces).isEmpty || isRunning)
-
-            if !steps.isEmpty {
-                AgentTrailView(steps: steps, isWorking: isRunning)
-            }
-            if let answer {
-                MarkdownText(text: answer)
-                    .padding(14)
-                    .background(Theme.rose.opacity(0.14), in: .rect(cornerRadius: 16))
-            }
-        }
-        .card()
-    }
-
-    private func scamCard(_ scam: Scam) -> some View {
-        let isOpen = expanded == scam.id
-        return VStack(alignment: .leading, spacing: 12) {
-            Button {
-                expanded = isOpen ? nil : scam.id
+                expanded = isOpen ? nil : tip.id
             } label: {
                 HStack(spacing: 12) {
-                    Image(systemName: scam.icon)
-                        .foregroundStyle(.white)
-                        .frame(width: 40, height: 40)
-                        .background(Theme.rose, in: .rect(cornerRadius: 12))
-                    Text(L(scam.title)).font(.candor(.headline, .semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                    Image(systemName: tip.icon)
+                        .foregroundStyle(Theme.teal)
+                        .frame(width: 36, height: 36)
+                        .background(Theme.teal.opacity(0.14), in: .circle)
+                    Text(L(tip.title))
+                        .font(.candor(.headline, .semibold))
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.leading)
                     Spacer()
                     Image(systemName: "chevron.down")
                         .rotationEffect(.degrees(isOpen ? 180 : 0))
@@ -89,37 +57,18 @@ struct ScamRadarView: View {
             .buttonStyle(.plain)
 
             if isOpen {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(L(scam.howItWorks)).font(.candor(.subheadline))
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L("Red flags")).font(.candor(.caption1, .bold)).foregroundStyle(Theme.rose)
-                        ForEach(scam.redFlags, id: \.self) { flag in
-                            Label(L(flag), systemImage: "flag.fill").font(.candor(.caption1))
-                        }
-                    }
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L("What to do")).font(.candor(.caption1, .bold)).foregroundStyle(Theme.mint)
-                        Text(L(scam.whatToDo)).font(.candor(.subheadline))
-                    }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L(tip.howItWorks))
+                        .font(.candor(.subheadline))
+                        .foregroundStyle(.secondary)
+                    Text(L(tip.whatToDo))
+                        .font(.candor(.subheadline, .medium))
                 }
+                .padding(.leading, 48)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .card(cornerRadius: 16, padding: 14)
-    }
-
-    private func check() async {
-        focused = false
-        steps = []
-        answer = nil
-        isRunning = true
-        let result = await agent.run(prompt: "Is this a scam, and what should I do? \(situation)") { step in
-            withAnimation(.snappy) { upsertStep(step, in: &steps) }
-        }
-        withAnimation(.smooth) {
-            answer = result.text
-            isRunning = false
-        }
     }
 }
 

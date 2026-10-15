@@ -15,7 +15,7 @@ struct PlaceGuideSection: View {
     @State private var thinking = false
     @FocusState private var focused: Bool
 
-    private let quickQuestions = ["Best time to go?", "What should it cost?", "Any scams to watch for?"]
+    private let quickQuestions = ["Best time to go?", "What should it cost?", "Anything to watch for?"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

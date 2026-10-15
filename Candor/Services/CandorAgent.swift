@@ -58,7 +58,7 @@ final class CandorAgent {
         isWorking = false
     }
 
-    /// One-off run for other screens (Scan, Scam radar) that show their own trail.
+    /// One-off run for other screens (Scan, Travel smart) that show their own trail.
     func run(prompt: String, image: UIImage? = nil, onStep: @escaping (AgentStep) -> Void) async -> AgentResult {
         await engine.run(prompt: prompt, image: image, history: [], onStep: onStep)
     }
@@ -392,7 +392,7 @@ final class AgentEngine {
 
         case "check_scam":
             let situation = args["situation"] as? String ?? ""
-            let step = begin("shield.lefthalf.filled", L("Scanning scam radar"), L("%@ known patterns", DelhiData.scams.count))
+            let step = begin("shield.lefthalf.filled", L("Checking travel tips"), L("%@ tips for Delhi", DelhiData.scams.count))
             await pause(300)
             let matches = DelhiData.matchScams(situation)
             finish(step, detail: matches.first.map { L("Match: %@", L($0.title)) } ?? L("No known pattern matched"))
@@ -608,7 +608,7 @@ final class AgentEngine {
         let matches = DelhiData.matchScams(prompt)
         guard let scam = matches.first else {
             let advice: [String] = [
-                L("I don't recognise this as a known scam, but trust your instincts:"),
+                L("I don't recognise this situation, but a few safe habits help:"),
                 L("• Don't hand over money, cards or your passport under pressure."),
                 L("• Move to a busy, official place (station counter, hotel lobby, police booth)."),
                 L("• Emergency: **%1$@**. Tourist helpline: **%2$@**.", DelhiData.emergencyNumber, DelhiData.tourismHelplineDisplay)
@@ -618,10 +618,10 @@ final class AgentEngine {
         _ = output
         let flags: [String] = scam.redFlags.map { "• \(L($0))" }
         let lines: [String] = [
-            L("This looks like **%@**.", L(scam.title)),
+            L("This sounds like a common trick. Good to know: **%@**.", L(scam.title)),
             L(scam.howItWorks),
             "",
-            "**\(L("Red flags"))**",
+            "**\(L("Signs to notice"))**",
             flags.joined(separator: "\n"),
             "",
             "**\(L("What to do")):** \(L(scam.whatToDo))"

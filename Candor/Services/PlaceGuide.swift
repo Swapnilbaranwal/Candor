@@ -72,7 +72,11 @@ enum PlaceGuide {
         if has(["do", "see", "visit", "worth", "spend"]), let ideas = info?.thingsToDo, !ideas.isEmpty {
             return AgentResult(text: ideas.map { "• \($0)" }.joined(separator: "\n"), verdict: nil)
         }
-        // Prices, rides and scams: the agent's own tools know these.
+        if has(["watch", "scam", "careful", "safe", "trick", "tout"]) {
+            // The offline agent matches "scam" to Candor's travel-smart tips.
+            return await agent.run(prompt: "scam tips: \(question) \(stop.spot?.tip ?? "") \(stop.name)") { _ in }
+        }
+        // Prices, rides and the rest: the agent's own tools know these.
         return await agent.run(prompt: "\(question) (\(stop.name), Delhi)") { _ in }
     }
 

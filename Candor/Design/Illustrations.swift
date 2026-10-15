@@ -604,7 +604,7 @@ struct PriceTagArt: View {
                     .frame(width: size * 0.09, height: size * 0.09)
                     .offset(x: -size * 0.15)
                 Text("₹")
-                    .font(.custom("PTSerif-Bold", size: size * 0.26))
+                    .font(Font(CandorType.lato(.bold, size: size * 0.26)))
                     .foregroundStyle(Color(hex: 0x7A3A10))
                     .offset(x: size * 0.07)
             }
