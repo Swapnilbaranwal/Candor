@@ -1,5 +1,5 @@
 import SwiftUI
-import MapKit
+import CoreLocation
 
 /// Fare check: destination → road distance → official metered fare → verdict on the quote.
 struct RideCheckView: View {
@@ -8,7 +8,7 @@ struct RideCheckView: View {
     @Environment(AppState.self) private var app
     @Environment(LocationService.self) private var location
     @State private var query = ""
-    @State private var results: [MKMapItem] = []
+    @State private var results: [GooglePlace] = []
     @State private var route: Routing.RouteInfo?
     @State private var mode: RideMode = .auto
     @State private var night = FareChart.isNight()
@@ -118,13 +118,13 @@ struct RideCheckView: View {
 
             if !results.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(results.prefix(5), id: \.self) { item in
+                    ForEach(results.prefix(5)) { item in
                         Button {
                             Task { await choose(item) }
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(item.name ?? L("Place")).font(.candor(.subheadline, .semibold))
-                                Text(item.placemark.title ?? "").font(.candor(.caption1)).foregroundStyle(.secondary).lineLimit(1)
+                                Text(item.name).font(.candor(.subheadline, .semibold))
+                                Text(item.address ?? "").font(.candor(.caption1)).foregroundStyle(.secondary).lineLimit(1)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 10)
@@ -186,10 +186,14 @@ struct RideCheckView: View {
     }
 
     private func mapPreview(_ route: Routing.RouteInfo) -> some View {
-        Map(initialPosition: .automatic, interactionModes: []) {
-            Marker(L("Start"), systemImage: "location.fill", coordinate: location.origin).tint(Theme.teal)
-            Marker(L(route.name), systemImage: "mappin", coordinate: route.coordinate).tint(Theme.rose)
-        }
+        GoogleMapView(
+            markers: [
+                .init(location.origin, title: L("Start"), style: .symbol("location.fill", UIColor(Theme.teal))),
+                .init(route.coordinate, title: L(route.name), style: .pin(UIColor(Theme.rose)))
+            ],
+            insets: UIEdgeInsets(top: 0, left: 0, bottom: 44, right: 0),
+            interactive: false
+        )
         .id(route.name)
         .frame(height: 170)
         .clipShape(.rect(cornerRadius: 16))
@@ -234,7 +238,7 @@ struct RideCheckView: View {
         isBusy = false
     }
 
-    private func choose(_ item: MKMapItem) async {
+    private func choose(_ item: GooglePlace) async {
         focused = false
         isBusy = true
         results = []

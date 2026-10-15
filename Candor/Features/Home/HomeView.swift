@@ -7,6 +7,7 @@ struct HomeView: View {
     @Environment(AppState.self) private var app
     @Environment(LocationService.self) private var location
     @Environment(CandorAgent.self) private var agent
+    @Environment(AskCandorRouter.self) private var askCandor
     @State private var journey: JourneyRequest?
 
     /// Opens the demo: one tap from Home to the agent's trail and a verdict card.
@@ -54,7 +55,7 @@ struct HomeView: View {
     /// Sends a ready-made prompt to the agent. The bubble shows it in the traveller's language;
     /// the offline agent, which matches English keywords, gets the English original.
     private func ask(_ prompt: String) {
-        tab = .agent
+        askCandor.open()
         Task { await agent.send(L(prompt), canonical: prompt) }
     }
 
@@ -74,7 +75,7 @@ struct HomeView: View {
                 .lineLimit(1)
 
                 Text(L("Namaste, %@", model.displayName))
-                    .font(.headingItalic(.largeTitle))
+                    .font(.heading(.largeTitle))
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
 
@@ -87,7 +88,7 @@ struct HomeView: View {
             }
             Spacer()
             // Ask Candor lives up here as one tap, so the first screen is the day, not a search box.
-            Button { tab = .agent } label: {
+            Button { askCandor.open() } label: {
                 Image(systemName: "sparkles")
                     .font(.system(size: 19, weight: .semibold))
                     .foregroundStyle(Color(hex: 0xC4621A))
@@ -354,6 +355,12 @@ struct HomeView: View {
                 .buttonStyle(PillButtonStyle(kind: .cream, height: 48))
             }
 
+            Button { openCheck(.interpreter) } label: {
+                Label(L("Say it in Hindi"), systemImage: "character.bubble.fill")
+            }
+            .buttonStyle(PillButtonStyle(kind: .cream, height: 48))
+            .accessibilityIdentifier("homePhrases")
+
             Button { ask(demoPrompt) } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "text.bubble.fill")
@@ -385,46 +392,6 @@ struct HomeView: View {
             }
         }
         .velvetCard(.saffron, radius: 30, padding: 20)
-    }
-
-    // MARK: Tools
-
-    private struct ToolTile: Identifiable {
-        let route: CheckRoute
-        let title: String
-        let art: Art3D
-        let symbol: String
-        let colors: [Color]
-        var id: String { title }
-    }
-
-    private var tools: [ToolTile] {
-        [
-            ToolTile(route: .interpreter, title: L("Interpreter"), art: .translator, symbol: "character.bubble.fill", colors: CardPalette.words),
-            ToolTile(route: .ride, title: L("Check a ride"), art: .train, symbol: "car.fill", colors: CardPalette.transit),
-            ToolTile(route: .scams, title: L("Scam radar"), art: .pin, symbol: "shield.lefthalf.filled", colors: CardPalette.safety)
-        ]
-    }
-
-    private var toolTiles: some View {
-        HStack(spacing: 12) {
-            ForEach(tools) { tool in
-                Button { openCheck(tool.route) } label: {
-                    VStack(spacing: 8) {
-                        Floating3D(tool.art, size: 58, float: false, symbol: tool.symbol, tint: tool.colors[0])
-                        Text(tool.title)
-                            .font(.candor(.footnote, .semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .glossCard(tool.colors[0], radius: 22)
-                }
-                .buttonStyle(.pressable)
-            }
-        }
     }
 
     // MARK: Scam of the day

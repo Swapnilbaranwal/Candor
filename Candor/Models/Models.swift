@@ -118,7 +118,7 @@ enum TravelParty: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-/// A booked hotel or home, picked from Apple Maps.
+/// A booked hotel or home, picked from Google Maps.
 struct Stay: Codable, Equatable {
     var name: String
     var address: String?

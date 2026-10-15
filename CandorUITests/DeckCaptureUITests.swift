@@ -187,12 +187,18 @@ final class DeckCaptureUITests: XCTestCase {
         return String(identifier.dropFirst("verdict.".count))
     }
 
-    // MARK: - 0. The Agent tab's composer: a typed question is sent, and the photo button opens the picker
+    /// Opens the "Ask Candor" sheet from the ✨ button on Home.
+    private func openAskCandor(_ app: XCUIApplication) {
+        let button = app.buttons["homeAsk"]
+        if button.waitForExistence(timeout: 5) { button.tap() }
+    }
+
+    // MARK: - 0. The Ask Candor composer: a typed question is sent, and the photo button opens the picker
 
     func test0_ComposerSendsATypedQuestion() throws {
         let app = launchApp(offline: true)
         XCTAssertTrue(app.buttons["homeExample"].waitForExistence(timeout: 20), "Home did not appear")
-        tab(app, "Agent")
+        openAskCandor(app)
         let input = app.descendants(matching: .any).matching(identifier: "agentInput").firstMatch
         XCTAssertTrue(input.waitForExistence(timeout: 8), "The question field did not appear")
 
@@ -465,7 +471,7 @@ final class DeckCaptureUITests: XCTestCase {
             note("benchmark: Home did not appear (offline=\(offline))")
             return rows
         }
-        tab(app, "Agent")
+        openAskCandor(app)
         for scenario in scenarios {
             var row: [String: Any] = ["prompt": scenario.prompt, "expected": scenario.expected]
             if let run = ask(app, scenario.prompt) {

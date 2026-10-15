@@ -685,10 +685,10 @@ final class AgentEngine {
         }
         finish(step, detail: match.map { L($0.english) } ?? L("No close match"))
         if let match {
-            let hint = L("Open **Interpreter** to hear it spoken.")
+            let hint = L("Open **Phrases** to hear it spoken.")
             return AgentResult(text: "**\(match.roman)**\n\(match.hindi)\n\n“\(L(match.english))”\n\(hint)", verdict: nil)
         }
-        return AgentResult(text: L("Open **Interpreter** from Home for ready-made phrases with audio. Free-text translation needs a Gemini key."), verdict: nil)
+        return AgentResult(text: L("Open **Phrases** for ready-made lines with audio. Translating your own words needs a Gemini key."), verdict: nil)
     }
 
     private func offlineConvert(_ text: String) async -> AgentResult {

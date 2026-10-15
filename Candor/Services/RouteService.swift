@@ -1,13 +1,11 @@
 import Foundation
 import CoreLocation
-import MapKit
 
 /// Real routes on real roads and rails, for the day map and the leg sheet.
 ///
 /// 1. Google Routes API (`computeRoutes`) with the app's Google key: road paths, and public
 ///    transport with the actual Metro lines and bus numbers, stops and fares.
-/// 2. Apple Maps directions when Google isn't available.
-/// 3. The straight line, as a last resort, so the map never comes up empty.
+/// 2. The straight line, as a last resort, so the map never comes up empty.
 enum RouteService {
     private static let endpoint = "https://routes.googleapis.com/directions/v2:computeRoutes"
 
@@ -65,9 +63,6 @@ enum RouteService {
                 result = (try? await googlePath(from: from, to: to, mode: mode)) ?? []
             }
         }
-        if result.count < 2 {
-            result = await applePath(from: from, to: to, walking: mode == .walk)
-        }
         if result.count < 2 { result = [from, to] }
         // Keep the cache small: a trip's worth of hops, never an ever-growing pile of paths.
         if cache.count >= 80 { cache.removeAll(keepingCapacity: true) }
@@ -101,19 +96,6 @@ enum RouteService {
         let routes = json["routes"] as? [[String: Any]] ?? []
         guard let encoded = (routes.first?["polyline"] as? [String: Any])?["encodedPolyline"] as? String else { return [] }
         return decodePolyline(encoded)
-    }
-
-    private static func applePath(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D,
-                                  walking: Bool) async -> [CLLocationCoordinate2D] {
-        let request = MKDirections.Request()
-        request.source = MKMapItem(placemark: MKPlacemark(coordinate: from))
-        request.destination = MKMapItem(placemark: MKPlacemark(coordinate: to))
-        request.transportType = walking ? .walking : .automobile
-        guard let route = try? await MKDirections(request: request).calculate().routes.first else { return [] }
-        let polyline = route.polyline
-        var points = [CLLocationCoordinate2D](repeating: CLLocationCoordinate2D(), count: polyline.pointCount)
-        polyline.getCoordinates(&points, range: NSRange(location: 0, length: polyline.pointCount))
-        return points
     }
 
     // MARK: Public transport

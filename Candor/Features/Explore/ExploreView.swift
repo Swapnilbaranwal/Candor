@@ -1,13 +1,14 @@
 import SwiftUI
-import MapKit
+import CoreLocation
 
 /// Map of verified places with fair-price tips; tap a pin for actions.
 struct ExploreView: View {
     @Binding var tab: AppTab
     @Environment(LocationService.self) private var location
     @Environment(CandorAgent.self) private var agent
-    @State private var position: MapCameraPosition = .region(
-        MKCoordinateRegion(center: DelhiData.center, latitudinalMeters: 24_000, longitudinalMeters: 24_000)
+    @Environment(AskCandorRouter.self) private var askCandor
+    @State private var camera: GoogleMapView.Camera = .region(
+        latitude: DelhiData.center.latitude, longitude: DelhiData.center.longitude, zoom: 11
     )
     @State private var selectedID: String?
     @State private var category: SpotCategory?
@@ -23,19 +24,15 @@ struct ExploreView: View {
 
     var body: some View {
         NavigationStack {
-            Map(position: $position, selection: $selectedID) {
-                UserAnnotation()
-                ForEach(spots) { spot in
-                    Marker(L(spot.name), systemImage: spot.category.icon, coordinate: spot.coordinate)
-                        .tint(spot.category.color)
-                        .tag(spot.id)
-                }
-            }
-            .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
-            .mapControls {
-                MapUserLocationButton()
-                MapCompass()
-            }
+            GoogleMapView(
+                markers: spots.map { spot in
+                    .init(id: spot.id, spot.coordinate, title: L(spot.name),
+                          style: .symbol(spot.category.icon, UIColor(spot.category.color)))
+                },
+                camera: camera,
+                showsMyLocation: true,
+                onSelect: { selectedID = $0 }
+            )
             .safeAreaInset(edge: .top) { filterBar }
             .safeAreaInset(edge: .bottom) {
                 if let spot = selected {
@@ -53,7 +50,7 @@ struct ExploreView: View {
             .onChange(of: selectedID) { _, id in
                 guard let spot = DelhiData.spots.first(where: { $0.id == id }) else { return }
                 withAnimation(.smooth) {
-                    position = .camera(MapCamera(centerCoordinate: spot.coordinate, distance: 3_500, heading: 0, pitch: 45))
+                    camera = .focus(latitude: spot.coordinate.latitude, longitude: spot.coordinate.longitude, zoom: 15, tilt: 45)
                 }
             }
         }
@@ -116,7 +113,7 @@ struct ExploreView: View {
                     .buttonStyle(.bordered)
 
                     Button {
-                        tab = .agent
+                        askCandor.open()
                         let question = "I'm going to %@. What should I know, what should things cost, and how do I avoid getting overcharged?"
                         Task {
                             await agent.send(L(question, L(spot.name)),

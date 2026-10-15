@@ -1,5 +1,4 @@
 import SwiftUI
-import MapKit
 import CoreLocation
 
 // MARK: - Home: where the traveller sleeps tonight
@@ -434,7 +433,7 @@ struct StaySetupSheet: View {
             let center = location.location?.coordinate ?? city.coordinate
             let items = await Routing.search(q, near: center)
             found = items.prefix(6).map {
-                Candidate(name: $0.name ?? q, address: $0.placemark.title, coordinate: $0.placemark.coordinate)
+                Candidate(name: $0.name, address: $0.address, coordinate: $0.coordinate)
             }
         }
         guard !Task.isCancelled else { return }
@@ -488,8 +487,7 @@ struct WayHomeView: View {
     @Environment(WayHomeRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @State private var selected: TravelMode?
-    @State private var route: MKRoute?
-    @State private var position: MapCameraPosition = .automatic
+    @State private var route: [CLLocationCoordinate2D] = []
     @State private var showDriverCard = false
     @Namespace private var modeSelection
 
@@ -520,28 +518,17 @@ struct WayHomeView: View {
         let options = way.leg.sortedOptions
         let option = options.first { $0.mode == selected } ?? way.leg.bestOption
 
-        return Map(position: $position) {
-            Annotation(L("You"), coordinate: way.origin) {
-                YouAreHereDot()
-            }
-            Annotation(stay.name, coordinate: stay.coordinate) {
-                Image(systemName: "house.fill")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 38, height: 38)
-                    .background(Theme.ink, in: .circle)
-                    .overlay(Circle().strokeBorder(.white, lineWidth: 3))
-                    .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
-            }
-            if let route {
-                MapPolyline(route.polyline)
-                    .stroke(Theme.saffron, style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
-            } else {
-                MapPolyline(coordinates: [way.origin, stay.coordinate])
-                    .stroke(Theme.saffron.opacity(0.7), style: StrokeStyle(lineWidth: 4, lineCap: .round, dash: [6, 8]))
-            }
-        }
-        .mapStyle(.standard(pointsOfInterest: .excludingAll))
+        return GoogleMapView(
+            markers: [
+                .init(id: "you", way.origin, title: L("You"), style: .you),
+                .init(id: "stay", stay.coordinate, title: stay.name, style: .symbol("house.fill", UIColor(Theme.ink)))
+            ],
+            lines: route.count > 1
+                ? [.init(route, color: UIColor(Theme.saffron), width: 6)]
+                : [.init([way.origin, stay.coordinate], color: UIColor(Theme.saffron).withAlphaComponent(0.7),
+                         width: 4, dashed: true, casing: false)],
+            insets: UIEdgeInsets(top: 110, left: 0, bottom: 380, right: 0)
+        )
         .ignoresSafeArea()
         .safeAreaInset(edge: .top) { topBar }
         .safeAreaInset(edge: .bottom) { panel(stay: stay, way: way, options: options, option: option) }
@@ -690,45 +677,15 @@ struct WayHomeView: View {
     }
 
     private func loadRoute(from origin: CLLocationCoordinate2D, to destination: CLLocationCoordinate2D) async {
-        let request = MKDirections.Request()
-        request.source = MKMapItem(placemark: MKPlacemark(coordinate: origin))
-        request.destination = MKMapItem(placemark: MKPlacemark(coordinate: destination))
-        request.transportType = .automobile
-        if let found = try? await MKDirections(request: request).calculate().routes.first {
+        let found = await RouteService.path(from: origin, to: destination, mode: .cab)
+        if found.count > 2 {
             withAnimation(.smooth) { route = found }
         }
     }
 
     private func openInMaps(_ stay: Stay, mode: TravelMode) {
-        let item = MKMapItem(placemark: MKPlacemark(coordinate: stay.coordinate))
-        item.name = stay.name
-        let directions: String = switch mode {
-        case .walk: MKLaunchOptionsDirectionsModeWalking
-        case .metro, .bus: MKLaunchOptionsDirectionsModeTransit
-        case .auto, .cab, .bikeTaxi, .eRickshaw, .privateCar: MKLaunchOptionsDirectionsModeDriving
-        }
-        item.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: directions])
-    }
-}
-
-/// A pulsing blue dot for "you are here".
-private struct YouAreHereDot: View {
-    @State private var pulse = false
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(Color.blue.opacity(0.25))
-                .frame(width: 44, height: 44)
-                .scaleEffect(pulse ? 1.2 : 0.6)
-                .opacity(pulse ? 0 : 1)
-            Circle()
-                .fill(Color.blue)
-                .frame(width: 16, height: 16)
-                .overlay(Circle().strokeBorder(.white, lineWidth: 3))
-        }
-        .onAppear {
-            withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false)) { pulse = true }
+        if let url = GoogleMapsLink.directions(to: stay.coordinate, mode: mode) {
+            UIApplication.shared.open(url)
         }
     }
 }

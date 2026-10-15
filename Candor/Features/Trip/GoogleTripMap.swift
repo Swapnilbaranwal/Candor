@@ -2,7 +2,7 @@ import SwiftUI
 import GoogleMaps
 
 /// Google Maps for the Trip tab: where the day starts, numbered stops, and a dashed line between them.
-/// Needs a key with "Maps SDK for iOS" enabled (`GoogleMapsSetup`); TripView falls back to Apple Maps without one.
+/// Needs a key with "Maps SDK for iOS" enabled (`GoogleMapsSetup`).
 struct GoogleTripMap: UIViewRepresentable {
     struct Pin: Equatable {
         let latitude: Double

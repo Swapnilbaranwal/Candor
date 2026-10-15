@@ -3,6 +3,9 @@ import PhotosUI
 
 /// Chat with the Candor agent. Each reply shows the tools it used, live.
 struct AgentView: View {
+    /// Shown as the "Ask Candor" sheet: adds a Close button.
+    var inSheet = false
+    @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var app
     @Environment(CandorAgent.self) private var agent
     @State private var input = ""
@@ -53,7 +56,7 @@ struct AgentView: View {
                 composer
             }
             .background(AppBackground())
-            .navigationTitle("Candor")
+            .navigationTitle(L("Ask Candor"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // Shown only when it changes what the traveller gets: offline answers are more limited.
@@ -68,6 +71,12 @@ struct AgentView: View {
                         }
                         .fixedSize() // without this the bar squeezes the label down to its first letter
                         .padding(.horizontal, 6)
+                    }
+                }
+                if inSheet {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(L("Close"), systemImage: "xmark") { dismiss() }
+                            .accessibilityIdentifier("agentClose")
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {

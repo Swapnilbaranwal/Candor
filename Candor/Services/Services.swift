@@ -1,6 +1,5 @@
 import SwiftUI
 import CoreLocation
-import MapKit
 import AVFoundation
 
 // MARK: - Currency
@@ -155,44 +154,30 @@ enum Routing {
         let coordinate: CLLocationCoordinate2D
     }
 
-    static func search(_ query: String, near origin: CLLocationCoordinate2D) async -> [MKMapItem] {
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = query
-        request.region = MKCoordinateRegion(center: origin, latitudinalMeters: 60_000, longitudinalMeters: 60_000)
-        let response = try? await MKLocalSearch(request: request).start()
-        return response?.mapItems ?? []
+    /// Google Maps places matching `query` around `origin`.
+    static func search(_ query: String, near origin: CLLocationCoordinate2D) async -> [GooglePlace] {
+        (try? await GooglePlaces.search(query, near: origin)) ?? []
     }
 
-    /// Resolves a place name (known spots first, then Apple Maps search) and measures the drive.
+    /// Resolves a place name (known spots first, then Google Maps search) and measures the drive.
     static func distance(to query: String, from origin: CLLocationCoordinate2D) async -> RouteInfo? {
         if let spot = DelhiData.spot(matching: query) {
             return await distance(to: spot.coordinate, name: spot.name, from: origin)
         }
-        guard let item = await search(query, near: origin).first else { return nil }
-        return await distance(to: item, from: origin)
+        guard let place = await search(query, near: origin).first else { return nil }
+        return await distance(to: place, from: origin)
     }
 
+    static func distance(to place: GooglePlace, from origin: CLLocationCoordinate2D) async -> RouteInfo? {
+        await distance(to: place.coordinate, name: place.name, from: origin)
+    }
+
+    /// The drive by road, from Google's route. Offline: straight line × 1.3 road factor.
     static func distance(to coordinate: CLLocationCoordinate2D, name: String, from origin: CLLocationCoordinate2D) async -> RouteInfo? {
-        let item = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
-        item.name = name
-        return await distance(to: item, from: origin)
-    }
-
-    static func distance(to item: MKMapItem, from origin: CLLocationCoordinate2D) async -> RouteInfo? {
-        let coordinate = item.placemark.coordinate
-        let name = item.name ?? L("Destination")
-        let request = MKDirections.Request()
-        request.source = MKMapItem(placemark: MKPlacemark(coordinate: origin))
-        request.destination = item
-        request.transportType = .automobile
-        if let response = try? await MKDirections(request: request).calculate(),
-           let route = response.routes.first {
-            return RouteInfo(name: name, km: route.distance / 1000, coordinate: coordinate)
-        }
-        // Offline fallback: straight line × 1.3 road factor.
-        let straight = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
-            .distance(from: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude))
-        return RouteInfo(name: name, km: straight / 1000 * 1.3, coordinate: coordinate)
+        let path = await RouteService.path(from: origin, to: coordinate, mode: .cab)
+        let meters = CLLocationCoordinate2D.length(of: path)
+        let km = path.count > 2 ? meters / 1000 : meters / 1000 * 1.3
+        return RouteInfo(name: name, km: km, coordinate: coordinate)
     }
 }
 

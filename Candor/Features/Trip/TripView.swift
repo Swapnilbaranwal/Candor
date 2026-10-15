@@ -1,12 +1,12 @@
 import SwiftUI
-import MapKit
+import CoreLocation
 
 /// The traveller's days in Delhi: where to go, in what order, how to get between places and what it should cost.
 struct TripView: View {
     @Binding var tab: AppTab
+    @Environment(AskCandorRouter.self) private var askCandor
     @Environment(AppState.self) private var app
     @Environment(LocationService.self) private var location
-    @Environment(CandorAgent.self) private var agent
     @State private var dayIndex = 0
     @State private var expandedStop: UUID?
     @State private var legSheet: Leg?
@@ -15,7 +15,6 @@ struct TripView: View {
     @State private var showAddPlace = false
     @State private var showEditDay = false
     @State private var confirmStartOver = false
-    @State private var mapPosition: MapCameraPosition = .automatic
     /// The day's hops on real roads and rails, loaded for the map.
     @State private var dayRoutes: [DayRoute] = []
     @State private var show3D = false
@@ -32,6 +31,14 @@ struct TripView: View {
             .background(AppBackground())
             .navigationTitle(L("Trip"))
             .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { askCandor.open() } label: {
+                        Image(systemName: "sparkles")
+                            .foregroundStyle(Color(hex: 0xC4621A))
+                    }
+                    .accessibilityLabel(L("Ask Candor anything…"))
+                    .accessibilityIdentifier("tripAsk")
+                }
                 if app.trip != nil {
                     ToolbarItem(placement: .topBarTrailing) { menu }
                 }
@@ -62,7 +69,6 @@ struct TripView: View {
             .onChange(of: dayIndex) { _, _ in
                 dayRoutes = []
                 expandedStop = nil
-                mapPosition = .automatic
             }
         }
     }
@@ -101,15 +107,6 @@ struct TripView: View {
             app.trip?.days.remove(at: index)
         }
         dayIndex = max(0, index - 1)
-    }
-
-    private func ask(about stop: TripStop) {
-        tab = .agent
-        let question = "I'm going to %@. What should I know, what should things cost, and how do I avoid getting overcharged?"
-        Task {
-            await agent.send(L(question, L(stop.name)),
-                             canonical: question.replacingOccurrences(of: "%@", with: stop.name))
-        }
     }
 
     // MARK: Trip
@@ -269,15 +266,8 @@ struct TripView: View {
     private func dayMap(_ model: TripDayViewModel) -> some View {
         let plan = model.plan
         let origin = model.origin
-        let coordinates = [origin] + plan.entries.map(\.stop.coordinate)
         return Button { show3D = true } label: {
-            Group {
-                if GoogleMapsSetup.isReady {
-                    GoogleTripMap(pins: googlePins(plan, origin: origin), lines: googleLines)
-                } else {
-                    appleMap(plan, origin: origin, coordinates: coordinates)
-                }
-            }
+            GoogleTripMap(pins: googlePins(plan, origin: origin), lines: googleLines)
             .allowsHitTesting(false)
             .frame(height: 230)
             .clipShape(.rect(cornerRadius: Theme.Radius.large, style: .continuous))
@@ -350,41 +340,6 @@ struct TripView: View {
             from = entry.stop.coordinate
         }
         withAnimation(.smooth) { dayRoutes = loaded }
-    }
-
-    /// Apple Maps, when the Google Maps SDK has no key.
-    private func appleMap(_ plan: DayPlan, origin: CLLocationCoordinate2D, coordinates: [CLLocationCoordinate2D]) -> some View {
-        Map(position: $mapPosition) {
-            Annotation(plan.startName, coordinate: origin) {
-                Image(systemName: "location.fill")
-                    .font(.candor(.caption1, .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 24, height: 24)
-                    .background(Theme.teal, in: .circle)
-                    .overlay(Circle().stroke(.white, lineWidth: 2))
-            }
-            .annotationTitles(.hidden)
-            if dayRoutes.isEmpty {
-                MapPolyline(coordinates: coordinates)
-                    .stroke(Theme.accent, style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [6, 5]))
-            } else {
-                ForEach(dayRoutes) { route in
-                    MapPolyline(coordinates: route.coordinates)
-                        .stroke(route.mode.color, style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
-                }
-            }
-            ForEach(Array(plan.entries.enumerated()), id: \.element.id) { number, entry in
-                Annotation(L(entry.stop.name), coordinate: entry.stop.coordinate) {
-                    Text("\(number + 1)")
-                        .font(.candor(.caption1, .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 26, height: 26)
-                        .background(entry.stop.isVisited ? Theme.mint : Theme.accent, in: .circle)
-                        .overlay(Circle().stroke(.white, lineWidth: 2))
-                }
-            }
-        }
-        .mapStyle(.standard(pointsOfInterest: .excludingAll))
     }
 
     // MARK: Timeline
@@ -709,13 +664,7 @@ struct TripView: View {
                     }
                     .buttonStyle(.bordered)
                     .tint(Theme.mint)
-                    Button { ask(about: stop) } label: {
-                        Label(L("Ask Candor about this place"), systemImage: "text.bubble")
-                            .font(.candor(.subheadline, .semibold))
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Theme.accent)
+                    PlaceGuideSection(stop: stop, leg: entry.leg)
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
@@ -1017,7 +966,7 @@ struct LegDetailSheet: View {
 
 // MARK: - Add a place
 
-/// Candor's places by category, plus Apple Maps search for anywhere else.
+/// Candor's places by category, plus Google Maps search for anywhere else.
 struct AddPlaceSheet: View {
     let dayIndex: Int
     @Environment(AppState.self) private var app
@@ -1025,7 +974,7 @@ struct AddPlaceSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var category: SpotCategory?
     @State private var query = ""
-    @State private var results: [MKMapItem] = []
+    @State private var results: [GooglePlace] = []
     @State private var isSearching = false
 
     private var stops: [TripStop] {
@@ -1075,19 +1024,19 @@ struct AddPlaceSheet: View {
                 }
 
                 if !query.trimmingCharacters(in: .whitespaces).isEmpty {
-                    Section(L("Apple Maps")) {
+                    Section(L("Google Maps")) {
                         if isSearching && results.isEmpty {
                             ProgressView().frame(maxWidth: .infinity)
                         }
-                        ForEach(results.prefix(8), id: \.self) { item in
-                            let name = item.name ?? L("Place")
-                            let coordinate = item.placemark.coordinate
+                        ForEach(results.prefix(8)) { item in
+                            let name = item.name
+                            let coordinate = item.coordinate
                             let added = stops.contains {
                                 $0.spotID == nil && $0.name == name
                                     && abs($0.latitude - coordinate.latitude) < 0.0005
                                     && abs($0.longitude - coordinate.longitude) < 0.0005
                             }
-                            placeRow(name: name, detail: item.placemark.title ?? "", icon: "mappin",
+                            placeRow(name: name, detail: item.address ?? "", icon: "mappin",
                                      color: Theme.rose, added: added) {
                                 add(TripStop(name: name, coordinate: coordinate))
                             }
@@ -1115,7 +1064,7 @@ struct AddPlaceSheet: View {
                     return
                 }
                 isSearching = true
-                // Debounce: wait for typing to pause before asking Apple Maps.
+                // Debounce: wait for typing to pause before asking Google Maps.
                 try? await Task.sleep(for: .milliseconds(400))
                 guard !Task.isCancelled else { return }
                 let found = await Routing.search(q, near: location.origin)

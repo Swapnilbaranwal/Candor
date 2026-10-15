@@ -1,7 +1,15 @@
 import SwiftUI
 
 enum AppTab: Hashable {
-    case home, trip, check, agent, profile
+    case home, trip, check, profile
+}
+
+/// "Ask Candor": the agent chat as a sheet, opened from the ✨ button on Home and Trip.
+@Observable
+final class AskCandorRouter {
+    var isOpen = false
+
+    func open() { isOpen = true }
 }
 
 struct MainTabView: View {
@@ -12,6 +20,7 @@ struct MainTabView: View {
     @State private var router = WayHomeRouter()
     /// The Check tab's navigation, here so Home can open a Check tool directly.
     @State private var checkPath: [CheckRoute] = []
+    @State private var ask = AskCandorRouter()
 
     var body: some View {
         TabView(selection: $tab) {
@@ -23,9 +32,6 @@ struct MainTabView: View {
             }
             Tab(L("Check"), systemImage: "checkmark.shield.fill", value: AppTab.check) {
                 CheckView(tab: $tab, path: $checkPath)
-            }
-            Tab(L("Agent"), systemImage: "bubble.left.and.text.bubble.right.fill", value: AppTab.agent) {
-                AgentView()
             }
             Tab(L("Me"), systemImage: "person.crop.circle.fill", value: AppTab.profile) {
                 ProfileView()
@@ -52,7 +58,12 @@ struct MainTabView: View {
             WayHomeView()
                 .environment(router)
         }
+        .sheet(isPresented: $ask.isOpen) {
+            AgentView(inSheet: true)
+                .presentationDragIndicator(.visible)
+        }
         .environment(router)
+        .environment(ask)
         // Until we know where the traveller is staying, ask on launch and whenever they come back.
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { router.askIfNeeded(app) }
@@ -62,7 +73,7 @@ struct MainTabView: View {
             switch UserDefaults.standard.string(forKey: "candor.tab") {
             case "trip": tab = .trip
             case "check": tab = .check
-            case "agent": tab = .agent
+            case "agent": ask.open()
             case "profile": tab = .profile
             default: break
             }

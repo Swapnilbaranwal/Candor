@@ -384,10 +384,9 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9N9Q899K7J;
+				DEVELOPMENT_TEAM = LVZX25PWVD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				GOOGLE_MAPS_API_KEY = "AIzaSyCUxF-KvO9bHXuItzjwoIf_VcTmnqxjuFw";
 				INFOPLIST_FILE = "Candor-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Candor;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Candor uses the camera to read price tags, menus and bills so it can tell you the fair price.";
@@ -400,7 +399,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Swapnil1.candor;
+				PRODUCT_BUNDLE_IDENTIFIER = deepika.candor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -419,10 +418,9 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9N9Q899K7J;
+				DEVELOPMENT_TEAM = LVZX25PWVD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				GOOGLE_MAPS_API_KEY = "AIzaSyCUxF-KvO9bHXuItzjwoIf_VcTmnqxjuFw";
 				INFOPLIST_FILE = "Candor-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Candor;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Candor uses the camera to read price tags, menus and bills so it can tell you the fair price.";
@@ -435,7 +433,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Swapnil1.candor;
+				PRODUCT_BUNDLE_IDENTIFIER = deepika.candor;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

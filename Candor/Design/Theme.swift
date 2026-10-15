@@ -424,13 +424,6 @@ enum CandorType {
     }
 
     private static func makeFont(_ style: UIFont.TextStyle, weight: UIFont.Weight, size: CGFloat?) -> UIFont {
-        // Captions are hand-lettered in Story Script: small notes, like ink on a travel journal.
-        if size == nil, style == .caption1 || style == .caption2 {
-            _ = registerFonts
-            if let face = UIFont(name: "StoryScript-Regular", size: style == .caption1 ? 14 : 12.5) {
-                return UIFontMetrics(forTextStyle: style).scaledFont(for: face)
-            }
-        }
         let base = UIFont.systemFont(ofSize: size ?? scale(style), weight: weight)
         if size != nil { return base }
         return UIFontMetrics(forTextStyle: style).scaledFont(for: base)
@@ -523,7 +516,7 @@ enum CandorType {
     }
 
     private static let registerFonts: Bool = {
-        for name in ["PTSerif-Regular", "PTSerif-Bold", "PTSerif-Italic", "StoryScript-Regular"] {
+        for name in ["PTSerif-Regular", "PTSerif-Bold", "PTSerif-Italic"] {
             guard let url = Bundle.main.url(forResource: name, withExtension: "ttf") else { continue }
             CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
         }

@@ -215,7 +215,7 @@ struct EmergencyView: View {
 
     private var mapsURL: URL? {
         let c = location.location?.coordinate ?? location.origin
-        return URL(string: "https://maps.apple.com/?ll=\(c.latitude),\(c.longitude)")
+        return GoogleMapsLink.place(c)
     }
 
     var body: some View {

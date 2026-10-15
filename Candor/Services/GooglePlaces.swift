@@ -61,6 +61,17 @@ enum GooglePlaces {
         return try await textSearch(["textQuery": query, "maxResultCount": 6, "locationRestriction": bounds])
     }
 
+    /// Places matching `query` near `origin`, nearest area first (within about `radiusKm`).
+    static func search(_ query: String, near origin: CLLocationCoordinate2D, radiusKm: Double = 30) async throws -> [GooglePlace] {
+        let bias: [String: Any] = [
+            "circle": [
+                "center": ["latitude": origin.latitude, "longitude": origin.longitude],
+                "radius": min(radiusKm, 50) * 1000
+            ]
+        ]
+        return try await textSearch(["textQuery": query, "maxResultCount": 8, "locationBias": bias])
+    }
+
     /// Cities and towns anywhere matching `query`, as destinations. Candor's verified cities keep
     /// their own ids, so "Delhi" from Google comes back as Candor's Delhi.
     static func searchCities(_ query: String) async throws -> [City] {

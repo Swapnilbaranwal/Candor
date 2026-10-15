@@ -1,5 +1,5 @@
 import SwiftUI
-import MapKit
+import CoreLocation
 
 /// One step of a journey, the way a maps app shows it: walk 450 m, ride the Yellow Line six
 /// stops towards Samaypur Badli, get off, walk on.
@@ -298,23 +298,14 @@ struct JourneyView: View {
     }
 
     private var map: some View {
-        Map(initialPosition: .automatic) {
-            if path.count > 1 {
-                MapPolyline(coordinates: path)
-                    .stroke(.white, style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .round))
-                MapPolyline(coordinates: path)
-                    .stroke(mode.color, style: StrokeStyle(lineWidth: 4.5, lineCap: .round, lineJoin: .round,
-                                                           dash: mode == .walk ? [2, 7] : []))
-            }
-            if leg.hasCoordinates {
-                Annotation(L(leg.from), coordinate: leg.fromCoordinate) {
-                    Circle().fill(Theme.teal).frame(width: 16, height: 16).overlay(Circle().stroke(.white, lineWidth: 3))
-                }
-                Marker(L(leg.to), systemImage: "mappin", coordinate: leg.toCoordinate)
-                    .tint(Theme.coral)
-            }
-        }
-        .mapStyle(.standard(pointsOfInterest: .excludingAll, showsTraffic: mode == .cab || mode == .auto))
+        GoogleMapView(
+            markers: leg.hasCoordinates ? [
+                .init(leg.fromCoordinate, title: L(leg.from), style: .symbol("circle.fill", UIColor(Theme.teal))),
+                .init(leg.toCoordinate, title: L(leg.to), style: .pin(UIColor(Theme.coral)))
+            ] : [],
+            lines: path.count > 1 ? [.init(path, color: UIColor(mode.color), dashed: mode == .walk)] : [],
+            showsTraffic: mode == .cab || mode == .auto
+        )
         .frame(height: 200)
         .clipShape(.rect(cornerRadius: Theme.Radius.large, style: .continuous))
         .id(path.count)
