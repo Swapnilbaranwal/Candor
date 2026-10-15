@@ -770,7 +770,7 @@ struct PersonaSetupView: View {
                 .minimumScaleFactor(0.6)
             Image(systemName: "star.fill").font(.system(size: 7))
             Text(L("Welcome").uppercased())
-                .font(.system(size: 7, weight: .bold))
+                .font(Font(CandorType.lato(.bold, size: 7)))
         }
         .foregroundStyle(Theme.rose.opacity(0.8))
         .frame(width: 62, height: 62)

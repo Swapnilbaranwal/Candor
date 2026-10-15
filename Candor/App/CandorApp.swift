@@ -12,6 +12,7 @@ struct CandorApp: App {
         UINavigationBar.appearance().titleTextAttributes = [.font: CandorType.heading(.headline, weight: .semibold)]
         UIBarButtonItem.appearance().setTitleTextAttributes([.font: CandorType.font(.body)], for: .normal)
         UITabBarItem.appearance().setTitleTextAttributes([.font: CandorType.font(.caption2, weight: .medium)], for: .normal)
+        UITabBarItem.appearance().setTitleTextAttributes([.font: CandorType.font(.caption2, weight: .semibold)], for: .selected)
         UISegmentedControl.appearance().setTitleTextAttributes([.font: CandorType.font(.subheadline, weight: .medium)], for: .normal)
         let app = AppState()
         let location = LocationService()

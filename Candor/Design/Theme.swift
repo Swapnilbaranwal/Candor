@@ -562,3 +562,41 @@ extension Font {
         return Font(size == nil ? UIFontMetrics(forTextStyle: style).scaledFont(for: base) : base)
     }
 }
+
+extension Text {
+    /// Text with every ★ drawn as the SF Symbol star: Lato has no star, and the system font's
+    /// star looks out of place next to it.
+    init(starred string: String) {
+        let parts = string.components(separatedBy: "★")
+        var text = Text(verbatim: parts[0])
+        for part in parts.dropFirst() {
+            text = text + Text(Image(systemName: "star.fill")) + Text(verbatim: part)
+        }
+        self = text
+    }
+}
+
+/// A soft band behind the status bar on screens without a navigation bar, so content scrolling
+/// up fades out under the clock and battery instead of running into them.
+struct StatusBarScrim: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+
+    func body(content: Content) -> some View {
+        content.overlay(alignment: .top) {
+            GeometryReader { proxy in
+                let top = scheme == .dark ? Color(hex: 0x1C1519) : Color(hex: 0xFFF9F2)
+                LinearGradient(stops: [.init(color: top, location: 0),
+                                       .init(color: top, location: 0.7),
+                                       .init(color: top.opacity(0), location: 1)],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: proxy.safeAreaInsets.top + 14)
+                    .ignoresSafeArea(edges: .top)
+            }
+            .allowsHitTesting(false)
+        }
+    }
+}
+
+extension View {
+    func statusBarScrim() -> some View { modifier(StatusBarScrim()) }
+}

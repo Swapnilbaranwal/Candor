@@ -22,19 +22,32 @@ struct MainTabView: View {
     @State private var checkPath: [CheckRoute] = []
     @State private var ask = AskCandorRouter()
 
+    /// Phosphor icons (MIT, in Assets.xcassets/TabIcons): outline, filled when selected.
+    private func tabLabel(_ title: String, icon: String, tab item: AppTab) -> some View {
+        Label(title, image: tab == item ? "tab-\(icon)-fill" : "tab-\(icon)")
+    }
+
     var body: some View {
         TabView(selection: $tab) {
-            Tab(L("Home"), systemImage: "house.fill", value: AppTab.home) {
+            Tab(value: AppTab.home) {
                 HomeView(tab: $tab, checkPath: $checkPath)
+            } label: {
+                tabLabel(L("Home"), icon: "house", tab: .home)
             }
-            Tab(L("Trip"), systemImage: "map.fill", value: AppTab.trip) {
+            Tab(value: AppTab.trip) {
                 TripView(tab: $tab)
+            } label: {
+                tabLabel(L("Trip"), icon: "map-trifold", tab: .trip)
             }
-            Tab(L("Check"), systemImage: "checkmark.shield.fill", value: AppTab.check) {
+            Tab(value: AppTab.check) {
                 CheckView(tab: $tab, path: $checkPath)
+            } label: {
+                tabLabel(L("Check"), icon: "seal-check", tab: .check)
             }
-            Tab(L("Me"), systemImage: "person.crop.circle.fill", value: AppTab.profile) {
+            Tab(value: AppTab.profile) {
                 ProfileView()
+            } label: {
+                tabLabel(L("Me"), icon: "user-circle", tab: .profile)
             }
         }
         .tint(Theme.accent)

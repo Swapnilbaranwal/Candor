@@ -142,7 +142,7 @@ struct GuideStatusCard: View {
                         GuideAvatar(guide: guide, size: 54)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(guide.name).font(.heading(.title3)).foregroundStyle(.primary)
-                            Text(GuideViewText.summary(guide, languages: true))
+                            Text(starred: GuideViewText.summary(guide, languages: true))
                                 .font(.candor(.caption1))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
@@ -457,7 +457,7 @@ struct GuideBookingView: View {
                                 .background(Theme.brandFill, in: .capsule)
                         }
                     }
-                    Text(GuideViewText.summary(guide, languages: false))
+                    Text(starred: GuideViewText.summary(guide, languages: false))
                         .font(.candor(.caption1))
                         .foregroundStyle(.secondary)
                 }

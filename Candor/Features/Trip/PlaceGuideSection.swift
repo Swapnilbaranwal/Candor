@@ -34,7 +34,7 @@ struct PlaceGuideSection: View {
                 .font(.candor(.subheadline, .semibold))
             if let info {
                 if let meta = metaLine(info) {
-                    Text(meta)
+                    Text(starred: meta)
                         .font(.candor(.caption1))
                         .foregroundStyle(.secondary)
                 }

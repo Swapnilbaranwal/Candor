@@ -39,6 +39,7 @@ struct HomeView: View {
             .scrollIndicators(.hidden)
             .background(AppBackground())
             .toolbar(.hidden, for: .navigationBar)
+            .statusBarScrim()
             .sheet(item: $journey) { request in
                 JourneyView(leg: request.leg, mode: request.mode)
             }

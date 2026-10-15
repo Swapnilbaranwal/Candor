@@ -55,6 +55,7 @@ struct CheckView: View {
             }
             .background(AppBackground())
             .toolbar(.hidden, for: .navigationBar)
+            .statusBarScrim()
             .navigationDestination(for: CheckRoute.self) { route in
                 switch route {
                 case .scan: ScanView(embedded: true)
