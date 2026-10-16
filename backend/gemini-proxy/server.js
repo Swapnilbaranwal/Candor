@@ -5,9 +5,19 @@
 //
 // POST /v1beta/models/<model>:generateContent   forwarded to the Gemini API
 // POST /v1/places:searchText                    forwarded to Google Maps (Places API, Text Search)
+// POST /v1/check                                the fair-price agent (Gemini + tools), for the web demo
+// GET/POST /v1/community/...                    shared prices and scam hotspots (Firestore), see community.js
+// GET  /v1/community/insights?city=             Gemini's brief for a tourism office
+// GET  /                                        the web demo (public/index.html)
 // GET  /healthz                                 "ok"
 
 import http from "node:http";
+import { readFile } from "node:fs/promises";
+import { extname, join, normalize } from "node:path";
+import { fileURLToPath } from "node:url";
+import { openStore } from "./store.js";
+import { addPrice, addReport, hotspots, priceStats } from "./community.js";
+import { checkPrice, hotspotBrief } from "./agent.js";
 
 const PORT = Number(process.env.PORT || 8080);
 const API_KEY = (process.env.GEMINI_API_KEY || "").trim();
@@ -17,7 +27,9 @@ const PLACES_UPSTREAM = "https://places.googleapis.com/v1/places:searchText";
 const PLACES_FIELD_MASK = "places.id,places.displayName,places.formattedAddress,places.location,places.viewport";
 const UPSTREAM = (process.env.GEMINI_API_BASE || "https://generativelanguage.googleapis.com").replace(/\/+$/, "");
 const ALLOWED_MODELS = new Set(
-  (process.env.ALLOWED_MODELS || "gemini-3.8-flash,gemini-3.5-flash,gemini-3.5-flash-lite")
+  // The app's first choice, then the fallbacks it tries when a model is busy (GeminiClient.fallbackModels).
+  (process.env.ALLOWED_MODELS ||
+    "gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3-flash-preview")
     .split(",").map((name) => name.trim()).filter(Boolean)
 );
 // A price-tag photo is sent as base64 JPEG (longest side 1280 px), well under this.
@@ -84,14 +96,93 @@ function readBody(req) {
   });
 }
 
+const { store, kind: storeKind } = await openStore();
+const PUBLIC_DIR = join(fileURLToPath(new URL(".", import.meta.url)), "public");
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css",
+                ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon" };
+
+async function serveStatic(res, path) {
+  const file = normalize(path === "/" ? "/index.html" : path).replace(/^(\.\.[/\\])+/, "");
+  try {
+    const data = await readFile(join(PUBLIC_DIR, file));
+    res.writeHead(200, { "Content-Type": TYPES[extname(file)] || "application/octet-stream",
+                         "Cache-Control": "public, max-age=300" });
+    res.end(data);
+  } catch {
+    fail(res, 404, "Not found.");
+  }
+}
+
+async function readJSON(req, res) {
+  try {
+    const body = await readBody(req);
+    return JSON.parse(body.toString("utf8") || "{}");
+  } catch (error) {
+    if (error.status === 413) res.setHeader("Connection", "close");
+    fail(res, error.status || 400, error.status ? error.message : "The request body is not valid JSON.");
+    return null;
+  }
+}
+
+const MODELS = [...ALLOWED_MODELS];
+
+async function handleApp(req, res, url) {
+  const path = url.pathname;
+  const city = url.searchParams.get("city") || "Delhi";
+  const write = req.method === "POST";
+  if (write && overLimit(clientAddress(req))) return fail(res, 429, "Too many requests. Try again in a minute."), true;
+  try {
+    if (path === "/v1/check" && write) {
+      if (!API_KEY) return fail(res, 500, "The service has no Gemini API key. Set GEMINI_API_KEY."), true;
+      const input = await readJSON(req, res);
+      if (input) send(res, 200, await checkPrice(input, { store, models: MODELS, apiKey: API_KEY }));
+      return true;
+    }
+    if (path === "/v1/community/prices") {
+      if (write) {
+        const input = await readJSON(req, res);
+        if (input) send(res, 201, { saved: await addPrice(store, input) });
+      } else {
+        send(res, 200, await priceStats(store, city, url.searchParams.get("item") || ""));
+      }
+      return true;
+    }
+    if (path === "/v1/community/reports" && write) {
+      const input = await readJSON(req, res);
+      if (input) send(res, 201, { saved: await addReport(store, input) });
+      return true;
+    }
+    if (path === "/v1/community/hotspots" && req.method === "GET") {
+      send(res, 200, await hotspots(store, city));
+      return true;
+    }
+    if (path === "/v1/community/insights" && req.method === "GET") {
+      if (!API_KEY) return fail(res, 500, "The service has no Gemini API key. Set GEMINI_API_KEY."), true;
+      if (overLimit(clientAddress(req))) return fail(res, 429, "Too many requests. Try again in a minute."), true;
+      const data = await hotspots(store, city);
+      send(res, 200, { ...data, ...(await hotspotBrief(data, { models: MODELS, apiKey: API_KEY })) });
+      return true;
+    }
+  } catch (error) {
+    fail(res, error.status || 502, error.message || "Something went wrong.");
+    return true;
+  }
+  return false;
+}
+
 const server = http.createServer(async (req, res) => {
-  const path = new URL(req.url, "http://localhost").pathname;
+  const url = new URL(req.url, "http://localhost");
+  const path = url.pathname;
 
   if (req.method === "GET" && path === "/healthz") {
-    return send(res, 200, { status: "ok" });
+    return send(res, 200, { status: "ok", store: storeKind });
   }
 
   if (path === "/v1/places:searchText") return searchPlaces(req, res);
+  if (path.startsWith("/v1/") && !path.startsWith("/v1beta/")) {
+    if (await handleApp(req, res, url)) return;
+  }
+  if (req.method === "GET" && !path.startsWith("/v1")) return serveStatic(res, path);
 
   const match = ROUTE.exec(path);
   if (!match) return fail(res, 404, "Not found.");
@@ -159,5 +250,5 @@ async function searchPlaces(req, res) {
 }
 
 server.listen(PORT, () => {
-  console.log(`Candor Gemini proxy listening on ${PORT}. Models: ${[...ALLOWED_MODELS].join(", ")}`);
+  console.log(`Candor backend on ${PORT}. Store: ${storeKind}. Models: ${[...ALLOWED_MODELS].join(", ")}`);
 });

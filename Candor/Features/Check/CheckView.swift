@@ -22,7 +22,7 @@ struct CheckView: View {
     /// Titles are English keys, shown through `L(…)`.
     private let safetyTools: [Tool] = [
         Tool(route: .scams, title: "Travel smart", subtitle: "Simple tips to travel with ease", icon: "lightbulb.fill", color: Theme.teal),
-        Tool(route: .interpreter, title: "Phrases", subtitle: "Say it in Hindi, out loud or on screen", icon: "character.bubble.fill", color: Theme.sky),
+        Tool(route: .interpreter, title: "Interpreter", subtitle: "Speak your language, they hear theirs", icon: "bubble.left.and.text.bubble.right.fill", color: Theme.sky),
         Tool(route: .converter, title: "Converter", subtitle: "Rupees to your money", icon: "dollarsign.arrow.circlepath", color: Theme.mint),
         Tool(route: .emergency, title: "Emergency", subtitle: "Police, help and helplines", icon: "sos", color: Theme.coral)
     ]

@@ -7,8 +7,13 @@ import GoogleMaps3D
 // Kept in its own file: GoogleMaps3D and MapKit both declare a SwiftUI `Map`.
 
 /// Gives the Maps 3D SDK the app's Google key (it needs "Maps 3D SDK for iOS" enabled on the key).
+/// Google's 3D map SDK is heavy to wake up, so it starts only when a 3D map is opened.
 enum Google3DSetup {
-    static func start(key: String) {
+    private static var started = false
+
+    static func start(key: String = GooglePlaces.apiKey) {
+        guard !started, !key.isEmpty else { return }
+        started = true
         #if canImport(GoogleMaps3D)
         GoogleMaps3D.Map.apiKey = key
         #endif
@@ -31,6 +36,7 @@ struct Google3DDayMap: View {
         self.stops = stops
         self.routes = routes
         self.focus = focus
+        Google3DSetup.start()
         let start = Self.camera(for: focus?.coordinate ?? City.delhi.coordinate)
         _camera = State(initialValue: start)
         _target = State(initialValue: start)
@@ -61,10 +67,13 @@ struct Google3DDayMap: View {
             }
         }
         .flyCameraTo(target, duration: 2.5, trigger: flights, completion: {})
-        .onChange(of: focus?.id) { _, _ in
-            guard let focus else { return }
-            target = Self.camera(for: focus.coordinate)
-            flights += 1
+        .onChange(of: focus?.id) { _, id in
+            // This closure comes from the previous render, so `focus` here is the last stop,
+            // not the one just tapped. Look the stop up by the new id instead.
+            guard let stop = stops.first(where: { $0.id == id }) else { return }
+            target = Self.camera(for: stop.coordinate)
+            // Fly on the next update, once `flyCameraTo` holds the new target, not the old one.
+            Task { @MainActor in flights += 1 }
         }
     }
 }

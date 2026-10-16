@@ -133,7 +133,7 @@ struct StayPromptCard: View {
             Button {
                 router.showSetup = true
             } label: {
-                Label(L("Add where I'm staying"), systemImage: "house.fill")
+                Label(L("Add your stay"), systemImage: "house.fill")
             }
             .buttonStyle(.pill)
             .accessibilityIdentifier("addStay")

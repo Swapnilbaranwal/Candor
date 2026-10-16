@@ -92,7 +92,7 @@ func upsertStep(_ step: AgentStep, in steps: inout [AgentStep]) {
 // MARK: - Engine
 
 final class AgentEngine {
-    static let toolNames = ["lookup_price", "estimate_fare", "route_distance", "check_scam", "find_nearby", "convert_currency", "report_verdict"]
+    static let toolNames = ["lookup_price", "community_prices", "estimate_fare", "route_distance", "check_scam", "find_nearby", "convert_currency", "report_verdict"]
 
     private let app: AppState
     private let location: LocationService
@@ -203,6 +203,7 @@ final class AgentEngine {
         - Never invent prices. Ground every price in a tool result (lookup_price, estimate_fare) or in a printed MRP you can clearly read in a photo. If there is no data, say so and give bargaining guidance instead.
         - On packaged goods in India the printed MRP is the legal maximum retail price, including taxes.
         - For rides: call route_distance for the destination, then estimate_fare.
+        - Also call community_prices to see what other Candor travellers actually paid. With 3 or more reports, weigh it and say how many travellers it comes from.
         - Whenever you judge a specific price, call report_verdict exactly once with the fair range in INR so the app can show a verdict card. Write its `item` in \(p.englishLanguageName); copy `source` exactly as a tool returned it.
         - Tool results are mostly in English. Translate what you use from them into \(p.englishLanguageName).
         - When quoting an INR amount, also give it in the traveller's home currency using convert_currency.
@@ -223,6 +224,10 @@ final class AgentEngine {
                      "Look up fair reference prices in Delhi for food, drinks, packaged goods, metro and short rides.",
                      ["query": string("Item to look up, e.g. 'masala chai' or '1 litre water bottle'.")],
                      required: ["query"]),
+            function("community_prices",
+                     "What other Candor travellers actually paid for an item in this city, shared anonymously through Candor's Google Cloud backend.",
+                     ["item": string("Short generic English name, e.g. 'masala chai' or 'auto rickshaw 5 km'.")],
+                     required: ["item"]),
             function("route_distance",
                      "Find a destination in Delhi and return the driving distance from the traveller.",
                      ["destination": string("Place name or address.")],
@@ -248,6 +253,7 @@ final class AgentEngine {
             function("report_verdict",
                      "Show the traveller a verdict card for one specific price check. Call once per check.",
                      ["item": string("What is being priced."),
+                      "item_en": string("The same item as a short generic English name, e.g. 'masala chai', for shared prices."),
                       "fair_low_inr": number("Low end of the fair range in INR."),
                       "fair_high_inr": number("High end of the fair range in INR."),
                       "asked_inr": number("Price being asked, if known."),
@@ -362,6 +368,23 @@ final class AgentEngine {
             finish(step, detail: "\(L(top.item)): \(Self.range(top))")
             return ToolOutput(result: ["found": true, "matches": Array(matches.prefix(3)).map { $0.dictionary }])
 
+        case "community_prices":
+            let item = args["item"] as? String ?? ""
+            let city = communityCity
+            let step = begin("person.3.fill", L("Checking what travellers paid"), item)
+            guard let stats = await CommunityService.stats(item: item, city: city), stats.reports > 0 else {
+                finish(step, detail: L("No shared prices yet"))
+                return ToolOutput(result: ["reports": 0, "note": "No traveller reports yet for this item in \(city)."])
+            }
+            let median = inr(stats.medianPaidINR ?? 0)
+            finish(step, detail: L("%1$@ travellers paid about %2$@", stats.reports, median))
+            var result: [String: Any] = ["city": city, "reports": stats.reports, "note": stats.note ?? ""]
+            if let v = stats.medianPaidINR { result["median_paid_inr"] = v }
+            if let v = stats.lowPaidINR { result["low_paid_inr"] = v }
+            if let v = stats.highPaidINR { result["high_paid_inr"] = v }
+            if let v = stats.medianAskedINR { result["median_first_ask_inr"] = v }
+            return ToolOutput(result: result)
+
         case "route_distance":
             let destination = args["destination"] as? String ?? ""
             let step = begin("arrow.triangle.turn.up.right.diamond.fill", L("Measuring route"), "\(location.originName) \(Localizer.shared.arrow) \(destination)")
@@ -395,6 +418,12 @@ final class AgentEngine {
             let step = begin("shield.lefthalf.filled", L("Checking travel tips"), L("%@ tips for Delhi", DelhiData.scams.count))
             await pause(300)
             let matches = DelhiData.matchScams(situation)
+            if let top = matches.first {
+                // Feeds the scam hotspot map for tourism offices (anonymous, ~1 km).
+                CommunityService.reportScam(top.title, city: communityCity,
+                                            latitude: location.location?.coordinate.latitude,
+                                            longitude: location.location?.coordinate.longitude)
+            }
             finish(step, detail: matches.first.map { L("Match: %@", L($0.title)) } ?? L("No known pattern matched"))
             let scamList = matches.prefix(2).map { scam -> [String: Any] in
                 ["title": scam.title, "how_it_works": scam.howItWorks, "red_flags": scam.redFlags, "what_to_do": scam.whatToDo]
@@ -438,12 +467,19 @@ final class AgentEngine {
                                        tip: tipPhrase(for: args["source"] as? String ?? ""))
             let step = begin(verdict.verdict.icon, L("Preparing verdict"), L(verdict.item))
             finish(step, detail: "\(verdict.verdict.title) · \(L("fair %@", verdict.rangeText))")
+            // Helps the next traveller: shared anonymously unless turned off in Me → Preferences.
+            CommunityService.sharePrice(item: (args["item_en"] as? String) ?? verdict.item, city: communityCity,
+                                        askedINR: verdict.askedINR, fairLowINR: verdict.fairLowINR,
+                                        fairHighINR: verdict.fairHighINR)
             return ToolOutput(result: ["shown_to_user": true, "verdict": verdict.verdict.title], verdict: verdict)
 
         default:
             return ToolOutput(result: ["error": "Unknown tool \(name)"])
         }
     }
+
+    /// The city shared prices and reports are filed under: where the traveller is today.
+    private var communityCity: String { app.currentCityStay?.city.name ?? "Delhi" }
 
     /// "₹20" for a fixed price, "₹10–₹25" for a range.
     private static func range(_ reference: ReferencePrice) -> String {

@@ -4,6 +4,8 @@ struct ProfileView: View {
     @Environment(AppState.self) private var app
     @Environment(AskCandorRouter.self) private var router
     @State private var showKey = false
+    /// Share price checks and matched tricks anonymously (see CommunityService).
+    @AppStorage(CommunityService.shareKey) private var shareChecks = true
     @State private var confirmReset = false
     @State private var testState: TestState = .idle
 
@@ -23,6 +25,8 @@ struct ProfileView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     personaHeader
+                    // The trip's cities: edit them and plan the days again when plans change.
+                    TripCitiesCard()
                     // How you like to travel: changes the best way around and the fares everywhere.
                     TravelStyleSwitcher()
                         .glossCard(Theme.saffron, padding: 16)
@@ -170,7 +174,17 @@ struct ProfileView: View {
                 }
             }
             Divider()
-            Stepper(L("Days in Delhi: %@", persona.wrappedValue.tripDays), value: persona.tripDays, in: 1...14)
+            Stepper(L("Days: %@", persona.wrappedValue.tripDays), value: persona.tripDays, in: 1...14)
+            Divider()
+            Toggle(isOn: $shareChecks) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L("Share my checks anonymously"))
+                    Text(L("Prices and tricks help the next traveller and the city's tourism office. No name, no account, location rounded to about 1 km."))
+                        .font(.candor(.caption1))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .tint(Theme.emerald)
         }
         .card()
     }

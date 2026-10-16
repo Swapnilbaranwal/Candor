@@ -391,6 +391,8 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Candor;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Candor uses the camera to read price tags, menus and bills so it can tell you the fair price.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Candor uses your location to measure ride distances and show verified places near you.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Candor listens when you tap the mic, so the interpreter can translate what you and the other person say.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Candor turns speech into text so the interpreter can translate it.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -425,6 +427,8 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Candor;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Candor uses the camera to read price tags, menus and bills so it can tell you the fair price.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Candor uses your location to measure ride distances and show verified places near you.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Candor listens when you tap the mic, so the interpreter can translate what you and the other person say.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Candor turns speech into text so the interpreter can translate it.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;

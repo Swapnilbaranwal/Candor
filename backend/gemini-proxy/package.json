@@ -1,12 +1,16 @@
 {
   "name": "candor-gemini-proxy",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Forwards Candor's Gemini requests from Cloud Run, so the API key stays on the server.",
+  "description": "Candor's Google Cloud Run backend: Gemini proxy, fair-price agent, community prices and scam hotspots in Firestore, and the web demo.",
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "STORE=memory node server.js"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "^7.11.0"
   },
   "engines": {
     "node": ">=20"

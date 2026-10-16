@@ -314,7 +314,7 @@ struct TripView: View {
         }
         .fullScreenCover(isPresented: $show3D) {
             Trip3DMapView(title: model.day.displayTitle,
-                          stops: [DayMapStop(id: UUID(), number: nil, name: plan.startName, coordinate: origin)]
+                          stops: [DayMapStop(id: model.day.id, number: nil, name: plan.startName, coordinate: origin)]
                             + plan.entries.enumerated().map { number, entry in
                                 DayMapStop(id: entry.stop.id, number: number + 1, name: L(entry.stop.name),
                                            coordinate: entry.stop.coordinate, visited: entry.stop.isVisited)

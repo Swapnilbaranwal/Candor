@@ -47,13 +47,13 @@ The links in the script are signed and expire a few days after they were issued.
 | Login | An illustrated landing page (*Get Started* / *Log in*) opening a sign-in sheet: Apple, Google, email, phone (country-code picker, number length checked per country) or guest. Apple and Google are prototype stubs until the real SDK flows are wired in. |
 | Persona setup | Name, language (defaults to device), home currency, travel style, days, interests, then an animated "agent setup" sequence. |
 | Home | Serif greeting with today's date, an *Ask Candor* search pill and camera button, an animated illustrated city card (sky follows the clock, India Gate in 3D) with today's plan, **Way back home**, the fair-price check, 3D tool tiles and the scam of the day. |
-| Way back home | Candor keeps asking where you're staying (Home card, a bar above the tab bar, and a sheet on launch) until you answer. Then: route map from where you are, walk / Metro / auto / cab with fair fares, steps, *Start* in Apple Maps, and a full-screen *Show the driver* card in Hindi. |
+| Way back home | Candor keeps asking where you're staying (Home card, a bar above the tab bar, and a sheet on launch) until you answer. Then: route map from where you are, walk / Metro / auto / cab with fair fares, steps, *Start* in Google Maps, and a full-screen *Show the driver* card in Hindi. |
 | Explore | Map of verified Delhi places (sights, fixed-price shops, markets, transport) with tips, "Fair fare" and "Ask Candor". |
 | Scan | Camera or Photos input plus the asked price. The agent reads it, then shows a verdict card with the fair range, a gauge and a phrase to say. |
-| Agent | Chat with a visible tool trail. Tools: `lookup_price`, `route_distance`, `estimate_fare`, `check_scam`, `find_nearby`, `convert_currency`, `report_verdict`. |
-| Ride fare | Destination search measures the road distance (MapKit), applies the Delhi fare chart and judges the driver's quote. |
-| Interpreter | Hindi phrasebook with speech and a full-screen "show the driver" card, plus Gemini translation. |
-| Scam radar | 8 known patterns, plus "describe your situation" checked by the agent. |
+| Ask Candor | The ✨ button on Home and Trip opens a chat with a visible tool trail. Tools: `lookup_price`, `community_prices`, `route_distance`, `estimate_fare`, `check_scam`, `find_nearby`, `convert_currency`, `report_verdict`. |
+| Ride fare | Destination search measures the road distance (Google Routes), applies the Delhi fare chart and judges the driver's quote. |
+| Interpreter | Two-way voice and text translation (Google Translate, Gemini as fallback), plus a Hindi phrasebook with a full-screen "show the driver" card. |
+| Travel smart | Five common tricks worded as advice; Ask Candor checks any situation. |
 | Converter / Emergency / History | INR ↔ home currency, the 112 emergency number, the tourist helpline, location sharing and saved checks. |
 
 ## Languages

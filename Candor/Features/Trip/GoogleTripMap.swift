@@ -33,6 +33,7 @@ struct GoogleTripMap: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> GMSMapView {
+        GoogleMapsSetup.start()
         let options = GMSMapViewOptions()
         let first = pins.first?.coordinate ?? City.delhi.coordinate
         options.camera = GMSCameraPosition(latitude: first.latitude, longitude: first.longitude, zoom: 12)
@@ -143,14 +144,17 @@ struct GoogleTripMap: UIViewRepresentable {
     }
 }
 
-/// Starts the Google Maps SDK with the app's Google key, once, at launch.
+/// Starts the Google Maps SDK with the app's Google key, once, the first time a map is shown.
+/// Not at launch: starting it on the main thread froze Home for seconds on the first scroll.
 enum GoogleMapsSetup {
     private(set) static var isReady = false
+
+    /// A Google key is set, so Google maps can be used (they start on first use).
+    static var isAvailable: Bool { !GooglePlaces.apiKey.isEmpty }
 
     static func start() {
         let key = GooglePlaces.apiKey
         guard !key.isEmpty, !isReady else { return }
         isReady = GMSServices.provideAPIKey(key)
-        Google3DSetup.start(key: key)
     }
 }

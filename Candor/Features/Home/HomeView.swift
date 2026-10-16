@@ -24,6 +24,8 @@ struct HomeView: View {
                 // built mid-scroll. No entrance animations either: Home is simply there.
                 VStack(alignment: .leading, spacing: 22) {
                     header(model)
+                    // SOS, phrases and the converter one tap away, like stories.
+                    QuickToolsRow()
                     heroCard(model)
                     sectionTitle(L("Explore your way"),
                                  subtitle: L("Wander on your own with Candor in your pocket, or walk with a verified local who knows every lane."))

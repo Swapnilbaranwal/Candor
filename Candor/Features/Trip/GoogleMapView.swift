@@ -86,6 +86,7 @@ struct GoogleMapView: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> GMSMapView {
+        GoogleMapsSetup.start()
         let options = GMSMapViewOptions()
         let start = markers.first?.coordinate ?? City.delhi.coordinate
         options.camera = GMSCameraPosition(latitude: start.latitude, longitude: start.longitude, zoom: 13)

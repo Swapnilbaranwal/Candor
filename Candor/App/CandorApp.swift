@@ -36,12 +36,16 @@ struct RootView: View {
     @Environment(AppState.self) private var app
     @Environment(LocationService.self) private var location
     @State private var showSplash = true
+    /// The app's screens are built only after the splash is on screen, so the splash shows
+    /// straight away and stays up while Home is being built behind it.
+    @State private var contentReady = false
     /// Day feels like day, night like night: the app's appearance follows the time of day.
     @State private var period = DayPeriod.now()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack {
+            if contentReady {
             switch app.phase {
             case .login:
                 LoginView()
@@ -53,6 +57,7 @@ struct RootView: View {
             case .main:
                 MainTabView()
                     .transition(.opacity.combined(with: .scale(scale: 1.04)))
+            }
             }
 
             if showSplash {
@@ -82,13 +87,13 @@ struct RootView: View {
         }
         .task { await app.currency.refresh() }
         .task {
-            // Long enough to read the name, short enough to never feel like waiting.
+            // 1. Let the splash draw its first frame.
+            try? await Task.sleep(for: .milliseconds(60))
+            // 2. Build the app behind it (the splash is a still picture, so it doesn't mind waiting).
+            contentReady = true
+            // 3. Keep the splash up long enough to be seen, then fade into the app.
             try? await Task.sleep(for: .milliseconds(900))
-            withAnimation(.easeOut(duration: 0.2)) { showSplash = false }
-            // Google Maps is only needed on the Trip tab: start it once the first screen is up,
-            // so it doesn't hold up launch.
-            try? await Task.sleep(for: .milliseconds(300))
-            GoogleMapsSetup.start()
+            withAnimation(.easeOut(duration: 0.25)) { showSplash = false }
         }
     }
 }
@@ -116,35 +121,33 @@ struct SplashView: View {
     var body: some View {
         ZStack {
             Color("LaunchBackground")
-            VStack(spacing: 28) {
-                ZStack {
-                    Circle()
-                        .stroke(Theme.ink.opacity(0.12), style: StrokeStyle(lineWidth: 1.5, dash: [3, 7]))
-                        .frame(width: 236, height: 236)
-                    ForEach(Self.ingredients.indices, id: \.self) { index in
-                        let item = Self.ingredients[index]
-                        let angle = 2 * Double.pi * Double(index) / Double(Self.ingredients.count) - Double.pi / 2
-                        Image(systemName: item.icon)
-                            .font(.system(size: 19, weight: .semibold))
-                            .foregroundStyle(item.tint)
-                            .frame(width: 48, height: 48)
-                            .background(Color.white, in: .circle)
-                            .overlay(Circle().strokeBorder(item.tint.opacity(0.18), lineWidth: 1))
-                            .offset(x: 118 * cos(angle), y: 118 * sin(angle))
-                    }
-                    CandorLogo(size: 104)
-                }
-                .frame(width: 300, height: 300)
-
-                VStack(spacing: 6) {
-                    Text("Candor")
-                        .font(.display(size: 40, .bold))
-                        .foregroundStyle(Theme.ink)
-                    Text(L("Explore India. Pay what locals pay."))
-                        .font(.candor(.subheadline))
-                        .foregroundStyle(.secondary)
-                }
+            // The launch screen's own logo, at the same size and in the same spot, so the hand-off
+            // from iOS's launch screen to this one is seamless: the icons and name simply appear.
+            Image("LaunchLogo")
+            Circle()
+                .stroke(Theme.ink.opacity(0.12), style: StrokeStyle(lineWidth: 1.5, dash: [3, 7]))
+                .frame(width: 250, height: 250)
+            ForEach(Self.ingredients.indices, id: \.self) { index in
+                let item = Self.ingredients[index]
+                let angle = 2 * Double.pi * Double(index) / Double(Self.ingredients.count) - Double.pi / 2
+                Image(systemName: item.icon)
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundStyle(item.tint)
+                    .frame(width: 48, height: 48)
+                    .background(Color.white, in: .circle)
+                    .overlay(Circle().strokeBorder(item.tint.opacity(0.18), lineWidth: 1))
+                    .offset(x: 125 * cos(angle), y: 125 * sin(angle))
             }
+            VStack(spacing: 6) {
+                Text("Candor")
+                    .font(.display(size: 40, .bold))
+                    .foregroundStyle(Theme.ink)
+                Text(L("Explore India. Pay what locals pay."))
+                    .font(.candor(.subheadline))
+                    .foregroundStyle(.secondary)
+            }
+            .fixedSize()
+            .offset(y: 215)
         }
         .ignoresSafeArea()
         .accessibilityElement(children: .combine)
