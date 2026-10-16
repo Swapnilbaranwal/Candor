@@ -23,15 +23,72 @@ enum TripPlanner {
             let leg = leg(from: from, fromName: fromName, fromAirport: fromAirport, to: stop, at: cursor,
                           style: style, city: city, likesWalking: likesWalking)
                 .choosing(stop.travelMode)
-            let arrival = cursor.addingTimeInterval(Double(leg.bestOption.minutes) * 60)
-            let departure = arrival.addingTimeInterval(Double(stop.stayMinutes) * 60)
-            entries.append(DayPlan.Entry(stop: stop, leg: leg, arrival: arrival, departure: departure))
+            let fit = fitHours(stop, arriving: cursor.addingTimeInterval(Double(leg.bestOption.minutes) * 60))
+            let departure = fit.arrival.addingTimeInterval(Double(fit.isClosed ? 0 : fit.stay) * 60)
+            entries.append(DayPlan.Entry(stop: stop, leg: leg, arrival: fit.arrival, departure: departure,
+                                         stayMinutes: fit.stay, isClosed: fit.isClosed, hoursNote: fit.note))
             cursor = departure
             from = stop.coordinate
             fromName = stop.name
             fromAirport = stop.isAirport
         }
         return DayPlan(start: start, startName: originName, entries: entries)
+    }
+
+    /// Fits a visit inside the place's opening hours: waits for it to open, leaves when it closes,
+    /// and flags it when you'd get there after last entry or with less than an hour inside.
+    static func fitHours(_ stop: TripStop, arriving: Date) -> (arrival: Date, stay: Int, isClosed: Bool, note: String?) {
+        let stay = stop.stayMinutes
+        guard let hours = stop.openingHours, !hours.alwaysOpen else { return (arriving, stay, false, nil) }
+        let windows = hours.windows(on: arriving)
+        if windows.isEmpty {
+            return (arriving, stay, true, stop.hoursText(on: arriving))
+        }
+        let calendar = Calendar.current
+        let at = calendar.component(.hour, from: arriving) * 60 + calendar.component(.minute, from: arriving)
+        let minimum = min(stay, max(60, stay * 6 / 10))
+        guard let window = windows.first(where: { window in
+            let begin = max(at, window.open)
+            return begin <= window.close - stop.lastEntryGap && window.close - begin >= minimum
+        }) else {
+            return (arriving, stay, true, L("Too late to go in · %@", stop.hoursText(on: arriving) ?? ""))
+        }
+        var arrival = arriving
+        var note: String?
+        if window.open > at {
+            arrival = arriving.addingTimeInterval(Double(window.open - at) * 60)
+            note = L("Opens at %@", minuteText(window.open))
+        }
+        let begin = max(at, window.open)
+        var visit = stay
+        if begin + stay > window.close {
+            visit = window.close - begin
+            note = stop.lastEntryGap > 0
+                ? L("Get in by %1$@ · closes %2$@", minuteText(window.close - stop.lastEntryGap), minuteText(window.close))
+                : L("Closes at %@", minuteText(window.close))
+        }
+        return (arrival, visit, false, note)
+    }
+
+    /// Where to put a new place so every stop is still open when you get there: the asked day first,
+    /// at the latest slot that works, then the trip's other days. Nil when no day has room.
+    static func slot(for stop: TripStop, preferring dayIndex: Int, in trip: Trip,
+                     plan: (TripDay, Int) -> DayPlan) -> (day: Int, index: Int)? {
+        let others = trip.days.indices.filter { $0 != dayIndex }
+        for day in [dayIndex] + others where trip.days.indices.contains(day) {
+            let current = trip.days[day]
+            let closedBefore = plan(current, day).closedCount
+            for index in stride(from: current.stops.count, through: 0, by: -1) {
+                var candidate = current
+                candidate.stops.insert(stop, at: index)
+                let after = plan(candidate, day)
+                if after.closedCount <= closedBefore,
+                   after.entries.first(where: { $0.stop.id == stop.id })?.isClosed == false {
+                    return (day, index)
+                }
+            }
+        }
+        return nil
     }
 
     // MARK: Getting from one place to the next

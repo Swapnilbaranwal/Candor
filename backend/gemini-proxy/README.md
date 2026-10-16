@@ -8,7 +8,9 @@ One small Node service that does four jobs:
 | Fair-price agent for the web demo (Gemini tool calling) | `POST /v1/check` | Cloud Run + Gemini |
 | Community prices and scam reports | `/v1/community/prices`, `/v1/community/reports`, `/v1/community/hotspots` | Firestore |
 | Brief for a tourism office, written by Gemini from the reports | `GET /v1/community/insights?city=Delhi` | Gemini |
-| The web demo judges can open in a browser | `GET /` (`public/index.html`) | Cloud Run |
+| The web version of the app (Home, Trip, Check, Ask Candor) | `GET /` (`public/`) | Cloud Run |
+| Ask Candor, the place guide and the Interpreter for the web app | `POST /v1/ask`, `GET /v1/place`, `POST /v1/place/ask`, `POST /v1/translate` (`web.js`) | Gemini + Places API |
+| Trip maps for the web app, drawn on the server so the key stays private | `GET /v1/staticmap` | Maps Static API |
 | Hotel search for the app | `POST /v1/places:searchText` | Places API |
 
 ```
@@ -26,7 +28,7 @@ Run everything from this folder and replace `YOUR_PROJECT_ID`.
 ```sh
 gcloud config set project YOUR_PROJECT_ID
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
-  secretmanager.googleapis.com firestore.googleapis.com
+  secretmanager.googleapis.com firestore.googleapis.com places.googleapis.com static-maps-backend.googleapis.com
 
 # 1. Firestore database (once). Mumbai is closest to Delhi.
 gcloud firestore databases create --location=asia-south1

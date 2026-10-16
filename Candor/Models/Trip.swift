@@ -179,6 +179,8 @@ struct TripStop: Codable, Equatable, Hashable, Identifiable {
     var visitedAt: Date?
     /// How the traveller chose to get here (Metro, auto…). Nil until they pick.
     var travelMode: TravelMode?
+    /// Opening hours from Google Maps, once looked up. See `openingHours`.
+    var hours: OpeningHours?
 
     var isArrived: Bool { arrivedAt != nil || visitedAt != nil }
     var isVisited: Bool { visitedAt != nil }
@@ -215,11 +217,10 @@ struct TripStop: Codable, Equatable, Hashable, Identifiable {
 
     var isAirport: Bool { spotID == "airport" }
 
-    /// A warning when the place is shut on that day.
+    /// A warning when the place is shut all day on that date.
     func closedNote(on date: Date) -> String? {
-        guard let spotID,
-              let weekday = CityPack.all.values.lazy.compactMap({ $0.closedWeekday[spotID] }).first else { return nil }
-        return Calendar.current.component(.weekday, from: date) == weekday ? L("Closed on Mondays") : nil
+        guard let hours = openingHours, !hours.alwaysOpen, hours.windows(on: date).isEmpty else { return nil }
+        return hoursText(on: date)
     }
 }
 
@@ -343,6 +344,12 @@ struct DayPlan {
         let leg: Leg
         let arrival: Date
         let departure: Date
+        /// Time there: the planned stay, shortened when the place closes first.
+        var stayMinutes: Int = 0
+        /// Shut, or past last entry, by the time the traveller gets there.
+        var isClosed = false
+        /// "Opens at 10:00 AM", "Get in by 4:00 PM · closes 4:30 PM" or why it's closed.
+        var hoursNote: String?
     }
 
     let start: Date
@@ -353,6 +360,8 @@ struct DayPlan {
     var fareLow: Double { entries.reduce(0) { $0 + $1.leg.bestOption.fareLow } }
     var fareHigh: Double { entries.reduce(0) { $0 + $1.leg.bestOption.fareHigh } }
     var end: Date { entries.last?.departure ?? start }
+    /// Places that would be shut when the traveller gets there.
+    var closedCount: Int { entries.filter(\.isClosed).count }
 
     var fareText: String {
         if fareHigh <= 0 { return L("Free") }

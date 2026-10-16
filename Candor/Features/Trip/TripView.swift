@@ -11,6 +11,8 @@ struct TripView: View {
     /// The day last shown, so switching tabs and back doesn't jump to today. -1 until chosen.
     @SceneStorage("candor.tripDay") private var savedDay = -1
     @State private var expandedStop: UUID?
+    /// Places "Fix it" couldn't find an open time for.
+    @State private var fixNotice: String?
     @State private var legSheet: Leg?
     /// The stop the open journey leads to, so "Go this way" can save the choice on it.
     @State private var legStopID: UUID?
@@ -149,6 +151,8 @@ struct TripView: View {
             .animation(.spring(response: 0.5, dampingFraction: 0.8), value: model.isComplete)
         }
         .scrollIndicators(.hidden)
+        // Real opening hours from Google Maps, so the day is timed around them.
+        .task(id: model.routeKey) { await app.loadOpeningHours(day: model.index) }
     }
 
     private func dayChips(_ chips: [TripDayViewModel.DayChip]) -> some View {
@@ -408,6 +412,10 @@ struct TripView: View {
                 .card()
             }
 
+            if plan.closedCount > 0 {
+                closedBanner(plan.closedCount)
+            }
+
             ForEach(Array(plan.entries.enumerated()), id: \.element.id) { number, entry in
                 legRow(entry.leg, stop: entry.stop)
                 stopCard(entry, number: number + 1, date: date)
@@ -553,6 +561,34 @@ struct TripView: View {
     }
 
     /// Saves how the traveller will get to a stop.
+    /// "1 place would be closed when you get there", with a button that moves it to a time it's open.
+    private func closedBanner(_ count: Int) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(Theme.rose)
+            Text(count == 1 ? L("1 place would be closed when you get there")
+                            : L("%@ places would be closed when you get there", count))
+                .font(.candor(.subheadline, .medium))
+            Spacer(minLength: 8)
+            Button(L("Fix it")) {
+                let dayIndex = currentIndex
+                withAnimation(.snappy) {
+                    let stuck = app.fixClosedStops(day: dayIndex, location: location)
+                    fixNotice = stuck.isEmpty ? nil : L("No open time for %@ on your days.", stuck.map { L($0) }.joined(separator: ", "))
+                }
+            }
+            .buttonStyle(PillButtonStyle(kind: .cream, height: 36))
+            .fixedSize()
+        }
+        .padding(14)
+        .background(Theme.rose.opacity(0.1), in: .rect(cornerRadius: 18, style: .continuous))
+        .overlay(alignment: .bottomLeading) {
+            if let fixNotice {
+                Text(fixNotice).font(.candor(.caption1)).foregroundStyle(.secondary).offset(y: 20).padding(.leading, 14)
+            }
+        }
+    }
+
     private func choose(_ mode: TravelMode, for id: UUID) {
         updateStop(id) { $0.travelMode = mode }
     }
@@ -607,13 +643,20 @@ struct TripView: View {
                             .foregroundStyle(stop.isVisited ? .secondary : .primary)
                             .strikethrough(stop.isVisited, color: .secondary)
                             .multilineTextAlignment(.leading)
-                        Text("\(timeText(entry.arrival))–\(timeText(entry.departure)) · \(L("%@ there", durationText(stop.stayMinutes)))")
-                            .font(.candor(.caption1).monospacedDigit())
-                            .foregroundStyle(.secondary)
-                        if let closed = stop.closedNote(on: date) {
-                            Label(closed, systemImage: "exclamationmark.triangle.fill")
+                        if entry.isClosed {
+                            // Shut, or past last entry, by the time you'd get there.
+                            Label(entry.hoursNote ?? L("Closed then"), systemImage: "exclamationmark.triangle.fill")
                                 .font(.candor(.caption1, .semibold))
                                 .foregroundStyle(Theme.rose)
+                        } else {
+                            Text("\(timeText(entry.arrival))–\(timeText(entry.departure)) · \(L("%@ there", durationText(entry.stayMinutes)))")
+                                .font(.candor(.caption1).monospacedDigit())
+                                .foregroundStyle(.secondary)
+                            if let note = entry.hoursNote {
+                                Label(note, systemImage: "clock")
+                                    .font(.candor(.caption1))
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                     Spacer(minLength: 0)
@@ -988,6 +1031,8 @@ struct AddPlaceSheet: View {
     @State private var query = ""
     @State private var results: [GooglePlace] = []
     @State private var isSearching = false
+    /// Where an added place went, when not where it was asked, or why it couldn't go in.
+    @State private var notice: String?
     @FocusState private var searchFocused: Bool
 
     private var stops: [TripStop] {
@@ -1007,6 +1052,13 @@ struct AddPlaceSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                if let notice {
+                    Section {
+                        Label(notice, systemImage: "clock.badge.exclamationmark")
+                            .font(.candor(.subheadline, .medium))
+                            .foregroundStyle(Theme.rose)
+                    }
+                }
                 Section {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -1119,10 +1171,21 @@ struct AddPlaceSheet: View {
         }
     }
 
+    /// Adds the place at a time it's open, and says where it went or why it couldn't.
     private func add(_ stop: TripStop) {
-        guard let trip = app.trip, trip.days.indices.contains(dayIndex) else { return }
-        withAnimation(.snappy) {
-            app.trip?.days[dayIndex].stops.append(stop)
+        guard app.trip?.days.indices.contains(dayIndex) == true else { return }
+        Task {
+            let result = await app.addPlace(stop, preferring: dayIndex, location: location)
+            withAnimation(.snappy) {
+                switch result {
+                case .added(let day, let moved):
+                    notice = moved ? L("%1$@ would be closed by then on day %2$@, so it's on day %3$@.", L(stop.name), dayIndex + 1, day + 1) : nil
+                case .alreadyThere(let day):
+                    notice = L("%1$@ is already on day %2$@.", L(stop.name), day + 1)
+                case .noOpenSlot(let hours):
+                    notice = L("%@ wouldn't be open when you could get there on any day.", L(stop.name)) + (hours.map { " (\($0))" } ?? "")
+                }
+            }
         }
     }
 }

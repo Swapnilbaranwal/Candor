@@ -157,6 +157,8 @@ extension GooglePlaces {
         var types: [String]
         var rating: Double?
         var hoursToday: String?
+        /// The week's opening hours, when Google Maps has them.
+        var openingHours: OpeningHours?
     }
 
     static func details(_ name: String, near coordinate: CLLocationCoordinate2D) async throws -> Details? {
@@ -174,7 +176,7 @@ extension GooglePlaces {
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(key, forHTTPHeaderField: "X-Goog-Api-Key")
-        request.setValue("places.editorialSummary,places.generativeSummary,places.types,places.rating,places.regularOpeningHours.weekdayDescriptions",
+        request.setValue("places.editorialSummary,places.generativeSummary,places.types,places.rating,places.regularOpeningHours.weekdayDescriptions,places.regularOpeningHours.periods",
                          forHTTPHeaderField: "X-Goog-FieldMask")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
@@ -192,6 +194,23 @@ extension GooglePlaces {
         return Details(summary: editorial ?? generative,
                        types: place["types"] as? [String] ?? [],
                        rating: place["rating"] as? Double,
-                       hoursToday: hours)
+                       hoursToday: hours,
+                       openingHours: openingHours(place["regularOpeningHours"] as? [String: Any]))
+    }
+
+    /// Google's `regularOpeningHours.periods` as `OpeningHours`. A period with no close is open around the clock.
+    private static func openingHours(_ raw: [String: Any]?) -> OpeningHours? {
+        let periods = raw?["periods"] as? [[String: Any]] ?? []
+        guard !periods.isEmpty else { return nil }
+        if periods.count == 1, periods[0]["close"] == nil { return .always }
+        let parsed = periods.compactMap { period -> OpeningHours.Period? in
+            guard let open = period["open"] as? [String: Any], let close = period["close"] as? [String: Any],
+                  let day = open["day"] as? Int else { return nil }
+            let opens = (open["hour"] as? Int ?? 0) * 60 + (open["minute"] as? Int ?? 0)
+            var closes = (close["hour"] as? Int ?? 0) * 60 + (close["minute"] as? Int ?? 0)
+            if (close["day"] as? Int) != day { closes += 24 * 60 }
+            return OpeningHours.Period(day: day, open: opens, close: closes)
+        }
+        return parsed.isEmpty ? nil : OpeningHours(periods: parsed)
     }
 }

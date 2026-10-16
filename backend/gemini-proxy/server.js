@@ -8,7 +8,9 @@
 // POST /v1/check                                the fair-price agent (Gemini + tools), for the web demo
 // GET/POST /v1/community/...                    shared prices and scam hotspots (Firestore), see community.js
 // GET  /v1/community/insights?city=             Gemini's brief for a tourism office
-// GET  /                                        the web demo (public/index.html)
+// POST /v1/ask, GET /v1/place, POST /v1/place/ask, POST /v1/translate, GET /v1/staticmap
+//                                               the web app's own routes, see web.js
+// GET  /                                        the web app (public/)
 // GET  /healthz                                 "ok"
 
 import http from "node:http";
@@ -18,6 +20,7 @@ import { fileURLToPath } from "node:url";
 import { openStore } from "./store.js";
 import { addPrice, addReport, hotspots, priceStats } from "./community.js";
 import { checkPrice, hotspotBrief } from "./agent.js";
+import { ask, place, placeAsk, staticMap, translate } from "./web.js";
 
 const PORT = Number(process.env.PORT || 8080);
 const API_KEY = (process.env.GEMINI_API_KEY || "").trim();
@@ -99,14 +102,16 @@ function readBody(req) {
 const { store, kind: storeKind } = await openStore();
 const PUBLIC_DIR = join(fileURLToPath(new URL(".", import.meta.url)), "public");
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css",
-                ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon" };
+                ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon",
+                ".ttf": "font/ttf", ".json": "application/json", ".webmanifest": "application/manifest+json" };
 
 async function serveStatic(res, path) {
   const file = normalize(path === "/" ? "/index.html" : path).replace(/^(\.\.[/\\])+/, "");
   try {
     const data = await readFile(join(PUBLIC_DIR, file));
     res.writeHead(200, { "Content-Type": TYPES[extname(file)] || "application/octet-stream",
-                         "Cache-Control": "public, max-age=300" });
+                         // The page is always fresh, so a redeploy shows at once; its files are versioned (?v=).
+                         "Cache-Control": extname(file) === ".html" ? "no-cache" : "public, max-age=300" });
     res.end(data);
   } catch {
     fail(res, 404, "Not found.");
@@ -136,6 +141,38 @@ async function handleApp(req, res, url) {
       if (!API_KEY) return fail(res, 500, "The service has no Gemini API key. Set GEMINI_API_KEY."), true;
       const input = await readJSON(req, res);
       if (input) send(res, 200, await checkPrice(input, { store, models: MODELS, apiKey: API_KEY }));
+      return true;
+    }
+    const ctx = { store, models: MODELS, apiKey: API_KEY, mapsKey: MAPS_API_KEY };
+    const needsGemini = () => (API_KEY ? false : (fail(res, 500, "The service has no Gemini API key. Set GEMINI_API_KEY."), true));
+    if (path === "/v1/ask" && write) {
+      if (needsGemini()) return true;
+      const input = await readJSON(req, res);
+      if (input) send(res, 200, await ask(input, ctx));
+      return true;
+    }
+    if (path === "/v1/place" && req.method === "GET") {
+      if (overLimit(clientAddress(req))) return fail(res, 429, "Too many requests. Try again in a minute."), true;
+      send(res, 200, await place(url.searchParams, ctx));
+      return true;
+    }
+    if (path === "/v1/place/ask" && write) {
+      if (needsGemini()) return true;
+      const input = await readJSON(req, res);
+      if (input) send(res, 200, await placeAsk(input, ctx));
+      return true;
+    }
+    if (path === "/v1/translate" && write) {
+      if (needsGemini()) return true;
+      const input = await readJSON(req, res);
+      if (input) send(res, 200, await translate(input, ctx));
+      return true;
+    }
+    if (path === "/v1/staticmap" && req.method === "GET") {
+      if (!MAPS_API_KEY) return fail(res, 500, "The service has no Google Maps key. Set GOOGLE_MAPS_API_KEY."), true;
+      const image = await staticMap(url.searchParams, MAPS_API_KEY);
+      res.writeHead(200, { "Content-Type": image.type, "Cache-Control": "public, max-age=3600" });
+      res.end(image.data);
       return true;
     }
     if (path === "/v1/community/prices") {
