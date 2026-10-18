@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FBF5EF">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Candor</title>
+<meta name="description" content="Candor: explore India and pay what locals pay. Plan your days, check fares and prices, and ask Candor anything. Gemini on Google Cloud Run.">
+<link rel="icon" href="/assets/img/appicon.png">
+<link rel="apple-touch-icon" href="/assets/img/appicon.png">
+<link rel="stylesheet" href="/app.css?v=15">
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+</head>
+<body>
+<div class="stage">
+  <aside class="pitch">
+    <div class="pitch-head">
+      <img src="/assets/img/appicon.png" alt="" class="pitch-icon">
+      <div><h1>Candor</h1><p class="muted">Explore India. Pay what locals pay.</p></div>
+    </div>
+    <p class="lead">An honest travel companion for visitors to India. Candor plans your days, tells you the fair price for any ride or purchase before you pay, and answers anything in your language.</p>
+
+    <section>
+      <h2>The problem</h2>
+      <ul>
+        <li><i class="ph-fill ph-question" style="color:var(--saffron)"></i><span>Visitors can't tell a fair price from an inflated one. Autos run without meters, menus have no prices, and the same item costs different amounts in different places.</span></li>
+        <li><i class="ph-fill ph-warning" style="color:var(--coral)"></i><span>A few well-known tricks, like "the monument is closed" or "your hotel burned down", give a whole city a bad name, even though most sellers are honest.</span></li>
+        <li><i class="ph-fill ph-translate" style="color:var(--teal)"></i><span>Language makes it harder. Visitors can't ask, bargain or get help in Hindi, so they either overpay or stop trusting everyone.</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Why the solution holds up</h2>
+      <ul>
+        <li><i class="ph-fill ph-seal-check" style="color:var(--ink)"></i><span><b>Grounded, not guessed.</b> Gemini can't judge a price without first calling a tool: the Delhi Transport Dept. fare chart, the printed MRP, official ASI ticket prices or what other travellers paid.</span></li>
+        <li><i class="ph-fill ph-list-checks" style="color:var(--ink)"></i><span><b>Every step is shown.</b> The traveller sees which tools ran and the source of the fair range, so they can check the answer.</span></li>
+        <li><i class="ph-fill ph-chart-bar" style="color:var(--ink)"></i><span><b>A range, not a promise.</b> Candor gives a fair range with room for traffic and rounding, and says when it isn't sure.</span></li>
+        <li><i class="ph-fill ph-hand-heart" style="color:var(--ink)"></i><span><b>Polite, not suspicious.</b> Each verdict comes with a respectful line to say in Hindi, so a price talk stays friendly.</span></li>
+        <li><i class="ph-fill ph-users-three" style="color:var(--ink)"></i><span><b>Gets better with use.</b> Travellers can share what they paid, anonymously, so prices reflect what people pay today.</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>AI and Google tools</h2>
+      <div class="tools">
+        <span class="tool"><i class="ph-fill ph-sparkle"></i>Gemini tool calling</span>
+        <span class="tool"><i class="ph-fill ph-camera"></i>Gemini vision for menus and bills</span>
+        <span class="tool"><i class="ph-fill ph-magnifying-glass"></i>Gemini with Google Search</span>
+        <span class="tool"><i class="ph-fill ph-map-trifold"></i>Google Maps SDK and 3D maps</span>
+        <span class="tool"><i class="ph-fill ph-map-pin"></i>Places API</span>
+        <span class="tool"><i class="ph-fill ph-path"></i>Routes API</span>
+        <span class="tool"><i class="ph-fill ph-translate"></i>Cloud Translation</span>
+        <span class="tool"><i class="ph-fill ph-cloud"></i>Cloud Run</span>
+        <span class="tool"><i class="ph-fill ph-database"></i>Firestore</span>
+        <span class="tool"><i class="ph-fill ph-lock-key"></i>Secret Manager</span>
+      </div>
+      <ul style="margin-top:14px">
+        <li><i class="ph-fill ph-robot" style="color:var(--violet)"></i><span>A Gemini agent checks prices with tools. Gemini also reads photos of price tags, writes the guide for each place, plans days from your interests and answers questions.</span></li>
+        <li><i class="ph-fill ph-shield-check" style="color:var(--mint)"></i><span>Keys stay in Secret Manager on Cloud Run. Neither the app nor this page ever holds them.</span></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Social impact</h2>
+      <ul>
+        <li><i class="ph-fill ph-handshake" style="color:var(--mint)"></i><span><b>Trust in both directions.</b> Visitors pay a fair price, and honest drivers and shopkeepers stop being lumped in with the few who overcharge.</span></li>
+        <li><i class="ph-fill ph-buildings" style="color:var(--mint)"></i><span><b>Data a city can act on.</b> Anonymous scam reports are grouped by area, and Gemini turns them into a brief for the tourism office or tourist police.</span></li>
+        <li><i class="ph-fill ph-person-simple-walk" style="color:var(--mint)"></i><span><b>Income for local guides.</b> Verified guides with fixed, visible rates get bookings without middlemen.</span></li>
+        <li><i class="ph-fill ph-first-aid" style="color:var(--mint)"></i><span><b>Safety and access.</b> SOS with 112, a way back to your hotel from anywhere, and help in your own language.</span></li>
+        <li><i class="ph-fill ph-airplane-tilt" style="color:var(--mint)"></i><span><b>Better tourism for India.</b> Travellers who feel treated fairly stay longer, spend more locally and come back.</span></li>
+      </ul>
+    </section>
+
+    <p class="note">This is the web version of the Candor iPhone app, running on Google Cloud Run. Prices are guidance, not a guarantee. In an emergency in India, call 112.</p>
+  </aside>
+
+  <div class="phone" id="phone">
+    <main class="screens">
+      <section class="screen" id="screen-home" data-tab="home"></section>
+      <section class="screen" id="screen-trip" data-tab="trip" hidden></section>
+      <section class="screen" id="screen-check" data-tab="check" hidden></section>
+    </main>
+
+    <div class="accessory glass" id="accessory"></div>
+    <nav class="tabbar glass" id="tabbar" aria-label="Tabs">
+      <button data-tab="home" aria-label="Home"><i class="ph ph-house"></i><span>Home</span></button>
+      <button data-tab="trip" aria-label="Trip"><i class="ph ph-map-trifold"></i><span>Trip</span></button>
+      <button data-tab="check" aria-label="Check"><i class="ph ph-seal-check"></i><span>Check</span></button>
+    </nav>
+
+    <div class="sheet-backdrop" id="backdrop" hidden></div>
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true" hidden></div>
+    <div class="page" id="page" hidden></div>
+    <div class="onboard" id="onboard" hidden></div>
+    <div class="toast" id="toast" role="status" hidden></div>
+  </div>
+</div>
+<script src="/app.js?v=15" type="module"></script>
+</body>
+</html>

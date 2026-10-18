@@ -3,6 +3,9 @@ import PhotosUI
 
 /// Camera-first price check: photo + optional asked price → agent run → verdict.
 struct ScanView: View {
+    /// True when pushed inside another tab's navigation (Check), so it doesn't bring its own.
+    var embedded = false
+
     @Environment(AppState.self) private var app
     @Environment(CandorAgent.self) private var agent
     @State private var pickerItem: PhotosPickerItem?
@@ -19,56 +22,62 @@ struct ScanView: View {
     private var canCheck: Bool { (image != nil || !note.trimmingCharacters(in: .whitespaces).isEmpty) && !isRunning }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 18) {
-                    viewfinder
-                    sourceButtons
-                    inputs
-                    checkButton
-                    if !steps.isEmpty {
-                        AgentTrailView(steps: steps, isWorking: isRunning).glassCard(cornerRadius: 24)
-                    }
-                    if let result {
-                        if let verdict = result.verdict {
-                            VerdictCardView(verdict: verdict)
-                                .transition(.scale(scale: 0.95).combined(with: .opacity))
-                        }
-                        if !result.text.isEmpty {
-                            MarkdownText(text: result.text).glassCard(cornerRadius: 24)
-                        }
-                    }
+        if embedded {
+            content
+        } else {
+            NavigationStack { content }
+        }
+    }
+
+    private var content: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                viewfinder
+                sourceButtons
+                inputs
+                checkButton
+                if !steps.isEmpty {
+                    AgentTrailView(steps: steps, isWorking: isRunning).card(cornerRadius: 16)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 30)
-                .animation(.smooth, value: steps)
-            }
-            .scrollDismissesKeyboard(.interactively)
-            .background(LiquidBackground())
-            .navigationTitle("Price check")
-            .toolbar {
-                if image != nil || result != nil {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Reset", systemImage: "arrow.counterclockwise") { resetAll() }
+                if let result {
+                    if let verdict = result.verdict {
+                        VerdictCardView(verdict: verdict)
+                            .transition(.scale(scale: 0.95).combined(with: .opacity))
                     }
-                }
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") { focused = false }
-                }
-            }
-            .onChange(of: pickerItem) { _, item in
-                guard let item else { return }
-                Task {
-                    if let data = try? await item.loadTransferable(type: Data.self), let picked = UIImage(data: data) {
-                        withAnimation(.smooth) { image = picked }
-                        clearResult()
+                    if !result.text.isEmpty {
+                        MarkdownText(text: result.text).card(cornerRadius: 16)
                     }
                 }
             }
-            .fullScreenCover(isPresented: $showCamera) {
-                CameraPicker(image: $image).ignoresSafeArea()
+            .padding(.horizontal, 20)
+            .padding(.bottom, 30)
+            .animation(.smooth, value: steps)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(AppBackground())
+        .navigationTitle(L("Price check"))
+        .toolbar {
+            if image != nil || result != nil {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L("Reset"), systemImage: "arrow.counterclockwise") { resetAll() }
+                }
             }
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button(L("Done")) { focused = false }
+            }
+        }
+        .onChange(of: pickerItem) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self), let picked = UIImage(data: data) {
+                    withAnimation(.smooth) { image = picked }
+                    clearResult()
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraPicker(image: $image).ignoresSafeArea()
         }
     }
 
@@ -79,17 +88,16 @@ struct ScanView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(height: 280)
-                    .clipShape(.rect(cornerRadius: 30))
+                    .clipShape(.rect(cornerRadius: 16))
             } else {
                 VStack(spacing: 12) {
                     Image(systemName: "camera.viewfinder")
                         .font(.system(size: 54, weight: .light))
-                        .foregroundStyle(Theme.brandGradient)
-                        .symbolEffect(.breathe, options: .repeating)
-                    Text("Photograph a price tag, menu or bill")
-                        .font(.headline)
-                    Text("Candor reads it, finds the fair price and tells you if it's fair, in your language.")
-                        .font(.subheadline)
+                        .foregroundStyle(Theme.accent)
+                    Text(L("Photograph a price tag, menu or bill"))
+                        .font(.candor(.headline, .semibold))
+                    Text(L("Candor reads it, finds the fair price and tells you if it's fair, in your language."))
+                        .font(.candor(.subheadline))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -98,29 +106,29 @@ struct ScanView: View {
                 .frame(height: 280)
             }
             if isRunning {
-                ScanLine().clipShape(.rect(cornerRadius: 30))
+                ScanLine().clipShape(.rect(cornerRadius: 16))
             }
         }
         .frame(maxWidth: .infinity)
-        .glassEffect(.regular, in: .rect(cornerRadius: 30))
+        .background(Theme.surface, in: .rect(cornerRadius: 16))
         .padding(.top, 8)
     }
 
     private var sourceButtons: some View {
-        GlassEffectContainer(spacing: 10) {
+        Group {
             HStack(spacing: 10) {
                 if cameraAvailable {
                     Button { showCamera = true } label: {
-                        Label("Camera", systemImage: "camera.fill").frame(maxWidth: .infinity)
+                        Label(L("Camera"), systemImage: "camera.fill").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
                 }
                 PhotosPicker(selection: $pickerItem, matching: .images) {
-                    Label("Photos", systemImage: "photo.on.rectangle").frame(maxWidth: .infinity)
+                    Label(L("Photos"), systemImage: "photo.on.rectangle").frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
             }
-            .font(.subheadline.weight(.semibold))
+            .font(.candor(.subheadline, .semibold))
             .controlSize(.large)
         }
     }
@@ -129,38 +137,38 @@ struct ScanView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "indianrupeesign").foregroundStyle(Theme.saffron).frame(width: 24)
-                TextField("What are they asking? (optional)", text: $askedText)
+                TextField(L("What are they asking? (optional)"), text: $askedText)
                     .keyboardType(.decimalPad)
                     .focused($focused)
             }
             Divider()
             HStack(alignment: .top) {
-                Image(systemName: "text.bubble").foregroundStyle(Theme.indigo).frame(width: 24)
-                TextField("Add context, e.g. \"2 chai and a samosa\"", text: $note, axis: .vertical)
+                Image(systemName: "text.bubble").foregroundStyle(Theme.accent).frame(width: 24)
+                TextField(L("Add context, e.g. \"2 chai and a samosa\""), text: $note, axis: .vertical)
                     .lineLimit(1...3)
                     .focused($focused)
             }
             if let asked = Double(askedText), asked > 0 {
-                Text("≈ \(app.homeAmount(asked)) in \(app.persona.homeCurrency)")
-                    .font(.caption)
+                Text("≈ \(app.homeAmount(asked))")
+                    .font(.candor(.caption1))
                     .foregroundStyle(.secondary)
             }
         }
-        .glassCard(cornerRadius: 24)
+        .card(cornerRadius: 16)
     }
 
     private var checkButton: some View {
         Button(action: check) {
             HStack(spacing: 8) {
-                if isRunning { ProgressView().tint(.white) } else { Image(systemName: "sparkles") }
-                Text(isRunning ? "Checking…" : "Check fair price")
+                if isRunning { ProgressView().tint(.white) } else { Image(systemName: "checkmark.shield") }
+                Text(isRunning ? L("Checking…") : L("Check fair price"))
             }
-            .font(.headline)
+            .font(.candor(.headline, .semibold))
             .frame(maxWidth: .infinity)
             .frame(height: 50)
         }
-        .buttonStyle(.glassProminent)
-        .tint(Theme.saffron)
+        .buttonStyle(.borderedProminent)
+        .tint(Theme.accent)
         .disabled(!canCheck)
     }
 

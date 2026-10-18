@@ -9,16 +9,16 @@ struct AgentTrailView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Button {
-                withAnimation(.snappy) { expanded.toggle() }
+                withAnimation(.candorExpand) { expanded.toggle() }
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: isWorking ? "sparkles" : "checklist")
+                    Image(systemName: isWorking ? "ellipsis" : "checklist")
                         .symbolEffect(.pulse, isActive: isWorking)
-                    Text(isWorking ? "Working…" : "\(steps.count) step\(steps.count == 1 ? "" : "s")")
+                    Text(isWorking ? L("Working…") : L("Steps: %@", steps.count))
                     Image(systemName: "chevron.down")
                         .rotationEffect(.degrees(expanded ? 0 : -90))
                 }
-                .font(.caption.weight(.semibold))
+                .font(.candor(.caption1, .semibold))
                 .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
@@ -27,14 +27,14 @@ struct AgentTrailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(steps) { step in
                         StepRow(step: step)
-                            .transition(.move(edge: .top).combined(with: .opacity))
+                            .transition(.candorReveal)
                     }
                 }
             }
         }
         .onChange(of: isWorking) { _, working in
             if !working {
-                withAnimation(.snappy.delay(0.9)) { expanded = false }
+                withAnimation(.candorExpand.delay(0.9)) { expanded = false }
             }
         }
     }
@@ -46,14 +46,14 @@ struct StepRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: step.icon)
-                .font(.footnote.weight(.semibold))
+                .font(.candor(.footnote, .semibold))
                 .foregroundStyle(tint)
                 .frame(width: 30, height: 30)
-                .glassEffect(.regular.tint(tint.opacity(0.25)), in: .circle)
+                .background(tint.opacity(0.14), in: .circle)
             VStack(alignment: .leading, spacing: 2) {
-                Text(step.title).font(.subheadline.weight(.semibold))
+                Text(step.title).font(.candor(.subheadline, .semibold))
                 Text(step.detail)
-                    .font(.caption)
+                    .font(.candor(.caption1))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -68,14 +68,14 @@ struct StepRow: View {
                     Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Theme.saffron)
                 }
             }
-            .font(.footnote)
+            .font(.candor(.footnote))
             .frame(width: 20, height: 30)
         }
     }
 
     private var tint: Color {
         switch step.state {
-        case .running: Theme.indigo
+        case .running: Theme.accent
         case .done: Theme.teal
         case .failed: Theme.saffron
         }
@@ -91,53 +91,60 @@ struct VerdictCardView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label(verdict.verdict.title, systemImage: verdict.verdict.icon)
-                    .font(.subheadline.weight(.bold))
+                    .font(.candor(.subheadline, .bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
-                    .glassEffect(.regular.tint(verdict.verdict.color), in: .capsule)
+                    .background(verdict.verdict.color, in: .capsule)
+                    .accessibilityIdentifier("verdict.\(verdict.verdict.rawValue)") // language-independent hook for UI tests
                 Spacer()
                 if let percent = verdict.overPercent {
                     Text("+\(percent)%")
-                        .font(.headline.monospacedDigit())
+                        .font(.candor(.headline, .semibold).monospacedDigit())
                         .foregroundStyle(verdict.verdict.color)
                 }
             }
 
-            Text(verdict.item)
-                .font(.title3.weight(.semibold))
+            Text(L(verdict.item))
+                .font(.candor(.title3, .semibold))
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Fair price").font(.caption).foregroundStyle(.secondary)
-                    Text(verdict.rangeText).font(.title2.weight(.bold).monospacedDigit())
-                    Text(app.homeAmount(verdict.fairHighINR)).font(.caption).foregroundStyle(.secondary)
+                    Text(L("Fair price")).font(.candor(.caption1)).foregroundStyle(.secondary)
+                    Text(verdict.rangeText).font(.candor(.title2, .bold).monospacedDigit())
+                    // The whole range in the traveller's money, so it matches the ₹ range above it.
+                    Text(verdict.fairLowINR == verdict.fairHighINR
+                         ? app.homeAmount(verdict.fairHighINR)
+                         : "\(app.homeAmount(verdict.fairLowINR))–\(app.homeAmount(verdict.fairHighINR))")
+                        .font(.candor(.caption1)).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if let asked = verdict.askedINR {
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text("Asked").font(.caption).foregroundStyle(.secondary)
+                        Text(L("Asked")).font(.candor(.caption1)).foregroundStyle(.secondary)
                         Text(inr(asked))
-                            .font(.title2.weight(.bold).monospacedDigit())
+                            .font(.candor(.title2, .bold).monospacedDigit())
                             .foregroundStyle(verdict.verdict.color)
-                        Text(app.homeAmount(asked)).font(.caption).foregroundStyle(.secondary)
+                        Text(app.homeAmount(asked)).font(.candor(.caption1)).foregroundStyle(.secondary)
                     }
                 }
             }
 
             PriceGauge(low: verdict.fairLowINR, high: verdict.fairHighINR, asked: verdict.askedINR, color: verdict.verdict.color)
 
-            Label(verdict.source, systemImage: "doc.text.magnifyingglass")
-                .font(.caption)
+            Label(L(verdict.source), systemImage: "doc.text.magnifyingglass")
+                .font(.candor(.caption1))
                 .foregroundStyle(.secondary)
 
             if let tip = verdict.tip {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Say it").font(.caption2.weight(.bold)).foregroundStyle(.secondary)
-                        Text(tip.roman).font(.subheadline.weight(.semibold))
-                        Text(tip.hindi).font(.caption).foregroundStyle(.secondary)
+                        Text(L("Say it")).font(.candor(.caption2, .bold)).foregroundStyle(.secondary)
+                        Text(tip.roman).font(.candor(.subheadline, .semibold))
+                        Text(tip.hindi).font(.hindi(.caption1)).foregroundStyle(.secondary)
+                        // What the phrase means, in the traveller's own language.
+                        Text(L(tip.english)).font(.candor(.caption1)).foregroundStyle(.secondary)
                     }
                     Spacer()
                     Button {
@@ -145,13 +152,13 @@ struct VerdictCardView: View {
                     } label: {
                         Image(systemName: "speaker.wave.2.fill")
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
                 }
             }
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(.regular.tint(verdict.verdict.color.opacity(0.14)), in: .rect(cornerRadius: 28))
+        .background(verdict.verdict.color.opacity(0.14), in: .rect(cornerRadius: 16))
     }
 }
 
@@ -184,5 +191,7 @@ struct PriceGauge: View {
             }
         }
         .frame(height: 16)
+        // A price scale runs low to high, left to right, in every language (offsets are not mirrored).
+        .environment(\.layoutDirection, .leftToRight)
     }
 }

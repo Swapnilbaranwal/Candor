@@ -1,5 +1,5 @@
 import SwiftUI
-import MapKit
+import CoreLocation
 
 /// Fare check: destination → road distance → official metered fare → verdict on the quote.
 struct RideCheckView: View {
@@ -8,7 +8,7 @@ struct RideCheckView: View {
     @Environment(AppState.self) private var app
     @Environment(LocationService.self) private var location
     @State private var query = ""
-    @State private var results: [MKMapItem] = []
+    @State private var results: [GooglePlace] = []
     @State private var route: Routing.RouteInfo?
     @State private var mode: RideMode = .auto
     @State private var night = FareChart.isNight()
@@ -28,7 +28,7 @@ struct RideCheckView: View {
 
     private var verdict: PriceVerdict? {
         guard let route, let fare else { return nil }
-        return PriceVerdict(item: "\(mode.title) to \(route.name)",
+        return PriceVerdict(item: L("%1$@ to %2$@", mode.title, L(route.name)),
                             fairLowINR: fare,
                             fairHighINR: (fare * 1.2).rounded(),
                             askedINR: asked,
@@ -50,11 +50,11 @@ struct RideCheckView: View {
                             app.record(PriceCheckRecord(verdict: verdict, kind: .ride))
                             saved = true
                         } label: {
-                            Label(saved ? "Saved to your shield" : "Save this check", systemImage: saved ? "checkmark" : "tray.and.arrow.down.fill")
+                            Label(saved ? L("Saved to your checks") : L("Save this check"), systemImage: saved ? "checkmark" : "tray.and.arrow.down.fill")
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 30)
                         }
-                        .buttonStyle(.glass)
+                        .buttonStyle(.bordered)
                         .disabled(saved)
                     }
                 }
@@ -65,13 +65,13 @@ struct RideCheckView: View {
             .animation(.smooth, value: route?.name)
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(LiquidBackground())
-        .navigationTitle("Ride fare")
+        .background(AppBackground())
+        .navigationTitle(L("Ride fare"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("Done") { focused = false }
+                Button(L("Done")) { focused = false }
             }
         }
         .onChange(of: askedText) { _, _ in saved = false }
@@ -86,19 +86,21 @@ struct RideCheckView: View {
         }
     }
 
+    private static let cardPadding: CGFloat = 18
+
     private var routeCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                Image(systemName: "location.circle.fill").font(.title2).foregroundStyle(Theme.teal)
+                Image(systemName: "location.circle.fill").font(.candor(.title2)).foregroundStyle(Theme.teal)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("From").font(.caption).foregroundStyle(.secondary)
-                    Text(location.originName).font(.subheadline.weight(.semibold))
+                    Text(L("From")).font(.candor(.caption1)).foregroundStyle(.secondary)
+                    Text(location.originName).font(.candor(.subheadline, .semibold))
                 }
             }
             HStack(spacing: 12) {
-                Image(systemName: "mappin.circle.fill").font(.title2).foregroundStyle(Theme.rose)
-                TextField("Where to?", text: $query)
-                    .font(.headline)
+                Image(systemName: "mappin.circle.fill").font(.candor(.title2)).foregroundStyle(Theme.rose)
+                TextField(L("Where to?"), text: $query)
+                    .font(.candor(.headline, .semibold))
                     .submitLabel(.search)
                     .focused($focused)
                     .onSubmit { Task { await search() } }
@@ -106,23 +108,23 @@ struct RideCheckView: View {
                     ProgressView()
                 } else if let route {
                     Text("\(route.km.formatted(.number.precision(.fractionLength(1)))) km")
-                        .font(.subheadline.weight(.bold).monospacedDigit())
+                        .font(.candor(.subheadline, .bold).monospacedDigit())
                         .foregroundStyle(Theme.teal)
                 }
             }
             .padding(.horizontal, 14)
             .frame(height: 52)
-            .glassEffect(.regular.interactive(), in: .capsule)
+            .background(Theme.field, in: .capsule)
 
             if !results.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(results.prefix(5), id: \.self) { item in
+                    ForEach(results.prefix(5)) { item in
                         Button {
                             Task { await choose(item) }
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(item.name ?? "Place").font(.subheadline.weight(.semibold))
-                                Text(item.placemark.title ?? "").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                Text(item.name).font(.candor(.subheadline, .semibold))
+                                Text(item.address ?? "").font(.candor(.caption1)).foregroundStyle(.secondary).lineLimit(1)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 10)
@@ -133,24 +135,29 @@ struct RideCheckView: View {
                 }
             }
 
+            // Quick picks scroll inside the card: the row spans the card edge to edge and clips there,
+            // instead of spilling past the card to the edge of the screen.
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(DelhiData.spots.filter { $0.category != .transport || $0.id == "airport" }) { spot in
-                        GlassChip(title: spot.name, icon: spot.category.icon, isSelected: route?.name == spot.name, tint: Theme.teal) {
+                        Chip(title: L(spot.name), icon: spot.category.icon, isSelected: route?.name == spot.name, tint: Theme.teal) {
                             Task { await chooseSpot(spot) }
                         }
+                        .frame(maxWidth: 190) // long names truncate instead of filling the row
                     }
                 }
-                .padding(.vertical, 2)
+                .padding(.vertical, 6) // room for the chips' glass edges inside the clip
             }
-            .scrollClipDisabled()
+            .contentMargins(.horizontal, Self.cardPadding, for: .scrollContent)
+            .padding(.horizontal, -Self.cardPadding)
+            .padding(.vertical, -4)
         }
-        .glassCard()
+        .card(padding: Self.cardPadding)
     }
 
     private var optionsCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Picker("Vehicle", selection: $mode) {
+            Picker(L("Vehicle"), selection: $mode) {
                 ForEach(RideMode.allCases) { mode in
                     Label(mode.title, systemImage: mode.icon).tag(mode)
                 }
@@ -158,61 +165,65 @@ struct RideCheckView: View {
             .pickerStyle(.segmented)
 
             Toggle(isOn: $night) {
-                Label("Night fare (11 pm – 5 am)", systemImage: "moon.stars.fill")
+                Label(L("Night fare (11 pm – 5 am)"), systemImage: "moon.stars.fill")
             }
-            .tint(Theme.indigo)
+            .tint(Theme.accent)
 
             HStack(spacing: 10) {
                 Image(systemName: "indianrupeesign").foregroundStyle(Theme.saffron).frame(width: 22)
-                TextField("Driver's quote (optional)", text: $askedText)
+                TextField(L("Driver's quote (optional)"), text: $askedText)
                     .keyboardType(.numberPad)
                     .focused($focused)
                 if let asked {
-                    Text(app.homeAmount(asked)).font(.caption).foregroundStyle(.secondary)
+                    Text(app.homeAmount(asked)).font(.candor(.caption1)).foregroundStyle(.secondary)
                 }
             }
             .padding(.horizontal, 14)
             .frame(height: 50)
-            .glassEffect(.regular.interactive(), in: .capsule)
+            .background(Theme.field, in: .capsule)
         }
-        .glassCard()
+        .card()
     }
 
     private func mapPreview(_ route: Routing.RouteInfo) -> some View {
-        Map(initialPosition: .automatic, interactionModes: []) {
-            Marker("Start", systemImage: "location.fill", coordinate: location.origin).tint(Theme.teal)
-            Marker(route.name, systemImage: "mappin", coordinate: route.coordinate).tint(Theme.rose)
-        }
+        GoogleMapView(
+            markers: [
+                .init(location.origin, title: L("Start"), style: .symbol("location.fill", UIColor(Theme.teal))),
+                .init(route.coordinate, title: L(route.name), style: .pin(UIColor(Theme.rose)))
+            ],
+            insets: UIEdgeInsets(top: 0, left: 0, bottom: 44, right: 0),
+            interactive: false
+        )
         .id(route.name)
         .frame(height: 170)
-        .clipShape(.rect(cornerRadius: 26))
+        .clipShape(.rect(cornerRadius: 16))
         .overlay(alignment: .bottomLeading) {
-            Label("\(route.km.formatted(.number.precision(.fractionLength(1)))) km by road", systemImage: "road.lanes")
-                .font(.caption.weight(.semibold))
+            Label(L("%@ km by road", route.km.formatted(.number.precision(.fractionLength(1)))), systemImage: "road.lanes")
+                .font(.candor(.caption1, .semibold))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .glassEffect(.regular, in: .capsule)
+                .background(Theme.field, in: .capsule)
                 .padding(10)
         }
     }
 
     private var fareChartCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Official fare chart", systemImage: "list.bullet.rectangle.portrait.fill").font(.headline)
+            Label(L("Official fare chart"), systemImage: "list.bullet.rectangle.portrait.fill").font(.candor(.headline, .semibold))
             ForEach(RideMode.allCases) { mode in
                 HStack(alignment: .top) {
                     Image(systemName: mode.icon).frame(width: 24).foregroundStyle(Theme.teal)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(mode.title).font(.subheadline.weight(.semibold))
-                        Text(mode.ruleText).font(.caption).foregroundStyle(.secondary)
+                        Text(mode.title).font(.candor(.subheadline, .semibold))
+                        Text(mode.ruleText).font(.candor(.caption1)).foregroundStyle(.secondary)
                     }
                 }
             }
-            Text("\(FareChart.source). Fair range allows +20% for traffic and rounding. Verify current rates before relying on them.")
-                .font(.caption2)
+            Text(L("%@. Fair range allows +20% for traffic and rounding. Verify current rates before relying on them.", L(FareChart.source)))
+                .font(.candor(.caption2))
                 .foregroundStyle(.secondary)
         }
-        .glassCard()
+        .card()
     }
 
     private func search() async {
@@ -227,7 +238,7 @@ struct RideCheckView: View {
         isBusy = false
     }
 
-    private func choose(_ item: MKMapItem) async {
+    private func choose(_ item: GooglePlace) async {
         focused = false
         isBusy = true
         results = []

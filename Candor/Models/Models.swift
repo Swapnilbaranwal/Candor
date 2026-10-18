@@ -3,15 +3,47 @@ import CoreLocation
 
 // MARK: - Persona
 
+/// How the traveller signed in. No option needs an Indian mobile number.
+enum SignInMethod: String, Codable {
+    case apple, google, email, phone, guest
+}
+
 struct Persona: Codable, Equatable {
     var name = ""
+    /// Set only for phone sign-in, stored with its dial code ("+44 7911123456").
     var phone = ""
+    /// Optional so personas saved before multi-option sign-in still decode.
+    var email: String?
+    var signInMethod: SignInMethod?
     var homeCurrency = Persona.defaultCurrency
     var languageCode = Persona.defaultLanguage
     var travelStyle: TravelStyle = .comfort
     var interests: [String] = []
+    /// How they like to travel, as plain statements ("Street food over fine dining"). English keys
+    /// from `Persona.tasteOptions`. Optional so personas saved before it still decode.
+    var tastes: [String]?
     var tripDays = 2
     var isComplete = false
+
+    /// Taste statements offered in onboarding. They go to Gemini as written and tune the planner.
+    static let tasteOptions = [
+        "Street food over fine dining",
+        "Local gems over famous sights",
+        "Happy to walk",
+        "Avoid crowds",
+        "Early starts",
+        "Slow mornings",
+        "Kid-friendly",
+        "Vegetarian"
+    ]
+
+    var hasTaste: (String) -> Bool { { (tastes ?? []).contains($0) } }
+
+    /// English, for prompting Gemini.
+    var tasteSummary: String {
+        let list = tastes ?? []
+        return list.isEmpty ? "no stated preferences" : list.joined(separator: "; ")
+    }
 
     static var defaultLanguage: String {
         Locale.current.language.languageCode?.identifier ?? "en"
@@ -22,9 +54,12 @@ struct Persona: Codable, Equatable {
         return CurrencyOption.all.contains { $0.code == code } ? code : "USD"
     }
 
-    /// Language name shown in the UI, in the device language.
-    var languageName: String {
-        Locale.current.localizedString(forLanguageCode: languageCode)?.capitalized ?? languageCode
+    /// Language name shown in the UI, written in that language ("Español", "日本語").
+    var languageName: String { Persona.nativeName(of: languageCode) }
+
+    /// A language's own name for itself, so travellers can find theirs whatever the phone is set to.
+    static func nativeName(of code: String) -> String {
+        Locale(identifier: code).localizedString(forLanguageCode: code)?.capitalized ?? code
     }
 
     /// Language name in English, used for prompting Gemini.
@@ -33,7 +68,7 @@ struct Persona: Codable, Equatable {
     }
 
     var firstName: String {
-        name.split(separator: " ").first.map(String.init) ?? "Traveller"
+        name.split(separator: " ").first.map(String.init) ?? L("Traveller")
     }
 
     var initials: String {
@@ -41,12 +76,70 @@ struct Persona: Codable, Equatable {
         let letters = parts.compactMap { $0.first }.map { String($0) }.joined()
         return letters.isEmpty ? "C" : letters.uppercased()
     }
+
+    /// Account line shown under the name on the profile.
+    var accountLabel: String {
+        switch signInMethod {
+        case .apple?: return L("Signed in with Apple")
+        case .google?: return L("Signed in with Google")
+        case .email?: return email ?? L("Signed in with email")
+        case .guest?: return L("Guest")
+        case .phone?, nil: return phone.isEmpty ? L("Guest") : phone
+        }
+    }
+}
+
+enum TravelParty: String, Codable, CaseIterable, Identifiable {
+    case solo, couple, family, group
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .solo: L("Solo")
+        case .couple: L("Couple")
+        case .family: L("Family")
+        case .group: L("Friends")
+        }
+    }
+    var icon: String {
+        switch self {
+        case .solo: "person.fill"
+        case .couple: "person.2.fill"
+        case .family: "figure.2.and.child.holdinghands"
+        case .group: "person.3.fill"
+        }
+    }
+    /// Solo and couple have a fixed size; the others ask how many.
+    var fixedCount: Int? {
+        switch self {
+        case .solo: 1
+        case .couple: 2
+        case .family, .group: nil
+        }
+    }
+}
+
+/// A booked hotel or home, picked from Google Maps.
+struct Stay: Codable, Equatable {
+    var name: String
+    var address: String?
+    var latitude: Double
+    var longitude: Double
+
+    var coordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
 }
 
 enum TravelStyle: String, Codable, CaseIterable, Identifiable {
     case budget, comfort, luxury
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String {
+        switch self {
+        case .budget: L("Budget")
+        case .comfort: L("Comfort")
+        case .luxury: L("Luxury")
+        }
+    }
     var icon: String {
         switch self {
         case .budget: "backpack.fill"
@@ -70,10 +163,10 @@ enum Verdict: String, Codable {
 
     var title: String {
         switch self {
-        case .fair: "Fair price"
-        case .high: "A bit high"
-        case .overcharge: "Overcharge"
-        case .info: "Fair range"
+        case .fair: L("Fair price")
+        case .high: L("A bit high")
+        case .overcharge: L("Overcharge")
+        case .info: L("Fair range")
         }
     }
 
@@ -132,7 +225,7 @@ enum CheckKind: String, Codable {
         switch self {
         case .scan: "camera.viewfinder"
         case .ride: "car.fill"
-        case .agent: "sparkles"
+        case .agent: "text.bubble"
         }
     }
 }
@@ -208,9 +301,9 @@ enum RideMode: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .auto: "Auto"
-        case .taxi: "Taxi"
-        case .taxiAC: "AC Taxi"
+        case .auto: L("Auto")
+        case .taxi: L("Taxi")
+        case .taxiAC: L("AC Taxi")
         }
     }
 
@@ -246,7 +339,8 @@ enum RideMode: String, CaseIterable, Identifiable, Codable {
     }
 
     var ruleText: String {
-        "₹\(Int(baseFare)) for the first \(baseKm.formatted()) km, then ₹\(Int(perKm))/km. +25% from 11 pm to 5 am."
+        L("₹%1$@ for the first %2$@ km, then ₹%3$@/km. +25% from 11 pm to 5 am.",
+          Int(baseFare), baseKm.formatted(), Int(perKm))
     }
 
     func fare(km: Double, night: Bool) -> Double {
@@ -256,6 +350,7 @@ enum RideMode: String, CaseIterable, Identifiable, Codable {
 }
 
 enum FareChart {
+    /// English key: shown through `L(…)`, and matched on "fare" to pick the phrase to say.
     static let source = "Delhi Transport Dept. fare chart (2022 revision)"
 
     static func isNight(_ date: Date = .now) -> Bool {
@@ -276,10 +371,10 @@ enum SpotCategory: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .sight: "Sights"
-        case .fixedPrice: "Fixed price"
-        case .market: "Markets"
-        case .transport: "Transport"
+        case .sight: L("Sights")
+        case .fixedPrice: L("Fixed price")
+        case .market: L("Markets")
+        case .transport: L("Transport")
         }
     }
 
@@ -355,6 +450,20 @@ struct CountryCode: Identifiable, Hashable {
     let region: String
     let flag: String
     let dial: String
+    /// Accepted length of the national number, without the dial code or a leading trunk "0".
+    var digits: ClosedRange<Int> = 6...12
+
+    /// Digits of the national number. Drops the "0" many countries dial domestically
+    /// (07911… in the UK); Italy keeps its leading zero.
+    func national(_ input: String) -> String {
+        let number = input.filter { $0.isASCII && $0.isNumber }
+        guard region != "IT", number.hasPrefix("0") else { return number }
+        return String(number.dropFirst())
+    }
+
+    func isValid(_ input: String) -> Bool {
+        digits.contains(national(input).count)
+    }
 }
 
 struct CurrencyOption: Identifiable, Hashable {

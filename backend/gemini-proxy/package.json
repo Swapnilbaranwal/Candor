@@ -1,0 +1,18 @@
+{
+  "name": "candor-gemini-proxy",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Candor's Google Cloud Run backend: Gemini proxy, fair-price agent, community prices and scam hotspots in Firestore, and the web demo.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "STORE=memory node server.js"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "^7.11.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

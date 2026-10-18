@@ -8,10 +8,29 @@ enum AppPhase: Equatable {
 @Observable
 final class AppState {
     var phase: AppPhase = .login
-    var persona: Persona { didSet { persist() } }
+    var persona: Persona {
+        didSet {
+            persist()
+            Localizer.shared.use(persona.languageCode)
+        }
+    }
     var records: [PriceCheckRecord] { didSet { persist() } }
+    var trip: Trip? { didSet { persistTrip() } }
+    /// A booked tour with a local guide (Travel with a guide).
+    var guideBooking: GuideBooking? {
+        didSet {
+            if let guideBooking, let data = try? JSONEncoder().encode(guideBooking) {
+                defaults.set(data, forKey: Keys.guideBooking)
+            } else {
+                defaults.removeObject(forKey: Keys.guideBooking)
+            }
+        }
+    }
     var geminiKey: String { didSet { defaults.set(geminiKey, forKey: Keys.geminiKey) } }
     var geminiModel: String { didSet { defaults.set(geminiModel, forKey: Keys.geminiModel) } }
+
+    /// Tab to open when the main screen first appears (set by onboarding's "plan your days" choice).
+    var startTab: AppTab?
 
     let currency = CurrencyService()
 
@@ -20,6 +39,8 @@ final class AppState {
     private enum Keys {
         static let persona = "candor.persona"
         static let records = "candor.records"
+        static let trip = "candor.trip"
+        static let guideBooking = "candor.guideBooking"
         static let signedIn = "candor.signedIn"
         static let geminiKey = "candor.geminiKey"
         static let geminiModel = "candor.geminiModel"
@@ -30,17 +51,28 @@ final class AppState {
         let decoder = JSONDecoder()
         persona = d.data(forKey: Keys.persona).flatMap { try? decoder.decode(Persona.self, from: $0) } ?? Persona()
         records = d.data(forKey: Keys.records).flatMap { try? decoder.decode([PriceCheckRecord].self, from: $0) } ?? []
+        trip = d.data(forKey: Keys.trip).flatMap { try? decoder.decode(Trip.self, from: $0) }
+        guideBooking = d.data(forKey: Keys.guideBooking).flatMap { try? decoder.decode(GuideBooking.self, from: $0) }
         let savedKey = d.string(forKey: Keys.geminiKey) ?? ""
-        geminiKey = savedKey.isEmpty ? Secrets.geminiAPIKey : savedKey
-        geminiModel = d.string(forKey: Keys.geminiModel) ?? "gemini-2.5-flash"
+        // With the Cloud Run proxy set up, the app needs no key of its own.
+        geminiKey = savedKey.isEmpty && Backend.geminiProxy == nil ? Backend.bundledGeminiKey : savedKey
+        // gemini-2.5-flash is closed to new API keys (404 "no longer available to new users").
+        geminiModel = d.string(forKey: Keys.geminiModel) ?? "gemini-3.8-flash"
         if d.bool(forKey: Keys.signedIn) {
             phase = persona.isComplete ? .main : .onboarding
         }
+        // Property observers don't run in init, so load the saved language's strings here.
+        Localizer.shared.use(persona.languageCode)
     }
 
     // MARK: Derived
 
-    var hasGemini: Bool { !geminiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    /// Gemini is reachable through the Cloud Run proxy or with a key.
+    /// Launching with `-candor.forceOffline YES` turns it off, to demo or test the on-device agent.
+    var hasGemini: Bool {
+        !defaults.bool(forKey: "candor.forceOffline")
+            && (Backend.geminiProxy != nil || !geminiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
     var totalFlaggedINR: Double { records.reduce(0) { $0 + $1.overchargeINR } }
     var overchargesCaught: Int { records.filter { $0.overchargeINR > 0 }.count }
 
@@ -50,13 +82,19 @@ final class AppState {
 
     // MARK: Session
 
-    func signIn(phone: String) {
-        persona.phone = phone
+    /// Prototype session: nothing is verified. `phone` and `email` are kept only for the method that used them.
+    func signIn(with method: SignInMethod, phone: String = "", email: String? = nil) {
+        var updated = persona
+        updated.signInMethod = method
+        updated.phone = phone
+        updated.email = email
+        persona = updated
         defaults.set(true, forKey: Keys.signedIn)
         phase = persona.isComplete ? .main : .onboarding
     }
 
     func completeOnboarding() {
+        defaults.set(Date.now, forKey: "candor.onboardedAt")
         persona.isComplete = true
         phase = .main
     }
@@ -78,5 +116,13 @@ final class AppState {
         let encoder = JSONEncoder()
         if let data = try? encoder.encode(persona) { defaults.set(data, forKey: Keys.persona) }
         if let data = try? encoder.encode(records) { defaults.set(data, forKey: Keys.records) }
+    }
+
+    private func persistTrip() {
+        if let trip, let data = try? JSONEncoder().encode(trip) {
+            defaults.set(data, forKey: Keys.trip)
+        } else {
+            defaults.removeObject(forKey: Keys.trip)
+        }
     }
 }

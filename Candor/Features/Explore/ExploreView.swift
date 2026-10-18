@@ -1,13 +1,14 @@
 import SwiftUI
-import MapKit
+import CoreLocation
 
 /// Map of verified places with fair-price tips; tap a pin for actions.
 struct ExploreView: View {
     @Binding var tab: AppTab
     @Environment(LocationService.self) private var location
     @Environment(CandorAgent.self) private var agent
-    @State private var position: MapCameraPosition = .region(
-        MKCoordinateRegion(center: DelhiData.center, latitudinalMeters: 24_000, longitudinalMeters: 24_000)
+    @Environment(AskCandorRouter.self) private var askCandor
+    @State private var camera: GoogleMapView.Camera = .region(
+        latitude: DelhiData.center.latitude, longitude: DelhiData.center.longitude, zoom: 11
     )
     @State private var selectedID: String?
     @State private var category: SpotCategory?
@@ -23,19 +24,15 @@ struct ExploreView: View {
 
     var body: some View {
         NavigationStack {
-            Map(position: $position, selection: $selectedID) {
-                UserAnnotation()
-                ForEach(spots) { spot in
-                    Marker(spot.name, systemImage: spot.category.icon, coordinate: spot.coordinate)
-                        .tint(spot.category.color)
-                        .tag(spot.id)
-                }
-            }
-            .mapStyle(.standard(elevation: .realistic, pointsOfInterest: .excludingAll))
-            .mapControls {
-                MapUserLocationButton()
-                MapCompass()
-            }
+            GoogleMapView(
+                markers: spots.map { spot in
+                    .init(id: spot.id, spot.coordinate, title: L(spot.name),
+                          style: .symbol(spot.category.icon, UIColor(spot.category.color)))
+                },
+                camera: camera,
+                showsMyLocation: true,
+                onSelect: { selectedID = $0 }
+            )
             .safeAreaInset(edge: .top) { filterBar }
             .safeAreaInset(edge: .bottom) {
                 if let spot = selected {
@@ -53,7 +50,7 @@ struct ExploreView: View {
             .onChange(of: selectedID) { _, id in
                 guard let spot = DelhiData.spots.first(where: { $0.id == id }) else { return }
                 withAnimation(.smooth) {
-                    position = .camera(MapCamera(centerCoordinate: spot.coordinate, distance: 3_500, heading: 0, pitch: 45))
+                    camera = .focus(latitude: spot.coordinate.latitude, longitude: spot.coordinate.longitude, zoom: 15, tilt: 45)
                 }
             }
         }
@@ -61,13 +58,13 @@ struct ExploreView: View {
 
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            GlassEffectContainer(spacing: 8) {
+            Group {
                 HStack(spacing: 8) {
-                    GlassChip(title: "All", icon: "sparkles", isSelected: category == nil) {
+                    Chip(title: L("All"), isSelected: category == nil) {
                         withAnimation(.snappy) { category = nil }
                     }
                     ForEach(SpotCategory.allCases) { item in
-                        GlassChip(title: item.title, icon: item.icon, isSelected: category == item, tint: item.color) {
+                        Chip(title: item.title, icon: item.icon, isSelected: category == item, tint: item.color) {
                             withAnimation(.snappy) { category = category == item ? nil : item }
                         }
                     }
@@ -83,51 +80,55 @@ struct ExploreView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Label(spot.category.title, systemImage: spot.category.icon)
-                        .font(.caption.weight(.bold))
+                        .font(.candor(.caption1, .bold))
                         .foregroundStyle(spot.category.color)
-                    Text(spot.name).font(.title3.weight(.bold))
+                    Text(L(spot.name)).font(.heading(.title3))
                 }
                 Spacer()
                 Text("\(location.distanceKm(to: spot.coordinate).formatted(.number.precision(.fractionLength(1)))) km")
-                    .font(.caption.weight(.semibold).monospacedDigit())
+                    .font(.candor(.caption1, .semibold).monospacedDigit())
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .glassEffect(.regular, in: .capsule)
+                    .background(Theme.surface, in: .capsule)
                 Button {
                     selectedID = nil
                 } label: {
                     Image(systemName: "xmark")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
                 .buttonBorderShape(.circle)
             }
-            Text(spot.blurb).font(.subheadline)
-            Label(spot.tip, systemImage: "lightbulb.fill")
-                .font(.subheadline)
+            Text(L(spot.blurb)).font(.candor(.subheadline))
+            Label(L(spot.tip), systemImage: "lightbulb.fill")
+                .font(.candor(.subheadline))
                 .foregroundStyle(.secondary)
 
-            GlassEffectContainer(spacing: 10) {
+            Group {
                 HStack(spacing: 10) {
                     Button {
                         rideDestination = spot.name
                     } label: {
-                        Label("Fair fare", systemImage: "car.fill").frame(maxWidth: .infinity)
+                        Label(L("Fair fare"), systemImage: "car.fill").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
 
                     Button {
-                        tab = .agent
-                        Task { await agent.send("I'm going to \(spot.name). What should I know, what should things cost, and how do I avoid getting overcharged?") }
+                        askCandor.open()
+                        let question = "I'm going to %@. What should I know, what should things cost, and how do I avoid getting overcharged?"
+                        Task {
+                            await agent.send(L(question, L(spot.name)),
+                                             canonical: question.replacingOccurrences(of: "%@", with: spot.name))
+                        }
                     } label: {
-                        Label("Ask Candor", systemImage: "sparkles").frame(maxWidth: .infinity)
+                        Label(L("Ask Candor"), systemImage: "text.bubble").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.glassProminent)
-                    .tint(Theme.indigo)
+                    .buttonStyle(.borderedProminent)
+                    .tint(Theme.accent)
                 }
-                .font(.subheadline.weight(.semibold))
+                .font(.candor(.subheadline, .semibold))
             }
         }
         .padding(18)
-        .glassEffect(.regular, in: .rect(cornerRadius: 30))
+        .background(Theme.surface, in: .rect(cornerRadius: 16))
     }
 }

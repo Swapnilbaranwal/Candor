@@ -6,4 +6,8 @@ build/
 .DS_Store
 
 # Local API keys
-Candor/Config/Secrets.swift
+**/Secrets.swift
+Keys.xcconfig
+
+# Screenshots and timings written by DeckCaptureUITests
+deck-capture/

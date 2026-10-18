@@ -3,6 +3,10 @@ import CoreLocation
 
 /// Curated, source-labelled reference data for the Delhi pilot.
 /// Ranges are indicative for the prototype; verify before relying on them.
+///
+/// Text here stays in English: it is matched against (keywords, sources) and sent to Gemini
+/// as tool results. Screens show it through `L(…)`, which uses the English string as the key
+/// into the chosen language's table.
 enum DelhiData {
     static let center = CLLocationCoordinate2D(latitude: 28.6139, longitude: 77.2090)
     static let connaughtPlace = CLLocationCoordinate2D(latitude: 28.6315, longitude: 77.2167)
@@ -140,48 +144,48 @@ enum DelhiData {
             .map { $0.0 }
     }
 
-    // MARK: Scams
+    // MARK: Travel smart (common tricks, worded as advice)
 
     static let scams: [Scam] = [
-        Scam(id: "hotel", title: "\"Your hotel is closed\"", icon: "bed.double.fill",
-             howItWorks: "A driver or stranger says your hotel has burned down, flooded or is overbooked, then takes you to another hotel that pays them a commission.",
+        Scam(id: "hotel", title: "Check your hotel yourself", icon: "bed.double.fill",
+             howItWorks: "You might hear: \"Your hotel is closed or full, I know a better one.\"",
              redFlags: ["They won't let you call the hotel", "They already know a 'better' hotel", "Story changes when questioned"],
-             whatToDo: "Call the hotel yourself using the number from your booking. Insist on the original address, or take a prepaid or app cab.",
+             whatToDo: "Call the hotel on the number from your booking, and ask to go to the original address.",
              keywords: ["hotel", "closed", "burned", "fire", "flood", "overbooked", "full"]),
-        Scam(id: "office", title: "Fake tourist office", icon: "building.2.fill",
-             howItWorks: "Near New Delhi Railway Station, touts say the station or your ticket is 'cancelled' and steer you to a private office posing as the government tourist bureau.",
+        Scam(id: "office", title: "Book trains at the official counter", icon: "building.2.fill",
+             howItWorks: "You might hear: \"Your ticket is cancelled, the tourist office is this way.\"",
              redFlags: ["Office is outside the station", "'Your ticket is cancelled'", "Pressure to book a tour package"],
-             whatToDo: "The real International Tourist Bureau is inside the station on the 1st floor. Check tickets on IRCTC yourself.",
+             whatToDo: "The real tourist bureau is inside New Delhi station, 1st floor. Check tickets on IRCTC.",
              keywords: ["tourist office", "office", "ticket", "cancelled", "canceled", "station", "bureau", "travel agent"]),
-        Scam(id: "meter", title: "\"Meter is broken\"", icon: "gauge.with.needle",
-             howItWorks: "The auto or taxi driver says the meter doesn't work and quotes a fixed price several times the fare.",
+        Scam(id: "meter", title: "Ask for the meter, or use a prepaid booth", icon: "gauge.with.needle",
+             howItWorks: "You might hear: \"Meter is broken, fixed price.\"",
              redFlags: ["Refuses the meter", "Quote much higher than Candor's estimate", "Rushes you to decide"],
-             whatToDo: "Check the fare in Candor, say \"Meter se chaliye\", or use the prepaid booth or an app cab.",
+             whatToDo: "Check the fare in Candor and say \"Meter se chaliye\", or take a prepaid or app cab.",
              keywords: ["meter", "broken", "fixed price", "no meter"]),
-        Scam(id: "gems", title: "Gem export deal", icon: "diamond.fill",
+        Scam(id: "gems", title: "Skip 'easy profit' offers", icon: "diamond.fill",
              howItWorks: "A friendly stranger offers a profit if you carry gems or jewellery abroad 'to avoid tax'. The stones are near-worthless.",
              redFlags: ["Promise of easy profit", "Needs your credit card as 'guarantee'", "Very friendly very fast"],
              whatToDo: "Never buy goods for resale from strangers. Walk away.",
              keywords: ["gem", "gems", "jewel", "export", "profit", "customs", "carry"]),
-        Scam(id: "gift", title: "Free gift, then payment", icon: "gift.fill",
+        Scam(id: "gift", title: "Politely decline 'free' gifts", icon: "gift.fill",
              howItWorks: "Someone ties a bracelet, gives a flower or a tilak blessing, then demands money or a 'donation'.",
              redFlags: ["Item pressed into your hand", "'It's free, it's free'", "Donation book appears"],
              whatToDo: "Politely say \"Nahin, dhanyavaad\" and keep your hands to yourself. Don't accept the item.",
              keywords: ["free", "bracelet", "flower", "tilak", "blessing", "gift", "donation", "thread"]),
-        Scam(id: "detour", title: "Commission shopping detour", icon: "bag.fill",
-             howItWorks: "A cheap or ₹10 city tour that stops at 'government' shops which pay the driver commission on your purchase.",
+        Scam(id: "detour", title: "Say no to shopping stops on tours", icon: "bag.fill",
+             howItWorks: "You might hear: \"City tour for ₹10, just a quick stop at a government shop.\"",
              redFlags: ["Tour price far too low", "'Just look, no need to buy'", "Shop claims to be government-run"],
-             whatToDo: "Say \"Koi dukaan nahin jaana hai\" (no shops). For a fixed-price benchmark visit the Central Cottage Industries Emporium.",
+             whatToDo: "Say \"Koi dukaan nahin jaana hai\" (no shops). For fixed prices, try Central Cottage Industries Emporium.",
              keywords: ["shop", "emporium", "friend", "cousin", "detour", "stop", "tour", "commission", "10 rupee"]),
-        Scam(id: "shoe", title: "Dirty shoe distraction", icon: "shoeprints.fill",
+        Scam(id: "shoe", title: "Keep walking if your shoe gets dirty", icon: "shoeprints.fill",
              howItWorks: "Someone flicks dirt on your shoe, then a nearby 'cleaner' offers to clean it and demands a large fee. Sometimes a pickpocket works alongside.",
              redFlags: ["Sudden dirt on your shoe", "A cleaner appears instantly", "Crowding around you"],
              whatToDo: "Keep walking, hold your bag in front, clean it yourself later.",
              keywords: ["shoe", "dirt", "ear", "cleaning", "spilled", "distraction", "pickpocket"]),
-        Scam(id: "monument", title: "Monument 'closed' or fake guide", icon: "building.columns.fill",
-             howItWorks: "Touts outside a monument say it's closed or sell unofficial tickets and guided entry.",
+        Scam(id: "monument", title: "Buy monument tickets at the official counter", icon: "building.columns.fill",
+             howItWorks: "You might hear: \"Closed today, come with me\" or \"Fast-lane ticket\" outside the gate.",
              redFlags: ["Tickets sold outside the gate", "'Closed today, come with me'", "Guide without an ASI badge"],
-             whatToDo: "Walk to the official ASI ticket counter or buy online. Check opening days in Candor.",
+             whatToDo: "Buy at the official ASI counter or online. Candor shows opening days.",
              keywords: ["guide", "monument", "closed today", "fake ticket", "entry", "fast lane"])
     ]
 
@@ -228,21 +232,22 @@ enum DelhiData {
 
     // MARK: Login
 
+    /// Dial codes for phone sign-in. `digits` is the national number length (indicative).
     static let countryCodes: [CountryCode] = [
-        CountryCode(region: "US", flag: "🇺🇸", dial: "+1"),
-        CountryCode(region: "GB", flag: "🇬🇧", dial: "+44"),
-        CountryCode(region: "DE", flag: "🇩🇪", dial: "+49"),
-        CountryCode(region: "FR", flag: "🇫🇷", dial: "+33"),
-        CountryCode(region: "ES", flag: "🇪🇸", dial: "+34"),
-        CountryCode(region: "IT", flag: "🇮🇹", dial: "+39"),
-        CountryCode(region: "JP", flag: "🇯🇵", dial: "+81"),
-        CountryCode(region: "KR", flag: "🇰🇷", dial: "+82"),
-        CountryCode(region: "CN", flag: "🇨🇳", dial: "+86"),
-        CountryCode(region: "RU", flag: "🇷🇺", dial: "+7"),
-        CountryCode(region: "BR", flag: "🇧🇷", dial: "+55"),
-        CountryCode(region: "AU", flag: "🇦🇺", dial: "+61"),
-        CountryCode(region: "AE", flag: "🇦🇪", dial: "+971"),
-        CountryCode(region: "IN", flag: "🇮🇳", dial: "+91")
+        CountryCode(region: "US", flag: "🇺🇸", dial: "+1", digits: 10...10),
+        CountryCode(region: "GB", flag: "🇬🇧", dial: "+44", digits: 9...10),
+        CountryCode(region: "DE", flag: "🇩🇪", dial: "+49", digits: 6...11),
+        CountryCode(region: "FR", flag: "🇫🇷", dial: "+33", digits: 9...9),
+        CountryCode(region: "ES", flag: "🇪🇸", dial: "+34", digits: 9...9),
+        CountryCode(region: "IT", flag: "🇮🇹", dial: "+39", digits: 6...11),
+        CountryCode(region: "JP", flag: "🇯🇵", dial: "+81", digits: 9...10),
+        CountryCode(region: "KR", flag: "🇰🇷", dial: "+82", digits: 8...10),
+        CountryCode(region: "CN", flag: "🇨🇳", dial: "+86", digits: 10...11),
+        CountryCode(region: "RU", flag: "🇷🇺", dial: "+7", digits: 10...10),
+        CountryCode(region: "BR", flag: "🇧🇷", dial: "+55", digits: 10...11),
+        CountryCode(region: "AU", flag: "🇦🇺", dial: "+61", digits: 9...9),
+        CountryCode(region: "AE", flag: "🇦🇪", dial: "+971", digits: 8...9),
+        CountryCode(region: "IN", flag: "🇮🇳", dial: "+91", digits: 10...10)
     ]
 
     static var defaultCountry: CountryCode {

@@ -3,6 +3,9 @@ import PhotosUI
 
 /// Chat with the Candor agent. Each reply shows the tools it used, live.
 struct AgentView: View {
+    /// Shown as the "Ask Candor" sheet: adds a Close button.
+    var inSheet = false
+    @Environment(\.dismiss) private var dismiss
     @Environment(AppState.self) private var app
     @Environment(CandorAgent.self) private var agent
     @State private var input = ""
@@ -10,6 +13,7 @@ struct AgentView: View {
     @State private var attachment: UIImage?
     @FocusState private var inputFocused: Bool
 
+    /// `text` is the English prompt: shown through `L(…)`, and what the offline agent matches on.
     private struct Starter: Identifiable {
         let icon: String
         let text: String
@@ -26,43 +30,58 @@ struct AgentView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 16) {
-                        if agent.messages.isEmpty {
-                            emptyState
+            // The composer sits below the chat, not over it in a `safeAreaInset`: floated over the
+            // scroll view, taps on its send and photo buttons fell through to the chat underneath.
+            VStack(spacing: 0) {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            if agent.messages.isEmpty {
+                                emptyState
+                            }
+                            ForEach(agent.messages) { message in
+                                MessageView(message: message)
+                                    .id(message.id)
+                            }
+                            Color.clear.frame(height: 1).id("bottom")
                         }
-                        ForEach(agent.messages) { message in
-                            MessageView(message: message)
-                                .id(message.id)
-                        }
-                        Color.clear.frame(height: 1).id("bottom")
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
+                    .scrollDismissesKeyboard(.interactively)
+                    .onChange(of: agent.messages.last?.steps.count) { _, _ in scrollToBottom(proxy) }
+                    .onChange(of: agent.messages.count) { _, _ in scrollToBottom(proxy) }
+                    .onChange(of: agent.isWorking) { _, _ in scrollToBottom(proxy) }
                 }
-                .scrollDismissesKeyboard(.interactively)
-                .onChange(of: agent.messages.last?.steps.count) { _, _ in scrollToBottom(proxy) }
-                .onChange(of: agent.messages.count) { _, _ in scrollToBottom(proxy) }
-                .onChange(of: agent.isWorking) { _, _ in scrollToBottom(proxy) }
+                composer
             }
-            .background(LiquidBackground())
-            .safeAreaInset(edge: .bottom) { composer }
-            .navigationTitle("Candor")
+            .background(AppBackground())
+            .navigationTitle(L("Ask Candor"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(app.hasGemini ? Theme.mint : Theme.saffron)
-                            .frame(width: 8, height: 8)
-                        Text(app.hasGemini ? "Gemini" : "Offline")
-                            .font(.caption.weight(.semibold))
+                // Shown only when it changes what the traveller gets: offline answers are more limited.
+                if !app.hasGemini {
+                    ToolbarItem(placement: .topBarLeading) {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(Theme.saffron)
+                                .frame(width: 8, height: 8)
+                            Text(L("Offline"))
+                                .font(.candor(.caption1, .semibold))
+                        }
+                        .fixedSize() // without this the bar squeezes the label down to its first letter
+                        .padding(.horizontal, 6)
                     }
-                    .padding(.horizontal, 6)
+                }
+                if inSheet {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(L("Close"), systemImage: "xmark") { dismiss() }
+                            .accessibilityIdentifier("agentClose")
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("New chat", systemImage: "square.and.pencil") { agent.clear() }
+                    Button(L("New chat"), systemImage: "square.and.pencil") { agent.clear() }
+                        .accessibilityIdentifier("agentNewChat")
                         .disabled(agent.messages.isEmpty || agent.isWorking)
                 }
             }
@@ -84,34 +103,34 @@ struct AgentView: View {
 
     private var emptyState: some View {
         VStack(spacing: 18) {
-            AgentOrb(size: 84, isActive: false)
+            AgentMark(size: 84, isActive: false)
                 .padding(.top, 30)
             VStack(spacing: 6) {
-                Text("Hi \(app.persona.firstName), I'm Candor")
-                    .font(.title2.weight(.bold))
-                Text("I check fares, prices and situations for you, using real fare charts and price references. You'll see every step I take.")
-                    .font(.subheadline)
+                Text(L("Hi %@, I'm Candor", app.persona.firstName))
+                    .font(.heading(.title2))
+                Text(L("I check fares, prices and situations for you, using real fare charts and price references. You'll see every step I take."))
+                    .font(.candor(.subheadline))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
             VStack(spacing: 10) {
                 ForEach(starters) { starter in
                     Button {
-                        Task { await agent.send(starter.text) }
+                        Task { await agent.send(L(starter.text), canonical: starter.text) }
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: starter.icon)
                                 .foregroundStyle(Theme.saffron)
                                 .frame(width: 24)
-                            Text(starter.text)
+                            Text(L(starter.text))
                                 .multilineTextAlignment(.leading)
                                 .foregroundStyle(.primary)
                             Spacer(minLength: 0)
-                            Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(.tertiary)
+                            Image(systemName: "arrow.up.right").font(.candor(.caption1)).foregroundStyle(.tertiary)
                         }
-                        .font(.subheadline.weight(.medium))
+                        .font(.candor(.subheadline, .medium))
                         .padding(14)
-                        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
+                        .background(Theme.surface, in: .rect(cornerRadius: 16))
                     }
                     .buttonStyle(.plain)
                 }
@@ -129,49 +148,55 @@ struct AgentView: View {
                         .scaledToFill()
                         .frame(width: 56, height: 56)
                         .clipShape(.rect(cornerRadius: 14))
-                    Text("Photo attached").font(.caption.weight(.semibold))
+                    Text(L("Photo attached")).font(.candor(.caption1, .semibold))
                     Spacer()
                     Button {
                         self.attachment = nil
                     } label: {
                         Image(systemName: "xmark")
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
                     .buttonBorderShape(.circle)
                 }
                 .padding(10)
-                .glassEffect(.regular, in: .rect(cornerRadius: 22))
+                .background(Theme.surface, in: .rect(cornerRadius: 16))
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            GlassEffectContainer(spacing: 10) {
+            Group {
                 HStack(alignment: .bottom, spacing: 10) {
                     PhotosPicker(selection: $pickerItem, matching: .images) {
                         Image(systemName: "photo.badge.plus")
-                            .font(.title3)
+                            .font(.candor(.title3))
                             .frame(width: 48, height: 48)
-                            .glassEffect(.regular.interactive(), in: .circle)
+                            .background(Theme.surface, in: .circle)
                     }
                     .buttonStyle(.plain)
 
-                    TextField("Ask about a price, ride or situation…", text: $input, axis: .vertical)
+                    TextField(L("Ask about a price, ride or situation…"), text: $input, axis: .vertical)
                         .lineLimit(1...4)
                         .focused($inputFocused)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 13)
-                        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
+                        .background(Theme.surface, in: .rect(cornerRadius: 16))
                         .onSubmit(send)
+                        .accessibilityIdentifier("agentInput")
+                        // UI tests type exact prompts; autocorrect would rewrite words like "chai" or "lassi".
+                        .autocorrectionDisabled(UserDefaults.standard.bool(forKey: "candor.uiTesting"))
 
                     Button(action: send) {
                         Image(systemName: agent.isWorking ? "ellipsis" : "arrow.up")
-                            .font(.title3.weight(.bold))
+                            .font(.heading(.title3))
                             .foregroundStyle(.white)
                             .frame(width: 48, height: 48)
-                            .glassEffect(.regular.tint(canSend ? Theme.saffron : Color.gray.opacity(0.5)).interactive(), in: .circle)
+                            .background(canSend ? Theme.saffron : Color.gray.opacity(0.5), in: .circle)
                             .symbolEffect(.variableColor.iterative, isActive: agent.isWorking)
                     }
                     .buttonStyle(.plain)
                     .disabled(!canSend)
+                    // Identifier and state for UI tests: "working", or "idle <seconds> <mode>" after a run.
+                    .accessibilityIdentifier("agentSend")
+                    .accessibilityValue(agent.isWorking ? "working" : "idle \(String(format: "%.2f", agent.lastRunSeconds)) \(agent.lastRunMode)")
                 }
             }
         }
@@ -214,14 +239,14 @@ private struct MessageView: View {
                         .resizable()
                         .scaledToFill()
                         .frame(width: 180, height: 180)
-                        .clipShape(.rect(cornerRadius: 20))
+                        .clipShape(.rect(cornerRadius: 16))
                 }
                 if !message.text.isEmpty {
                     Text(message.text)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 11)
-                        .glassEffect(.regular.tint(Theme.saffron), in: .rect(cornerRadius: 22))
+                        .background(Theme.saffron, in: .rect(cornerRadius: 16))
                 }
             }
         }
@@ -229,7 +254,7 @@ private struct MessageView: View {
 
     private var agentBubble: some View {
         HStack(alignment: .top, spacing: 10) {
-            AgentOrb(size: 30, isActive: message.isWorking)
+            AgentMark(size: 30, isActive: message.isWorking)
             VStack(alignment: .leading, spacing: 12) {
                 if !message.steps.isEmpty {
                     AgentTrailView(steps: message.steps, isWorking: message.isWorking)
@@ -240,11 +265,11 @@ private struct MessageView: View {
                 if !message.text.isEmpty {
                     MarkdownText(text: message.text)
                 } else if message.isWorking && message.steps.isEmpty {
-                    Text("Thinking…").foregroundStyle(.secondary)
+                    Text(L("Thinking…")).foregroundStyle(.secondary)
                 }
             }
             .padding(16)
-            .glassEffect(.regular, in: .rect(cornerRadius: 24))
+            .background(Theme.surface, in: .rect(cornerRadius: 16))
             Spacer(minLength: 0)
         }
     }
